@@ -1,0 +1,6 @@
+{
+  "name": "Vila Encantada 2D",
+  "description": "Cenário 2D Top Down explorável em pixel art 32-bit com vila, floresta e relevo",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

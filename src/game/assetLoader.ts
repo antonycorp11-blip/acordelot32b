@@ -23,6 +23,16 @@ export interface LoadedAssets {
   knightIdle: HTMLImageElement;
   knightSlash: HTMLImageElement;
 
+  // Akles - Herói Cavaleiro (sprite sheets 32-bit processadas)
+  aklesIdle: HTMLImageElement;
+  aklesWalk: HTMLImageElement;
+  aklesRun: HTMLImageElement;
+  aklesSlash: HTMLImageElement;
+  aklesThrust: HTMLImageElement;
+  aklesSpin: HTMLImageElement;
+  aklesSpecial: HTMLImageElement;
+  aklesCast: HTMLImageElement;
+
   // Town Buildings
   townHallFront: HTMLImageElement;
   townHallDiag: HTMLImageElement;
@@ -97,6 +107,16 @@ const ASSET_PATHS: Record<keyof LoadedAssets, string> = {
   knightWalk: '/assets/characters/knight_walk.png',
   knightIdle: '/assets/characters/knight_idle.png',
   knightSlash: '/assets/characters/knight_slash.png',
+
+  // Akles - Herói Cavaleiro
+  aklesIdle: '/assets/characters/akles/akles_idle.png',
+  aklesWalk: '/assets/characters/akles/akles_walk.png',
+  aklesRun: '/assets/characters/akles/akles_run.png',
+  aklesSlash: '/assets/characters/akles/akles_slash.png',
+  aklesThrust: '/assets/characters/akles/akles_thrust.png',
+  aklesSpin: '/assets/characters/akles/akles_spin.png',
+  aklesSpecial: '/assets/characters/akles/akles_special.png',
+  aklesCast: '/assets/characters/akles/akles_cast.png',
 
   // Buildings
   townHallFront: '/assets/buildings/town_hall_front.png',

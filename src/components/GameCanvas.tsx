@@ -25,6 +25,7 @@ import {
   X,
 } from 'lucide-react';
 import { GameEngine, InteractionState, SelectedPropInfo, TimeOfDay } from '../game/engine';
+import { TouchControls } from './TouchControls';
 
 interface PropPaletteItem {
   type: string;
@@ -332,6 +333,9 @@ export const GameCanvas: React.FC = () => {
 
     const engine = new GameEngine(canvasRef.current);
     engineRef.current = engine;
+    if ((import.meta as { env?: { DEV?: boolean } }).env?.DEV) {
+      (window as unknown as { __game?: GameEngine }).__game = engine;
+    }
 
     engine.onInteractionChange = (state) => {
       setInteraction(state);
@@ -794,8 +798,11 @@ export const GameCanvas: React.FC = () => {
         />
       </div>
 
-      {/* Interactive Action HUD (Woodcutting & Mining movements) */}
-      {!isEditMode && (
+      {/* Joystick + botões de ação para celular */}
+      {isTouchDevice && !isEditMode && <TouchControls engineRef={engineRef} />}
+
+      {/* Interactive Action HUD (Woodcutting & Mining movements) — desktop */}
+      {!isEditMode && !isTouchDevice && (
         <div className="fixed bottom-6 right-6 z-30 flex items-center gap-2 pointer-events-auto">
           <button
             type="button"
@@ -858,9 +865,10 @@ export const GameCanvas: React.FC = () => {
         </div>
       )}
 
-      {/* Movement & Key Hint Pill */}
+      {/* Movement & Key Hint Pill (oculto no celular — o joystick já orienta) */}
       <div
         id="movement-hint-pill"
+        hidden={isTouchDevice}
         className="absolute bottom-4 left-4 z-10 pointer-events-none opacity-85 hover:opacity-100 transition-opacity"
       >
         <div className="bg-slate-900/85 backdrop-blur-sm border border-slate-700/60 rounded-xl px-3 py-2 flex items-center gap-2 text-xs font-medium text-slate-300 shadow-xl">

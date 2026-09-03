@@ -38,6 +38,32 @@ import initialCustomMap from './customMapLayout.json';
 
 export type TimeOfDay = 'day' | 'sunset' | 'night';
 
+export type AklesAction = 'chop' | 'mine' | 'attack' | 'spin' | 'cast';
+
+// Geometria das sprite sheets do Akles (geradas por scripts/process-akles.mjs)
+interface AklesAnimMeta {
+  sheet: keyof LoadedAssets;
+  cw: number;
+  ch: number;
+  cols: number;
+  fps: number;
+  loop: boolean;
+}
+
+const AKLES_ANIM: Record<'idle' | 'walk' | 'run' | AklesAction, AklesAnimMeta> = {
+  idle: { sheet: 'aklesIdle', cw: 64, ch: 88, cols: 6, fps: 6, loop: true },
+  walk: { sheet: 'aklesWalk', cw: 64, ch: 80, cols: 8, fps: 11, loop: true },
+  run: { sheet: 'aklesRun', cw: 64, ch: 80, cols: 8, fps: 15, loop: true },
+  chop: { sheet: 'aklesSlash', cw: 96, ch: 96, cols: 6, fps: 13, loop: false },
+  mine: { sheet: 'aklesThrust', cw: 96, ch: 96, cols: 6, fps: 13, loop: false },
+  attack: { sheet: 'aklesSlash', cw: 96, ch: 96, cols: 6, fps: 15, loop: false },
+  spin: { sheet: 'aklesSpin', cw: 96, ch: 96, cols: 6, fps: 13, loop: false },
+  cast: { sheet: 'aklesCast', cw: 128, ch: 96, cols: 6, fps: 11, loop: false },
+};
+
+// Linhas canônicas das folhas: 0=down, 1=left, 2=up, 3=right
+const AKLES_DIR_ROW: Record<Direction, number> = { down: 0, left: 1, up: 2, right: 3 };
+
 export interface InteractionState {
   nearMerchant: boolean;
   isTalking: boolean;
@@ -813,6 +839,20 @@ export class GameEngine {
       return;
     }
 
+    // Combate do Akles: J = espada, K = giro, L = magia
+    if (!this.isEditMode && e.code === 'KeyJ') {
+      this.triggerAction('attack');
+      return;
+    }
+    if (!this.isEditMode && e.code === 'KeyK') {
+      this.triggerAction('spin');
+      return;
+    }
+    if (!this.isEditMode && e.code === 'KeyL') {
+      this.triggerAction('cast');
+      return;
+    }
+
     // Delete selected prop in editor
     if (this.isEditMode && (e.code === 'Delete' || e.code === 'Backspace')) {
       if (this.selectedPropId) {
@@ -855,9 +895,10 @@ export class GameEngine {
     this.touchVector = { x, y };
   }
 
-  // Action trigger for Woodcutting & Mining animations
-  triggerAction(action: 'chop' | 'mine') {
-    if (this.player.actionState === 'chop' || this.player.actionState === 'mine') return;
+  // Dispara animações de ação (coleta, ataque, giro, magia)
+  triggerAction(action: AklesAction) {
+    const busy: Array<CharacterState['actionState']> = ['chop', 'mine', 'attack', 'spin', 'cast'];
+    if (busy.includes(this.player.actionState)) return;
     this.player.actionState = action;
     this.player.actionTimer = 0;
     this.player.frame = 0;
@@ -1396,26 +1437,27 @@ export class GameEngine {
       this.merchantFrame = (this.merchantFrame + 1) % 8;
     }
 
-    // Check if character is in an active action (Woodcutting / Mining)
-    const isHarvesting = this.player.actionState === 'chop' || this.player.actionState === 'mine';
+    // Personagem em ação ativa (coleta, ataque, giro, magia)
+    const act = this.player.actionState;
+    const isBusy =
+      act === 'chop' || act === 'mine' || act === 'attack' || act === 'spin' || act === 'cast';
 
-    if (isHarvesting) {
+    if (isBusy) {
+      const meta = AKLES_ANIM[act as AklesAction];
       this.player.isMoving = false;
       this.player.vx = 0;
       this.player.vy = 0;
-      this.player.actionTimer = (this.player.actionTimer || 0) + dt * 8.5;
-      this.player.frame = Math.min(5, Math.floor(this.player.actionTimer));
+      this.player.actionTimer = (this.player.actionTimer || 0) + dt * meta.fps;
+      this.player.frame = Math.min(meta.cols - 1, Math.floor(this.player.actionTimer));
 
-      // Spawn visual impact particles on frame 2 & 3
+      // Partículas de impacto nos frames centrais
       if ((this.player.frame === 2 || this.player.frame === 3) && Math.random() < 0.5) {
-        if (this.player.actionState === 'chop') {
-          this.addForestLeaf(this.player.x + 16, this.player.y + 12);
-        } else {
-          this.addMiningSpark(this.player.x + 18, this.player.y + 16);
-        }
+        if (act === 'chop') this.addForestLeaf(this.player.x + 16, this.player.y + 12);
+        else if (act === 'mine') this.addMiningSpark(this.player.x + 18, this.player.y + 16);
+        else if (act === 'cast') this.addMiningSpark(this.player.x + 20, this.player.y + 10);
       }
 
-      if (this.player.actionTimer >= 6) {
+      if (this.player.actionTimer >= meta.cols) {
         this.player.actionState = 'idle';
         this.player.actionTimer = 0;
         this.player.frame = 0;
@@ -2351,8 +2393,47 @@ export class GameEngine {
     };
     const row = dirRowMap[char.direction];
 
-    const isAction = char.actionState === 'chop' || char.actionState === 'mine';
+    const act = char.actionState;
+    const isAction =
+      act === 'chop' || act === 'mine' || act === 'attack' || act === 'spin' || act === 'cast';
     const isMoving = char.isMoving;
+
+    // ---- Akles: herói cavaleiro animado (sprite sheets processadas) ----
+    const aklesKey: 'idle' | 'walk' | AklesAction =
+      isAction ? (act as AklesAction) : isMoving ? 'walk' : 'idle';
+    const aMeta = AKLES_ANIM[aklesKey];
+    const aSheet = assets?.[aMeta.sheet] as HTMLImageElement | undefined;
+
+    if (aSheet && aSheet.complete && aSheet.naturalWidth > 0) {
+      const dispScale = 0.7;
+      const dispW = aMeta.cw * dispScale;
+      const dispH = aMeta.ch * dispScale;
+      const feetY = cy + 30;
+      const feetFrac = (aMeta.ch - 4) / aMeta.ch;
+
+      const sheetRow = AKLES_DIR_ROW[char.direction];
+      let col: number;
+      if (isAction) {
+        col = Math.min(aMeta.cols - 1, Math.max(0, char.frame));
+      } else if (isMoving) {
+        col = Math.floor(this.timeElapsed * aMeta.fps) % aMeta.cols;
+      } else {
+        col = Math.floor(this.timeElapsed * aMeta.fps) % aMeta.cols;
+      }
+
+      ctx.drawImage(
+        aSheet,
+        col * aMeta.cw,
+        sheetRow * aMeta.ch,
+        aMeta.cw,
+        aMeta.ch,
+        Math.round(cx + 12 - dispW / 2),
+        Math.round(feetY - dispH * feetFrac),
+        Math.round(dispW),
+        Math.round(dispH)
+      );
+      return;
+    }
 
     // Draw the Player with the user's authentic animated Knight Hero
     if (assets?.heroAuthenticAnimated && assets.heroAuthenticAnimated.complete && assets.heroAuthenticAnimated.naturalWidth > 0) {

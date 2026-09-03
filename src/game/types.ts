@@ -23,7 +23,7 @@ export interface CharacterState {
   stepTimer: number;
   width: number;
   height: number;
-  actionState?: 'idle' | 'walk' | 'chop' | 'mine';
+  actionState?: 'idle' | 'walk' | 'run' | 'chop' | 'mine' | 'attack' | 'spin' | 'cast';
   actionTimer?: number;
   // Collision box relative to x, y
   collider: {

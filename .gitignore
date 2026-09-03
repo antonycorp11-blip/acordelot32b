@@ -7,3 +7,7 @@ coverage/
 .env*
 !.env.example
 *.zip
+
+# sprite sheets de origem do Akles (arte crua com fundo magenta, ~15 MB)
+art_src/
+.claude/settings.local.json

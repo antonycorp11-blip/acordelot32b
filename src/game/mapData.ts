@@ -456,11 +456,87 @@ export function buildMap(): MapGrid {
   carveRiver(110, true, 1, 5, true); // riacho raso (atravessável)
   carveRiver(48, false, 1, 4, true); // riacho raso
 
-  // colisores da água FUNDA — coalescidos em faixas por linha (perf)
+  // --- PONTES nos cruzamentos estrada x rio ---
+  const deck = new Set<string>();
+  let bridgeId = 0;
+  // ponte da estrada VERTICAL (deck N-S) sobre o rio
+  const bridgeOverVertRoad = () => {
+    const cA = 33,
+      cB = 38;
+    let r = 4;
+    while (r < MAP_ROWS - 4) {
+      let waterHere = false;
+      for (let c = cA; c <= cB; c++) if (ground[r]?.[c] === TERRAIN_TILES.WATER_DEEP) waterHere = true;
+      if (waterHere) {
+        let r1 = r;
+        while (r1 < MAP_ROWS - 2) {
+          let w2 = false;
+          for (let c = cA; c <= cB; c++)
+            if (ground[r1 + 1]?.[c] === TERRAIN_TILES.WATER_DEEP) w2 = true;
+          if (!w2) break;
+          r1++;
+        }
+        const r0 = r - 1;
+        r1 = r1 + 1;
+        for (let rr = r0; rr <= r1; rr++) for (let c = cA; c <= cB; c++) deck.add(`${c},${rr}`);
+        props.push({
+          id: `bridge_${bridgeId++}`,
+          type: 'bridge',
+          x: cA * TILE_SIZE,
+          y: r0 * TILE_SIZE,
+          w: (cB - cA + 1) * TILE_SIZE,
+          h: (r1 - r0 + 1) * TILE_SIZE,
+          sortY: r0 * TILE_SIZE + 6,
+          data: { axis: 'ns' },
+        });
+        r = r1 + 3;
+      } else r++;
+    }
+  };
+  // ponte da estrada HORIZONTAL (deck L-O) sobre o rio
+  const bridgeOverHorizRoad = () => {
+    const rA = 24,
+      rB = 29;
+    let c = 4;
+    while (c < MAP_COLS - 4) {
+      let waterHere = false;
+      for (let rr = rA; rr <= rB; rr++) if (ground[rr]?.[c] === TERRAIN_TILES.WATER_DEEP) waterHere = true;
+      if (waterHere) {
+        let c1 = c;
+        while (c1 < MAP_COLS - 2) {
+          let w2 = false;
+          for (let rr = rA; rr <= rB; rr++) if (ground[rr]?.[c1 + 1] === TERRAIN_TILES.WATER_DEEP) w2 = true;
+          if (!w2) break;
+          c1++;
+        }
+        const c0 = c - 1;
+        c1 = c1 + 1;
+        for (let cc = c0; cc <= c1; cc++) for (let rr = rA; rr <= rB; rr++) deck.add(`${cc},${rr}`);
+        props.push({
+          id: `bridge_${bridgeId++}`,
+          type: 'bridge',
+          x: c0 * TILE_SIZE,
+          y: rA * TILE_SIZE,
+          w: (c1 - c0 + 1) * TILE_SIZE,
+          h: (rB - rA + 1) * TILE_SIZE,
+          sortY: rA * TILE_SIZE + 6,
+          data: { axis: 'ew' },
+        });
+        c = c1 + 3;
+      } else c++;
+    }
+  };
+  bridgeOverVertRoad();
+  bridgeOverHorizRoad();
+
+  // colisores da água FUNDA — coalescidos em faixas por linha (pula o deck das pontes)
   for (let r = 1; r < MAP_ROWS - 1; r++) {
     let runStart = -1;
     for (let c = 1; c <= MAP_COLS - 1; c++) {
-      const deep = c < MAP_COLS - 1 && ground[r][c] === TERRAIN_TILES.WATER_DEEP;
+      const deep =
+        c < MAP_COLS - 1 &&
+        ground[r][c] === TERRAIN_TILES.WATER_DEEP &&
+        !deck.has(`${c},${r}`);
       if (deep && runStart < 0) runStart = c;
       else if (!deep && runStart >= 0) {
         solidColliders.push({
@@ -479,7 +555,7 @@ export function buildMap(): MapGrid {
   const MAX_FOREST = 1500;
   for (let r = 2; r < MAP_ROWS - 2 && fid < MAX_FOREST; r++) {
     for (let c = 2; c < MAP_COLS - 2 && fid < MAX_FOREST; c++) {
-      if (isRoad(c, r) || isWater(c, r) || inTown(c, r)) continue;
+      if (isRoad(c, r) || isWater(c, r) || inTown(c, r) || deck.has(`${c},${r}`)) continue;
 
       const n = fnoise(c, r);
       const nearWater =

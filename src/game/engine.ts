@@ -92,12 +92,15 @@ export interface PlayerStats {
   xpNext: number;
   hp: number;
   maxHp: number;
+  attrPoints: number;
   forca: number;
   agilidade: number;
   vitalidade: number;
   inteligencia: number;
   sorte: number;
 }
+
+export type AttrKey = 'forca' | 'agilidade' | 'vitalidade' | 'inteligencia' | 'sorte';
 
 export function inventoryWeight(inv: Record<string, number>): number {
   let w = 0;
@@ -699,6 +702,7 @@ export class GameEngine {
     xpNext: 100,
     hp: 120,
     maxHp: 120,
+    attrPoints: 0,
     forca: 9,
     agilidade: 7,
     vitalidade: 10,
@@ -721,22 +725,42 @@ export class GameEngine {
   }
 
   gainXp(n: number) {
+    // XP acumula; a subida de nível é manual (via item / botão da ficha)
+    this.stats.xp += n;
+    if (this.stats.xp >= this.stats.xpNext) this.stats.xp = this.stats.xpNext;
+    this.onStatsChange?.({ ...this.stats });
+  }
+
+  get canLevelUp() {
+    return this.stats.xp >= this.stats.xpNext;
+  }
+
+  // Chamado ao usar o item de nível (ou pelo botão da ficha por enquanto)
+  levelUp(): boolean {
     const s = this.stats;
-    s.xp += n;
-    let leveled = false;
-    while (s.xp >= s.xpNext) {
-      s.xp -= s.xpNext;
-      s.level += 1;
-      s.xpNext = Math.round(s.xpNext * 1.45);
-      s.maxHp += 12;
-      s.hp = s.maxHp;
-      s.forca += 1;
-      s.vitalidade += 1;
-      if (s.level % 2 === 0) s.agilidade += 1;
-      leveled = true;
+    if (s.xp < s.xpNext) return false;
+    s.xp -= s.xpNext;
+    s.level += 1;
+    s.xpNext = Math.round(s.xpNext * 1.45);
+    s.maxHp += 12;
+    s.hp = s.maxHp;
+    s.attrPoints += 3;
+    this.onStatsChange?.({ ...s });
+    this.onHarvestPopup?.(`Nível ${s.level}! +3 pontos`, this.player.x, this.player.y - 20);
+    return true;
+  }
+
+  spendAttrPoint(attr: AttrKey): boolean {
+    const s = this.stats;
+    if (s.attrPoints <= 0) return false;
+    s[attr] += 1;
+    s.attrPoints -= 1;
+    if (attr === 'vitalidade') {
+      s.maxHp += 5;
+      s.hp += 5;
     }
     this.onStatsChange?.({ ...s });
-    if (leveled) this.onHarvestPopup?.(`Nível ${s.level}!`, this.player.x, this.player.y - 20);
+    return true;
   }
 
   camX: number = 0;
@@ -2369,16 +2393,15 @@ export class GameEngine {
       return;
     }
 
-    // ===== NOITE — azulada, com luar; nem tão escura, nem só os postes =====
-    // Véu de escuridão bem mais leve que antes
-    lCtx.fillStyle = 'rgba(16, 24, 48, 0.55)';
+    // ===== NOITE — azulada, com luar =====
+    lCtx.fillStyle = 'rgba(13, 19, 42, 0.70)';
     lCtx.fillRect(0, 0, w, h);
 
     lCtx.save();
     lCtx.globalCompositeOperation = 'destination-out';
 
     // Luar ambiente: clareia o mapa inteiro de forma uniforme e suave
-    lCtx.fillStyle = 'rgba(0, 0, 0, 0.34)';
+    lCtx.fillStyle = 'rgba(0, 0, 0, 0.24)';
     lCtx.fillRect(0, 0, w, h);
 
     // A. Postes — halo menor e mais discreto
@@ -2610,6 +2633,52 @@ export class GameEngine {
       px += shakeX;
     }
 
+    // 0. Ponte de madeira (procedural)
+    if (prop.type === 'bridge') {
+      const axis = (prop.data?.axis as string) ?? 'ns';
+      ctx.save();
+      ctx.fillStyle = 'rgba(0,0,0,0.22)';
+      ctx.fillRect(px + 3, py + 4, prop.w, prop.h);
+      // deck
+      ctx.fillStyle = '#8a5a34';
+      ctx.fillRect(px, py, prop.w, prop.h);
+      ctx.fillStyle = 'rgba(255,225,180,0.10)';
+      ctx.fillRect(px, py, prop.w, prop.h);
+
+      if (axis === 'ns') {
+        ctx.fillStyle = '#6f4527';
+        for (let yy = 0; yy < prop.h; yy += 7) ctx.fillRect(px, py + yy, prop.w, 1);
+        ctx.fillStyle = '#5a381f';
+        ctx.fillRect(px + 5, py, 3, prop.h);
+        ctx.fillRect(px + prop.w - 8, py, 3, prop.h);
+        // guarda-corpo
+        ctx.fillStyle = '#7a4e2c';
+        ctx.fillRect(px - 3, py, 4, prop.h);
+        ctx.fillRect(px + prop.w - 1, py, 4, prop.h);
+        ctx.fillStyle = '#432c17';
+        for (let yy = 3; yy < prop.h - 2; yy += 15) {
+          ctx.fillRect(px - 4, py + yy, 6, 5);
+          ctx.fillRect(px + prop.w - 2, py + yy, 6, 5);
+        }
+      } else {
+        ctx.fillStyle = '#6f4527';
+        for (let xx = 0; xx < prop.w; xx += 7) ctx.fillRect(px + xx, py, 1, prop.h);
+        ctx.fillStyle = '#5a381f';
+        ctx.fillRect(px, py + 5, prop.w, 3);
+        ctx.fillRect(px, py + prop.h - 8, prop.w, 3);
+        ctx.fillStyle = '#7a4e2c';
+        ctx.fillRect(px, py - 3, prop.w, 4);
+        ctx.fillRect(px, py + prop.h - 1, prop.w, 4);
+        ctx.fillStyle = '#432c17';
+        for (let xx = 3; xx < prop.w - 2; xx += 15) {
+          ctx.fillRect(px + xx, py - 4, 5, 6);
+          ctx.fillRect(px + xx, py + prop.h - 2, 5, 6);
+        }
+      }
+      ctx.restore();
+      return;
+    }
+
     // 1. Trees & Vegetation
     if (prop.type === 'oak') {
       ctx.drawImage(this.trees.oak, px, py, prop.w, prop.h);
@@ -2741,7 +2810,7 @@ export class GameEngine {
     }
   }
 
-  // "Shader" de água simples em canvas: base + ondas roláveis + brilho
+  // "Shader" de água em canvas: base em camadas + ondas diagonais + espuma
   drawWaterTile(
     ctx: CanvasRenderingContext2D,
     x: number,
@@ -2751,27 +2820,47 @@ export class GameEngine {
     shallow: boolean,
     t: number
   ) {
-    ctx.fillStyle = shallow ? '#3f8592' : '#1c4a72';
+    // 1. base
+    ctx.fillStyle = shallow ? '#2f7f8c' : '#16436b';
     ctx.fillRect(x, y, 32, 32);
 
-    // leve variação de profundidade
-    ctx.fillStyle = shallow ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.10)';
-    if ((c + r) % 2 === 0) ctx.fillRect(x, y, 32, 32);
+    // 2. profundidade — mancha escura suave que "respira"
+    const depth = 0.5 + Math.sin(c * 0.5 + r * 0.5 + t * 0.6) * 0.5;
+    ctx.fillStyle = shallow
+      ? `rgba(90, 170, 180, ${0.12 * depth})`
+      : `rgba(6, 22, 44, ${0.28 * depth})`;
+    ctx.fillRect(x, y, 32, 32);
 
-    // ondas: faixas claras que rolam com o vento
-    const drift = t * 26 + this.windX * 1.5;
-    ctx.fillStyle = shallow ? 'rgba(220,245,250,0.22)' : 'rgba(150,200,235,0.16)';
-    for (let i = 0; i < 2; i++) {
-      const phase = (drift + i * 40 + c * 6 + r * 10) % 64;
-      const yy = y + (phase < 32 ? phase : 64 - phase) + Math.sin(t * 1.5 + c + r) * 1.5;
-      ctx.fillRect(x, Math.round(yy), 32, 1);
+    // 3. ondas diagonais que rolam com o vento
+    const flow = t * (shallow ? 34 : 22) + this.windX * 1.4;
+    for (let i = 0; i < 3; i++) {
+      const band = (c * 7 + r * 5 + i * 30 + flow) % 48;
+      const off = band < 24 ? band : 48 - band;
+      const wy = y + off + Math.sin(t * 1.6 + c + r + i) * 1.2;
+      ctx.fillStyle = shallow
+        ? `rgba(210, 245, 250, ${0.16 - i * 0.03})`
+        : `rgba(120, 180, 225, ${0.13 - i * 0.03})`;
+      ctx.fillRect(x - 2, Math.round(wy), 36, 1);
     }
 
-    // brilho especular ocasional
-    const spec = Math.sin(c * 1.7 + r * 1.1 + t * 2.3);
-    if (spec > 0.86) {
-      ctx.fillStyle = `rgba(255,255,255,${(spec - 0.86) * 3})`;
-      ctx.fillRect(x + ((c * 11) % 22) + 4, y + ((r * 7) % 20) + 4, 3, 2);
+    // 4. espuma nas margens (borda que toca terra)
+    const g = this.ground;
+    const land = (cc: number, rr: number) => {
+      const v = g[rr]?.[cc];
+      return v !== undefined && v < 9000;
+    };
+    const foam = Math.sin(t * 3 + c + r) * 0.4 + 0.6;
+    ctx.fillStyle = `rgba(235, 248, 250, ${0.4 * foam})`;
+    if (land(c, r - 1)) ctx.fillRect(x, y, 32, 2);
+    if (land(c, r + 1)) ctx.fillRect(x, y + 30, 32, 2);
+    if (land(c - 1, r)) ctx.fillRect(x, y, 2, 32);
+    if (land(c + 1, r)) ctx.fillRect(x + 30, y, 2, 32);
+
+    // 5. brilho especular pontual
+    const spec = Math.sin(c * 1.7 + r * 1.1 + t * 2.1);
+    if (spec > 0.9) {
+      ctx.fillStyle = `rgba(255,255,255,${(spec - 0.9) * 4})`;
+      ctx.fillRect(x + ((c * 11) % 22) + 4, y + ((r * 7) % 20) + 4, 2, 2);
     }
   }
 

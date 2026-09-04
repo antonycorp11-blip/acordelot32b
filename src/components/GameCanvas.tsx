@@ -24,7 +24,8 @@ import {
   Layers,
   X,
 } from 'lucide-react';
-import { GameEngine, InteractionState, SelectedPropInfo, TimeOfDay, PlayerStats } from '../game/engine';
+import type { PlayerStats } from '../game/engine';
+import { GameEngine, InteractionState, SelectedPropInfo, TimeOfDay } from '../game/engine';
 import { TouchControls } from './TouchControls';
 import { Inventory } from './Inventory';
 import { PlayerHud } from './PlayerHud';
@@ -853,6 +854,9 @@ export const GameCanvas: React.FC = () => {
           onClose={() => setShowSheet(false)}
           stats={stats}
           power={engineRef.current?.combatPower ?? 0}
+          canLevelUp={stats.xp >= stats.xpNext}
+          onLevelUp={() => engineRef.current?.levelUp()}
+          onSpend={(attr) => engineRef.current?.spendAttrPoint(attr)}
         />
       )}
 

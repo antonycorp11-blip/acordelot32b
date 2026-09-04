@@ -69,13 +69,24 @@ const AKLES_DIR_ROW: Record<Direction, number> = { down: 0, left: 1, up: 2, righ
 export interface ItemMeta {
   name: string;
   icon: string;
+  weight: number; // peso por unidade
+  heal?: number; // cura de vida (uso futuro)
 }
 export const ITEM_META: Record<string, ItemMeta> = {
-  wood: { name: 'Madeira', icon: '🪵' },
-  stone: { name: 'Pedra', icon: '🪨' },
-  ore: { name: 'Minério', icon: '⛏️' },
-  fiber: { name: 'Fibra', icon: '🌿' },
+  wood: { name: 'Madeira', icon: '🪵', weight: 1.0 },
+  stone: { name: 'Pedra', icon: '🪨', weight: 1.6 },
+  ore: { name: 'Minério', icon: '🪙', weight: 2.2 },
+  berry: { name: 'Frutinha', icon: '🍓', weight: 0.2, heal: 8 },
 };
+
+// Peso máximo que o Akles carrega
+export const MAX_CARRY_WEIGHT = 40;
+
+export function inventoryWeight(inv: Record<string, number>): number {
+  let w = 0;
+  for (const [item, qty] of Object.entries(inv)) w += (ITEM_META[item]?.weight ?? 1) * qty;
+  return Math.round(w * 10) / 10;
+}
 
 interface HarvestDef {
   kind: 'tree' | 'rock';
@@ -89,7 +100,7 @@ export const HARVEST_DEFS: Record<string, HarvestDef> = {
   oak: { kind: 'tree', maxHp: 4, drop: 'wood', dropMin: 2, dropMax: 4, respawnSecs: 22 },
   pine: { kind: 'tree', maxHp: 3, drop: 'wood', dropMin: 2, dropMax: 3, respawnSecs: 20 },
   blossomTree: { kind: 'tree', maxHp: 3, drop: 'wood', dropMin: 2, dropMax: 3, respawnSecs: 24 },
-  bush: { kind: 'tree', maxHp: 2, drop: 'fiber', dropMin: 1, dropMax: 2, respawnSecs: 14 },
+  bush: { kind: 'tree', maxHp: 2, drop: 'berry', dropMin: 1, dropMax: 3, respawnSecs: 14 },
   stoneQuarry: { kind: 'rock', maxHp: 8, drop: 'ore', dropMin: 4, dropMax: 7, respawnSecs: 45 },
   limestoneBoulders: { kind: 'rock', maxHp: 5, drop: 'stone', dropMin: 3, dropMax: 5, respawnSecs: 32 },
   rockCluster: { kind: 'rock', maxHp: 3, drop: 'stone', dropMin: 2, dropMax: 3, respawnSecs: 24 },
@@ -1460,10 +1471,24 @@ export class GameEngine {
     }
   }
 
-  addToInventory(item: string, qty: number) {
-    if (qty <= 0) return;
-    this.inventory[item] = (this.inventory[item] || 0) + qty;
+  get carryWeight() {
+    return inventoryWeight(this.inventory);
+  }
+
+  // Retorna quanto foi realmente adicionado (limitado pelo peso máximo)
+  addToInventory(item: string, qty: number): number {
+    if (qty <= 0) return 0;
+    const unit = ITEM_META[item]?.weight ?? 1;
+    const free = MAX_CARRY_WEIGHT - this.carryWeight;
+    const fits = unit > 0 ? Math.floor((free + 1e-6) / unit) : qty;
+    const add = Math.max(0, Math.min(qty, fits));
+    if (add <= 0) {
+      this.onHarvestPopup?.('Mochila cheia!', this.player.x, this.player.y);
+      return 0;
+    }
+    this.inventory[item] = (this.inventory[item] || 0) + add;
     this.onInventoryChange?.({ ...this.inventory });
+    return add;
   }
 
   private harvestReach() {
@@ -1529,12 +1554,11 @@ export class GameEngine {
     }
 
     // ganho parcial por golpe
-    this.addToInventory(h.drop, 1);
+    let gained = this.addToInventory(h.drop, 1);
 
     if (h.hp <= 0) {
-      const bonus =
-        h.dropMin + Math.floor(Math.random() * (h.dropMax - h.dropMin + 1));
-      this.addToInventory(h.drop, bonus);
+      const bonus = h.dropMin + Math.floor(Math.random() * (h.dropMax - h.dropMin + 1));
+      gained += this.addToInventory(h.drop, bonus);
       h.downUntil = this.timeElapsed + h.respawnSecs;
       h.hp = 0;
       // poeira/folhas da queda
@@ -1542,9 +1566,9 @@ export class GameEngine {
         if (h.kind === 'tree') this.addForestLeaf(ix + (Math.random() - 0.5) * 40, iy - Math.random() * 20);
         else this.addFootstepDust(ix + (Math.random() - 0.5) * 30, node.y + node.h - 6);
       }
-      this.onHarvestPopup?.(`+${bonus + 1} ${ITEM_META[h.drop]?.name ?? h.drop}`, ix, node.y);
-    } else {
-      this.onHarvestPopup?.(`+1 ${ITEM_META[h.drop]?.name ?? h.drop}`, ix, node.y);
+    }
+    if (gained > 0) {
+      this.onHarvestPopup?.(`+${gained} ${ITEM_META[h.drop]?.name ?? h.drop}`, ix, node.y);
     }
   }
 
@@ -2405,7 +2429,7 @@ export class GameEngine {
       ctx.beginPath();
       ctx.ellipse(bx, by, hv.kind === 'tree' ? 9 : 11, 5, 0, 0, Math.PI * 2);
       ctx.fill();
-      if (hv.kind === 'tree') {
+      if (hv.kind === 'tree' && prop.h > 40) {
         ctx.fillStyle = 'rgba(122,88,54,0.95)';
         ctx.fillRect(bx - 6, by - 8, 12, 8);
       }

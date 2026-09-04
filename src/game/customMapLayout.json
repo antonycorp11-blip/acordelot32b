@@ -13144,5 +13144,40 @@
     "x": 1983,
     "y": 643,
     "scale": 1
+  },
+  {
+    "id": "townHallBack_spawn_1788496113607_879",
+    "type": "townHallBack",
+    "x": 1692,
+    "y": 914,
+    "scale": 1
+  },
+  {
+    "id": "houseBackCottage_spawn_1788496127952_517",
+    "type": "houseBackCottage",
+    "x": 1860,
+    "y": 925,
+    "scale": 1
+  },
+  {
+    "id": "streetLantern_copy_1788496142694_354",
+    "type": "streetLantern",
+    "x": 1823,
+    "y": 917,
+    "scale": 1
+  },
+  {
+    "id": "wagonCart_spawn_1788496179069_58",
+    "type": "wagonCart",
+    "x": 2017,
+    "y": 955,
+    "scale": 1
+  },
+  {
+    "id": "barrelStack_spawn_1788496190310_113",
+    "type": "barrelStack",
+    "x": 1999,
+    "y": 1004,
+    "scale": 1
   }
 ]

@@ -56,7 +56,11 @@ function saveFullLayout(l: Record<Orientation, Layout>) {
   } catch {}
 }
 function getOrientation(): Orientation {
-  return window.innerWidth > window.innerHeight ? 'landscape' : 'portrait';
+  // O jogo roda SEMPRE em paisagem (GameCanvas força isso via rotação CSS
+  // quando o viewport do celular fica travado em retrato) — então o layout
+  // do HUD é sempre o de paisagem, não importa o que window.innerWidth/
+  // innerHeight reportem no momento.
+  return 'landscape';
 }
 
 /**
@@ -91,12 +95,18 @@ export const TouchControls: React.FC<TouchControlsProps> = ({
   // (~375px) empurravam a coluna lateral pra fora e colidiam com o widget
   // do relógio. Em vez de posições fixas, compacta o espaçamento vertical
   // conforme sobra espaço de verdade, então fica igual em qualquer aparelho.
-  const [viewportH, setViewportH] = useState(() => window.innerHeight);
+  // Altura EFETIVA da tela (a curta, sempre) — em celular travado em retrato
+  // o GameCanvas gira tudo por CSS, então window.innerHeight/innerWidth
+  // reportam o retrato "cru"; a dimensão que realmente vira a altura da
+  // paisagem exibida é a MENOR das duas, não innerHeight direto.
+  const [viewportH, setViewportH] = useState(() => Math.min(window.innerWidth, window.innerHeight));
+  const [viewportW, setViewportW] = useState(() => Math.max(window.innerWidth, window.innerHeight));
 
   useEffect(() => {
     const onResize = () => {
       setOrientation(getOrientation());
-      setViewportH(window.innerHeight);
+      setViewportH(Math.min(window.innerWidth, window.innerHeight));
+      setViewportW(Math.max(window.innerWidth, window.innerHeight));
     };
     window.addEventListener('resize', onResize);
     window.addEventListener('orientationchange', onResize);
@@ -222,16 +232,15 @@ export const TouchControls: React.FC<TouchControlsProps> = ({
   const actionBtn =
     'pointer-events-auto flex items-center justify-center rounded-full border backdrop-blur-md shadow-xl active:scale-90 transition-transform select-none touch-none';
 
-  // Coluna lateral (mochila/síntese/partitura/arma/catálogo/missões): 6
-  // ícones a partir de top:118px. Numa tela de ~375px de altura o passo de
-  // 54px entre eles cabe folgado; numa tela Android mais baixa (ex.: 320px)
-  // isso passava do rodapé — compacta espaçamento E tamanho do ícone
-  // conforme a altura real (só o espaçamento não bastava: com o ícone de
-  // 44px fixo, um passo menor que 44px fazia um sobrepor o outro).
-  const sideMenuTop0 = 118;
-  const sideMenuIcon = Math.max(30, Math.min(44, (viewportH - sideMenuTop0 - 20) / 6));
-  const sideMenuStep = Math.max(sideMenuIcon + 2, Math.min(54, (viewportH - sideMenuTop0 - 60) / 5));
-  const sideMenuTop = (i: number) => `calc(${Math.round(sideMenuTop0 + i * sideMenuStep)}px + env(safe-area-inset-top))`;
+  // Fileira de topo (mochila/síntese/partitura/arma/catálogo/missões): 6
+  // ícones em LINHA HORIZONTAL, à esquerda do widget de clima (que fica em
+  // right-4, ~136px de largura) e acima da barra de vida. Antes isso era uma
+  // coluna vertical na borda direita — ficava espremida/cortada em tela
+  // curva de Android. O tamanho encolhe um pouco só em telas muito estreitas.
+  const sideMenuTop = 'calc(14px + env(safe-area-inset-top))';
+  const sideMenuIcon = Math.max(28, Math.min(34, (viewportW - 430) / 6.2));
+  const sideMenuStep = sideMenuIcon + 8;
+  const sideMenuRight = (i: number) => `calc(${Math.round(150 + i * sideMenuStep)}px + env(safe-area-inset-right))`;
 
   // Botão arrastável: id próprio, posição própria, funciona em qualquer lugar da tela.
   const D: React.FC<{ id: string; className: string; title: string; onAction: () => void; style?: React.CSSProperties; children: React.ReactNode }> = ({
@@ -339,31 +348,31 @@ export const TouchControls: React.FC<TouchControlsProps> = ({
 
       {/* Menu lateral direito — mochila / síntese / partituras / arma
           (ficha não precisa de botão — abre pela miniatura do retrato) */}
-      <D id="btn_inv" className={`${actionBtn} absolute border-amber-400/50 bg-slate-950/80 text-amber-300`} title="Mochila" onAction={onToggleInventory} style={{ width: sideMenuIcon, height: sideMenuIcon, right: 'max(14px, env(safe-area-inset-right))', top: sideMenuTop(0) }}>
+      <D id="btn_inv" className={`${actionBtn} absolute border-amber-400/50 bg-slate-950/80 text-amber-300`} title="Mochila" onAction={onToggleInventory} style={{ width: sideMenuIcon, height: sideMenuIcon, right: sideMenuRight(5), top: sideMenuTop }}>
         <Backpack className="w-5 h-5" />
       </D>
-      <D id="btn_synth" className={`${actionBtn} absolute border-fuchsia-400/50 bg-slate-950/80 text-fuchsia-300`} title="Síntese de notas" onAction={onToggleSynth} style={{ width: sideMenuIcon, height: sideMenuIcon, right: 'max(14px, env(safe-area-inset-right))', top: sideMenuTop(1) }}>
+      <D id="btn_synth" className={`${actionBtn} absolute border-fuchsia-400/50 bg-slate-950/80 text-fuchsia-300`} title="Síntese de notas" onAction={onToggleSynth} style={{ width: sideMenuIcon, height: sideMenuIcon, right: sideMenuRight(4), top: sideMenuTop }}>
         <Music4 className="w-5 h-5" />
       </D>
-      <D id="btn_partitura" className={`${actionBtn} absolute border-amber-400/50 bg-slate-950/80 text-amber-300`} title="Síntese de Partituras" onAction={onTogglePartitura} style={{ width: sideMenuIcon, height: sideMenuIcon, right: 'max(14px, env(safe-area-inset-right))', top: sideMenuTop(2) }}>
+      <D id="btn_partitura" className={`${actionBtn} absolute border-amber-400/50 bg-slate-950/80 text-amber-300`} title="Síntese de Partituras" onAction={onTogglePartitura} style={{ width: sideMenuIcon, height: sideMenuIcon, right: sideMenuRight(3), top: sideMenuTop }}>
         <ScrollText className="w-5 h-5" />
       </D>
-      <D id="btn_weapon" className={`${actionBtn} absolute border-blue-400/50 bg-slate-950/80 text-blue-300`} title="Arma" onAction={onToggleWeapon} style={{ width: sideMenuIcon, height: sideMenuIcon, right: 'max(14px, env(safe-area-inset-right))', top: sideMenuTop(3) }}>
+      <D id="btn_weapon" className={`${actionBtn} absolute border-blue-400/50 bg-slate-950/80 text-blue-300`} title="Arma" onAction={onToggleWeapon} style={{ width: sideMenuIcon, height: sideMenuIcon, right: sideMenuRight(2), top: sideMenuTop }}>
         <Swords className="w-5 h-5" />
       </D>
       {/* Catálogo — botão temporário pra ver armas/equipamentos novos por tier */}
-      <D id="btn_catalog" className={`${actionBtn} absolute border-amber-400/50 bg-slate-950/80 text-amber-300`} title="Catálogo" onAction={onToggleCatalog} style={{ width: sideMenuIcon, height: sideMenuIcon, right: 'max(14px, env(safe-area-inset-right))', top: sideMenuTop(4) }}>
+      <D id="btn_catalog" className={`${actionBtn} absolute border-amber-400/50 bg-slate-950/80 text-amber-300`} title="Catálogo" onAction={onToggleCatalog} style={{ width: sideMenuIcon, height: sideMenuIcon, right: sideMenuRight(1), top: sideMenuTop }}>
         <Library className="w-5 h-5" />
       </D>
-      <D id="btn_quests" className={`${actionBtn} absolute border-emerald-400/50 bg-slate-950/80 text-emerald-300`} title="Missões" onAction={onToggleQuests} style={{ width: sideMenuIcon, height: sideMenuIcon, right: 'max(14px, env(safe-area-inset-right))', top: sideMenuTop(5) }}>
+      <D id="btn_quests" className={`${actionBtn} absolute border-emerald-400/50 bg-slate-950/80 text-emerald-300`} title="Missões" onAction={onToggleQuests} style={{ width: sideMenuIcon, height: sideMenuIcon, right: sideMenuRight(0), top: sideMenuTop }}>
         <ListChecks className="w-5 h-5" />
       </D>
 
-      {/* Poções: cura + buff temporário */}
-      <D id="btn_potion" className={`${actionBtn} absolute w-12 h-12 border-lime-400/60 bg-lime-950/85 text-lime-200`} title="Usar item de cura" onAction={() => engineRef.current?.useHealingItem()} style={{ right: 'calc(78px + env(safe-area-inset-right))', bottom: 'calc(196px + env(safe-area-inset-bottom))' }}>
+      {/* Poções: cura + buff temporário — perto do joystick, como no layout de referência */}
+      <D id="btn_potion" className={`${actionBtn} absolute w-12 h-12 border-lime-400/60 bg-lime-950/85 text-lime-200`} title="Usar item de cura" onAction={() => engineRef.current?.useHealingItem()} style={{ left: 'calc(94px + env(safe-area-inset-left))', bottom: 'calc(200px + env(safe-area-inset-bottom))' }}>
         <FlaskConical className="w-5 h-5" />
       </D>
-      <D id="btn_buff" className={`${actionBtn} absolute w-12 h-12 border-fuchsia-400/60 bg-fuchsia-950/85 text-fuchsia-200`} title="Usar item de buff" onAction={() => engineRef.current?.useBuffItem()} style={{ right: 'calc(28px + env(safe-area-inset-right))', bottom: 'calc(196px + env(safe-area-inset-bottom))' }}>
+      <D id="btn_buff" className={`${actionBtn} absolute w-12 h-12 border-fuchsia-400/60 bg-fuchsia-950/85 text-fuchsia-200`} title="Usar item de buff" onAction={() => engineRef.current?.useBuffItem()} style={{ left: 'calc(150px + env(safe-area-inset-left))', bottom: 'calc(170px + env(safe-area-inset-bottom))' }}>
         <Beaker className="w-5 h-5" />
       </D>
 

@@ -37,6 +37,14 @@ export interface LoadedAssets {
   darkIcecrystal: HTMLImageElement;
   darkThorn: HTMLImageElement;
 
+  // Ferramentas de coleta (machado / picareta), 3 tiers
+  toolAxeWood: HTMLImageElement;
+  toolAxeGold: HTMLImageElement;
+  toolAxeCrystal: HTMLImageElement;
+  toolPickWood: HTMLImageElement;
+  toolPickGold: HTMLImageElement;
+  toolPickCrystal: HTMLImageElement;
+
   // Nós de extração
   spotWood: HTMLImageElement;
   spotMineral: HTMLImageElement;
@@ -164,6 +172,12 @@ const ASSET_PATHS: Record<keyof LoadedAssets, string> = {
   darkBigrock: '/assets/props/dark_bigrock.png',
   darkIcecrystal: '/assets/props/dark_icecrystal.png',
   darkThorn: '/assets/props/dark_thorn_p.png',
+  toolAxeWood: '/assets/tools/axe_wood.png',
+  toolAxeGold: '/assets/tools/axe_gold.png',
+  toolAxeCrystal: '/assets/tools/axe_crystal.png',
+  toolPickWood: '/assets/tools/pick_wood.png',
+  toolPickGold: '/assets/tools/pick_gold.png',
+  toolPickCrystal: '/assets/tools/pick_crystal.png',
 
   // Nós de extração (spots)
   spotWood: '/assets/props/wood2_spot.png',

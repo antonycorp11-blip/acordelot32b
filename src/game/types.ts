@@ -1,5 +1,8 @@
 export type Direction = 'down' | 'up' | 'left' | 'right';
 
+// Tiers das ferramentas de coleta (machado / picareta)
+export type ToolTier = 'wood' | 'gold' | 'crystal';
+
 export interface Point {
   x: number;
   y: number;
@@ -56,6 +59,8 @@ export interface NPC extends CharacterState {
   wanderTarget: Point | null;
   speed: number;
   dialogue?: string[];
+  // falas curtas aleatórias quando o Akles se aproxima
+  barks?: string[];
   // rota de patrulha (waypoints em px de mundo)
   route?: Point[];
   routeIdx?: number;

@@ -26,6 +26,7 @@ import {
   HarvestState,
   Enemy,
   LightBeam,
+  ToolTier,
 } from './types';
 import {
   buildMap,
@@ -893,6 +894,28 @@ export class GameEngine {
   talkingNpcId: string | null = null;
   onInteractionChange?: (state: InteractionState) => void;
 
+  // Balões de fala aleatórios (aproximação) — NPC ensina música, Akles reage
+  private bubbles: Array<{
+    who: 'npc' | 'akles';
+    npcId?: string;
+    text: string;
+    born: number;
+    ttl: number;
+  }> = [];
+  private npcBarkCd: Record<string, number> = {};
+  private barkNpcInRange: string | null = null;
+  private pendingAklesReply: { text: string; at: number } | null = null;
+  private static AKLES_BARKS = [
+    'Um-dois-três-quatro... tô contando o compasso.',
+    'A tônica é o "dó de casa". Peguei.',
+    'Ainda me perco nas pausas.',
+    'Minha espada tem ritmo — falta afinação.',
+    'Dó, ré, mi... e vem o fá, né?',
+    'Doze notas e a Vila volta a cantar.',
+    'Sétima pede resolução. Igual eu peço descanso.',
+    'Preciso treinar o ouvido, não só o braço.',
+  ];
+
   // Fragmentos de notas
   fragments: number[] = new Array(12).fill(0);
   notesBuilt: number[] = new Array(12).fill(0);
@@ -913,6 +936,17 @@ export class GameEngine {
   onInventoryChange?: (inv: Record<string, number>) => void;
   onHarvestPopup?: (text: string, worldX: number, worldY: number) => void;
   private actionHitDone = false;
+
+  // Ferramentas de coleta (Akles NÃO segura na mão — a ferramenta aparece ao
+  // lado dele e bate no alvo durante a coleta; ele fica parado).
+  static readonly TOOL_TIERS: ToolTier[] = ['wood', 'gold', 'crystal'];
+  ownedAxes: ToolTier[] = ['wood', 'gold', 'crystal'];
+  ownedPicks: ToolTier[] = ['wood', 'gold', 'crystal'];
+  equippedAxe: ToolTier = 'crystal';
+  equippedPick: ToolTier = 'crystal';
+  onToolsChange?: (t: { axe: ToolTier; pick: ToolTier }) => void;
+  // alvo da coleta atual (para a ferramenta apontar/bater no lugar certo)
+  private harvestFxNode: WorldProp | null = null;
 
   // Ficha do personagem
   stats: PlayerStats = {
@@ -1061,6 +1095,7 @@ export class GameEngine {
     this.initHarvestables();
     this.initFragments();
     this.initEnemies();
+    this.loadTools();
 
     // Player with 32-bit Knight character
     this.player = {
@@ -2542,6 +2577,50 @@ export class GameEngine {
   }
 
   // ---- NPCs COM ROTA ----
+  private updateBubbles(_dt: number, px: number, py: number) {
+    const now = this.timeElapsed;
+    // expira balões
+    this.bubbles = this.bubbles.filter((b) => now - b.born < b.ttl);
+
+    // NPC mais próximo dentro do raio de "bark" (maior que o de conversa)
+    let barkNpc: NPC | null = null;
+    let bd = 128;
+    for (const n of this.npcs) {
+      if (n.spriteType === 'merchant' || !n.barks || !n.barks.length) continue;
+      const d = Math.hypot(px - (n.x + n.width / 2), py - (n.y + n.height / 2));
+      if (d < bd) {
+        bd = d;
+        barkNpc = n;
+      }
+    }
+    const id = barkNpc?.id ?? null;
+    if (id && id !== this.barkNpcInRange) {
+      // acabou de entrar no raio deste NPC
+      if (now >= (this.npcBarkCd[id] ?? 0) && !this.talkingNpcId) {
+        const line = barkNpc!.barks![Math.floor(Math.random() * barkNpc!.barks!.length)];
+        this.bubbles.push({ who: 'npc', npcId: id, text: line, born: now, ttl: 4.2 });
+        this.npcBarkCd[id] = now + 18 + Math.random() * 10;
+        // Akles às vezes responde
+        if (Math.random() < 0.5) {
+          const reply =
+            GameEngine.AKLES_BARKS[Math.floor(Math.random() * GameEngine.AKLES_BARKS.length)];
+          this.pendingAklesReply = { text: reply, at: now + 1.6 };
+        }
+      }
+    }
+    this.barkNpcInRange = id;
+
+    if (this.pendingAklesReply && now >= this.pendingAklesReply.at) {
+      this.bubbles.push({
+        who: 'akles',
+        text: this.pendingAklesReply.text,
+        born: now,
+        ttl: 3.6,
+      });
+      this.pendingAklesReply = null;
+    }
+  }
+
   updateNpcs(dt: number) {
     for (const npc of this.npcs) {
       if (npc.spriteType === 'merchant') continue;
@@ -2655,6 +2734,40 @@ export class GameEngine {
     }
     // nada por perto: ainda faz o gesto pra dar feedback
     this.triggerAction('chop');
+  }
+
+  // Durante 'chop'/'mine' a ferramenta (não o Akles) faz o movimento.
+  get isToolHarvest() {
+    return this.player.actionState === 'chop' || this.player.actionState === 'mine';
+  }
+
+  equipTool(kind: 'axe' | 'pick', tier: ToolTier) {
+    const owned = kind === 'axe' ? this.ownedAxes : this.ownedPicks;
+    if (!owned.includes(tier)) return;
+    if (kind === 'axe') this.equippedAxe = tier;
+    else this.equippedPick = tier;
+    this.saveTools();
+    this.onToolsChange?.({ axe: this.equippedAxe, pick: this.equippedPick });
+  }
+
+  private saveTools() {
+    try {
+      localStorage.setItem(
+        'acordelot_tools_v1',
+        JSON.stringify({ axe: this.equippedAxe, pick: this.equippedPick }),
+      );
+    } catch {}
+  }
+
+  loadTools() {
+    try {
+      const raw = localStorage.getItem('acordelot_tools_v1');
+      if (!raw) return;
+      const t = JSON.parse(raw);
+      const tiers = GameEngine.TOOL_TIERS;
+      if (tiers.includes(t.axe)) this.equippedAxe = t.axe;
+      if (tiers.includes(t.pick)) this.equippedPick = t.pick;
+    } catch {}
   }
 
   private applyHarvestHit() {
@@ -2779,6 +2892,11 @@ export class GameEngine {
       this.player.actionTimer = (this.player.actionTimer || 0) + dt * meta.fps;
       this.player.frame = Math.min(meta.cols - 1, Math.floor(this.player.actionTimer));
 
+      // Coleta: Akles NÃO se mexe — só a ferramenta bate. Guarda o alvo p/ a fx.
+      if (act === 'chop' || act === 'mine') {
+        this.harvestFxNode = this.findNearestHarvestable(act === 'mine' ? 'rock' : 'tree');
+      }
+
       // Golpe conecta no frame de impacto (uma vez por ação)
       if (!this.actionHitDone && this.player.frame >= 2) {
         this.actionHitDone = true;
@@ -2800,6 +2918,7 @@ export class GameEngine {
         this.player.actionState = 'idle';
         this.player.actionTimer = 0;
         this.player.frame = 0;
+        this.harvestFxNode = null;
       }
     } else {
       // Normal Player Movement
@@ -2882,6 +3001,8 @@ export class GameEngine {
       this.isTalkingToMerchant = false;
       this.emitInteraction();
     }
+
+    this.updateBubbles(dt, px, py);
 
     // Camera follow
     if (!this.isDragging) {
@@ -3275,6 +3396,13 @@ export class GameEngine {
       draw: () => this.drawPlayer(camX, camY),
     });
 
+    if (this.isToolHarvest) {
+      renderables.push({
+        sortY: this.player.y + 31,
+        draw: () => this.drawHarvestTool(camX, camY),
+      });
+    }
+
     renderables.sort((a, b) => a.sortY - b.sortY);
 
     for (const item of renderables) {
@@ -3434,6 +3562,9 @@ export class GameEngine {
         ctx.restore();
       }
     }
+
+    // Balões de fala aleatórios (aproximação de NPC)
+    if (!this.isEditMode) this.renderBubbles(ctx, camX, camY);
 
     // Dano ao herói — vinheta vermelha
     if (this.playerHurtFlash > 0) {
@@ -3739,6 +3870,82 @@ export class GameEngine {
 
     lCtx.restore();
     mainCtx.drawImage(this.lightCanvas, 0, 0);
+  }
+
+  private renderBubbles(ctx: CanvasRenderingContext2D, camX: number, camY: number) {
+    if (!this.bubbles.length) return;
+    const now = this.timeElapsed;
+    ctx.save();
+    ctx.font = '10px system-ui, sans-serif';
+    ctx.textBaseline = 'top';
+
+    for (const b of this.bubbles) {
+      let ax: number;
+      let ay: number;
+      let accent = '#e2e8f0';
+      if (b.who === 'akles') {
+        ax = this.player.x + 12 - camX;
+        ay = this.player.y - 20 - camY;
+        accent = '#7dd3fc';
+      } else {
+        const npc = this.npcs.find((n) => n.id === b.npcId);
+        if (!npc) continue;
+        ax = npc.x + npc.width / 2 - camX;
+        ay = npc.y - 16 - camY;
+        accent = npc.accent ?? '#e2e8f0';
+      }
+      // fora da tela? pula
+      if (ax < -60 || ax > this.viewportW + 60 || ay < -40 || ay > this.viewportH + 40) continue;
+
+      // fade in/out
+      const age = now - b.born;
+      const alpha =
+        age < 0.2 ? age / 0.2 : age > b.ttl - 0.5 ? Math.max(0, (b.ttl - age) / 0.5) : 1;
+
+      // quebra de linha (~22 chars)
+      const words = b.text.split(' ');
+      const lines: string[] = [];
+      let cur = '';
+      for (const w of words) {
+        if ((cur + ' ' + w).trim().length > 24) {
+          lines.push(cur.trim());
+          cur = w;
+        } else cur = (cur + ' ' + w).trim();
+      }
+      if (cur) lines.push(cur);
+
+      const padX = 7;
+      const lineH = 13;
+      let maxW = 0;
+      for (const l of lines) maxW = Math.max(maxW, ctx.measureText(l).width);
+      const bw = maxW + padX * 2;
+      const bh = lines.length * lineH + 8;
+      const bx = Math.round(ax - bw / 2);
+      const by = Math.round(ay - bh - 6);
+
+      ctx.globalAlpha = alpha;
+      ctx.fillStyle = 'rgba(15, 23, 42, 0.92)';
+      ctx.strokeStyle = accent;
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.roundRect(bx, by, bw, bh, 6);
+      ctx.fill();
+      ctx.stroke();
+      // rabinho
+      ctx.beginPath();
+      ctx.moveTo(ax - 5, by + bh - 1);
+      ctx.lineTo(ax + 5, by + bh - 1);
+      ctx.lineTo(ax, by + bh + 6);
+      ctx.closePath();
+      ctx.fillStyle = 'rgba(15, 23, 42, 0.92)';
+      ctx.fill();
+
+      ctx.fillStyle = '#f1f5f9';
+      ctx.textAlign = 'center';
+      lines.forEach((l, i) => ctx.fillText(l, ax, by + 4 + i * lineH));
+      ctx.globalAlpha = 1;
+    }
+    ctx.restore();
   }
 
   renderEditorGizmos(ctx: CanvasRenderingContext2D, camX: number, camY: number) {
@@ -4347,6 +4554,87 @@ export class GameEngine {
     ctx.restore();
   }
 
+  // Ferramenta de coleta ao lado do Akles (ele fica parado, a ferramenta bate).
+  drawHarvestTool(camX: number, camY: number) {
+    const ctx = this.ctx;
+    const act = this.player.actionState;
+    const isAxe = act === 'chop';
+    const tier = isAxe ? this.equippedAxe : this.equippedPick;
+    const key = (isAxe ? 'toolAxe' : 'toolPick') +
+      tier.charAt(0).toUpperCase() + tier.slice(1);
+    const img = this.assets?.[key as keyof typeof this.assets] as HTMLImageElement | undefined;
+    if (!img || !img.complete || !img.naturalWidth) return;
+
+    const px = this.player.x + 12;
+    const py = this.player.y;
+
+    // alvo: nó de coleta, ou a direção que o Akles encara
+    let tx: number;
+    let ty: number;
+    const node = this.harvestFxNode;
+    if (node) {
+      tx = node.x + node.w / 2;
+      ty = node.y + node.h * 0.55;
+    } else {
+      const d = this.player.direction;
+      tx = px + (d === 'left' ? -40 : d === 'right' ? 40 : 0);
+      ty = py + (d === 'up' ? -30 : d === 'down' ? 30 : 6);
+    }
+    const side = tx < px ? -1 : 1;
+
+    // pivô: mão do Akles daquele lado, na altura do tronco
+    const hx = Math.round(px - camX + side * 15);
+    const hy = Math.round(py - camY + 12);
+
+    // fase da batida (actionTimer vai de 0 a cols=6)
+    const p = Math.min(1, (this.player.actionTimer || 0) / 6);
+    // keyframes de ângulo (graus, 0 = ferramenta apontando pra cima)
+    const kf: Array<[number, number]> = [
+      [0.0, -35],
+      [0.28, -78],
+      [0.5, 46],
+      [0.62, 40],
+      [1.0, -12],
+    ];
+    let deg = kf[kf.length - 1][1];
+    for (let i = 0; i < kf.length - 1; i++) {
+      const [a, av] = kf[i];
+      const [b, bv] = kf[i + 1];
+      if (p >= a && p <= b) {
+        const u = (p - a) / (b - a || 1);
+        deg = av + (bv - av) * u;
+        break;
+      }
+    }
+    // "cabeça" da ferramenta aponta pro alvo: soma o ângulo base do vetor
+    const aim = Math.atan2(ty - py, Math.abs(tx - px)) * 0.35;
+    const rad = (deg * Math.PI) / 180 * side + aim * side;
+
+    const dispH = isAxe ? 34 : 30;
+    const dispW = (img.naturalWidth / img.naturalHeight) * dispH;
+
+    ctx.save();
+    ctx.translate(hx, hy);
+    ctx.rotate(rad);
+    if (side < 0) ctx.scale(-1, 1);
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+    // desenha com o cabo (base da imagem) na mão
+    ctx.drawImage(img, -dispW / 2, -dispH + 4, dispW, dispH);
+    ctx.imageSmoothingEnabled = false;
+
+    // brilho da ponta de cristal
+    if (tier === 'crystal') {
+      const gg = ctx.createRadialGradient(0, -dispH + 8, 1, 0, -dispH + 8, 14);
+      gg.addColorStop(0, 'rgba(120,200,255,0.5)');
+      gg.addColorStop(1, 'rgba(120,200,255,0)');
+      ctx.fillStyle = gg;
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.fillRect(-14, -dispH - 6, 28, 28);
+    }
+    ctx.restore();
+  }
+
   // Draw the Player with the user's custom animated Knight Hero
   drawPlayer(camX: number, camY: number) {
     const ctx = this.ctx;
@@ -4370,8 +4658,11 @@ export class GameEngine {
     const row = dirRowMap[char.direction];
 
     const act = char.actionState;
+    // Coleta (chop/mine): Akles fica parado — quem se mexe é a ferramenta.
+    const toolHarvest = act === 'chop' || act === 'mine';
     const isAction =
-      act === 'chop' || act === 'mine' || act === 'attack' || act === 'spin' || act === 'cast';
+      !toolHarvest &&
+      (act === 'attack' || act === 'spin' || act === 'cast');
     const isMoving = char.isMoving;
 
     // ---- Akles: herói cavaleiro animado (sprite sheets processadas) ----

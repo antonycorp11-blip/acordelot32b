@@ -770,6 +770,7 @@ export function buildMap(): MapGrid {
     speed: number;
     route: Array<[number, number]>;
     dialogue: string[];
+    barks?: string[];
   }) => {
     const route = o.route.map(([c, r]) => ({ x: c * T, y: r * T }));
     npcs.push({
@@ -797,6 +798,7 @@ export function buildMap(): MapGrid {
       speed: o.speed,
       collider: { offsetX: 8, offsetY: 28, w: 12, h: 10 },
       dialogue: o.dialogue,
+      barks: o.barks,
       route,
       routeIdx: 1 % route.length,
       routePause: Math.random() * 2,
@@ -818,6 +820,13 @@ export function buildMap(): MapGrid {
       'Cada fragmento que você recolhe é meia frase de uma melodia esquecida.',
       'Trinta fragmentos afinam uma nota inteira. Doze notas, e Acordelot volta a cantar.',
     ],
+    barks: [
+      'Compasso 4/4: um-dois-três-quatro, sempre.',
+      'A pausa também é música, jovem.',
+      'Respire no tempo forte. Solte no fraco.',
+      'Reger é ouvir antes de mover a mão.',
+      'Piano é suave; forte é firme. Nunca gritado.',
+    ],
   });
 
   addNpc({
@@ -834,6 +843,13 @@ export function buildMap(): MapGrid {
       'Toda escala começa e termina em casa, moço. Isso é a tônica.',
       'Plantei fá sustenido no canteiro do fundo. Ainda não brotou.',
       'Se achar um fragmento verde por aí, é meu — mas pode ficar. A terra dá mais.',
+    ],
+    barks: [
+      'Dó ré mi fá sol lá si dó — a escala inteira.',
+      'A tônica é o dó da casa. Sempre se volta pra ela.',
+      'Tom e semitom: mi-fá e si-dó são os curtinhos.',
+      'Escala maior: alegre. Menor: saudosa.',
+      'Cantarole a escala subindo e descendo, todo dia.',
     ],
   });
 
@@ -852,6 +868,13 @@ export function buildMap(): MapGrid {
       'Sou o intervalo que nunca resolve. Tensão pura, do primeiro ao último acorde.',
       'Junte as doze notas e eu componho a sua lenda. Cobro em aplausos.',
     ],
+    barks: [
+      'Do dó ao sol: um salto de quinta. Heroico!',
+      'A sétima implora resolução. Eu nunca dou.',
+      'Trítono: o intervalo do diabo. Meu favorito.',
+      'Terça maior soa doce; menor, melancólica.',
+      'Oitava é a mesma nota, só que mais alta.',
+    ],
   });
 
   addNpc({
@@ -869,6 +892,13 @@ export function buildMap(): MapGrid {
       'O Mestre Diapasão diz que eu ando rápido demais. Semínima é rápida, oras!',
       'Se eu montar a nota Lá primeiro, eu ganho, combinado?',
     ],
+    barks: [
+      'Semínima vale um tempo! Colcheia é meio!',
+      'Duas colcheias = uma semínima. Fácil!',
+      'Bato o pé pra marcar: pá, pá, pá, pá!',
+      'A mínima é lerda, vale dois. Que preguiça.',
+      'Semicolcheia é rapidinha igual eu!',
+    ],
   });
 
   addNpc({
@@ -885,6 +915,13 @@ export function buildMap(): MapGrid {
       'Bata-me contra a pedra e eu te dou o Lá — 432 vibrações de verdade.',
       'Os fragmentos são joias comutativas: a ordem em que os soma não altera a nota.',
       'Abra a Síntese quando tiver trinta de uma cor. O resto é paciência e ouvido.',
+    ],
+    barks: [
+      'O Lá padrão vibra a 440 hertz.',
+      'Afinar é comparar batimentos até o zumbido sumir.',
+      'Um acorde é três notas soando como uma só.',
+      'Dó-mi-sol: a tríade maior, o alicerce.',
+      'Ouvido treina como músculo. Todo dia um pouco.',
     ],
   });
 

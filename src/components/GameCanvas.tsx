@@ -1022,6 +1022,7 @@ export const GameCanvas: React.FC = () => {
           canLevelUp={stats.xp >= stats.xpNext}
           onLevelUp={() => engineRef.current?.levelUp()}
           onSpend={(attr) => engineRef.current?.spendAttrPoint(attr)}
+          engine={engineRef.current}
         />
       )}
 

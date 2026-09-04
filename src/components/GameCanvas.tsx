@@ -35,8 +35,9 @@ import { SynthesisScreen } from './SynthesisScreen';
 import { PartituraScreen } from './PartituraScreen';
 import { WeaponScreen } from './WeaponScreen';
 import { CatalogScreen } from './CatalogScreen';
+import { QuestScreen } from './QuestScreen';
 import { publishMapToCode, getGhToken, setGhToken } from '../game/mapPersist';
-import { Backpack, Hand, User, CloudRain, Music4, FlaskConical, ScrollText, Swords, Zap, Library } from 'lucide-react';
+import { Backpack, Hand, User, CloudRain, Music4, FlaskConical, ScrollText, Swords, Zap, Library, ListChecks } from 'lucide-react';
 
 interface PropPaletteItem {
   type: string;
@@ -479,6 +480,8 @@ export const GameCanvas: React.FC = () => {
   const [showPartitura, setShowPartitura] = useState(false);
   const [showWeapon, setShowWeapon] = useState(false);
   const [showCatalog, setShowCatalog] = useState(false);
+  const [showQuests, setShowQuests] = useState(false);
+  const [, setQuestTick] = useState(0);
   // Skills agora é uma aba dentro da Ficha — abrir com esse atalho já cai nela
   const [sheetInitialTab, setSheetInitialTab] = useState<
     'ficha' | 'ferramentas' | 'equipamentos' | 'skills'
@@ -558,6 +561,8 @@ export const GameCanvas: React.FC = () => {
       setZoomLevel(zoom);
     };
 
+    engine.onQuestsChange = () => setQuestTick((t) => t + 1);
+
     const updateSize = () => {
       if (!containerRef.current || !engineRef.current) return;
       const rect = containerRef.current.getBoundingClientRect();
@@ -593,6 +598,7 @@ export const GameCanvas: React.FC = () => {
         setShowSheet(true);
       }
       if (e.code === 'KeyK') setShowCatalog((v) => !v);
+      if (e.code === 'KeyM') setShowQuests((v) => !v);
     };
     window.addEventListener('keydown', onKey);
 
@@ -1096,7 +1102,12 @@ export const GameCanvas: React.FC = () => {
 
       {/* Barra de vida + retrato + XP */}
       {!isEditMode && stats && (
-        <PlayerHud stats={stats} onOpenSheet={() => { setSheetInitialTab('ficha'); setShowSheet(true); }} />
+        <PlayerHud
+          stats={stats}
+          onOpenSheet={() => { setSheetInitialTab('ficha'); setShowSheet(true); }}
+          questObjective={engineRef.current?.activeQuestObjective ?? null}
+          onOpenQuests={() => setShowQuests(true)}
+        />
       )}
 
       {/* Joystick + botões de ação para celular */}
@@ -1108,6 +1119,7 @@ export const GameCanvas: React.FC = () => {
           onTogglePartitura={() => setShowPartitura((v) => !v)}
           onToggleWeapon={() => setShowWeapon((v) => !v)}
           onToggleCatalog={() => setShowCatalog((v) => !v)}
+          onToggleQuests={() => setShowQuests((v) => !v)}
         />
       )}
 
@@ -1152,6 +1164,14 @@ export const GameCanvas: React.FC = () => {
             title="Catálogo (K)"
           >
             <Library className="w-5 h-5" />
+          </button>
+          <button
+            type="button"
+            onClick={() => setShowQuests((v) => !v)}
+            className="cursor-pointer w-12 h-12 rounded-full bg-slate-950/85 hover:bg-slate-800 text-emerald-300 border border-emerald-500/40 hover:border-emerald-400/80 shadow-xl flex items-center justify-center backdrop-blur-md transition-all active:scale-95"
+            title="Missões (M)"
+          >
+            <ListChecks className="w-5 h-5" />
           </button>
           <button
             type="button"
@@ -1257,6 +1277,12 @@ export const GameCanvas: React.FC = () => {
       <CatalogScreen
         open={showCatalog && !isEditMode}
         onClose={() => setShowCatalog(false)}
+        engine={engineRef.current}
+      />
+
+      <QuestScreen
+        open={showQuests && !isEditMode}
+        onClose={() => setShowQuests(false)}
         engine={engineRef.current}
       />
 

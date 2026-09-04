@@ -1,13 +1,16 @@
 import React from 'react';
+import { Target } from 'lucide-react';
 import type { PlayerStats } from '../game/engine';
 
 interface PlayerHudProps {
   stats: PlayerStats;
   onOpenSheet: () => void;
+  questObjective?: { title: string; text: string; ready: boolean } | null;
+  onOpenQuests?: () => void;
 }
 
-/** Canto superior esquerdo: retrato + barra de vida + barra de XP. */
-export const PlayerHud: React.FC<PlayerHudProps> = ({ stats, onOpenSheet }) => {
+/** Canto superior esquerdo: retrato + barra de vida + barra de XP + objetivo da missão ativa. */
+export const PlayerHud: React.FC<PlayerHudProps> = ({ stats, onOpenSheet, questObjective, onOpenQuests }) => {
   const hpPct = Math.max(0, Math.min(100, (stats.hp / stats.maxHp) * 100));
   const xpPct = Math.max(0, Math.min(100, (stats.xp / stats.xpNext) * 100));
 
@@ -56,6 +59,22 @@ export const PlayerHud: React.FC<PlayerHudProps> = ({ stats, onOpenSheet }) => {
             style={{ width: `${xpPct}%` }}
           />
         </div>
+
+        {/* Objetivo da missão diária ativa */}
+        {questObjective && (
+          <button
+            type="button"
+            onClick={onOpenQuests}
+            className={`mt-1 w-full flex items-center gap-1 rounded-md px-1.5 py-0.5 text-left bg-slate-950/80 border ${
+              questObjective.ready ? 'border-emerald-500/60' : 'border-slate-700/70'
+            }`}
+          >
+            <Target className={`w-3 h-3 shrink-0 ${questObjective.ready ? 'text-emerald-400' : 'text-emerald-300/80'}`} />
+            <span className="text-[9px] font-semibold text-slate-200 leading-tight truncate drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">
+              {questObjective.text}
+            </span>
+          </button>
+        )}
       </div>
     </div>
   );

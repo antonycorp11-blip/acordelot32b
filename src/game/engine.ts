@@ -51,13 +51,23 @@ import {
 import { PASSIVE_DEFS } from './passives';
 import { EQUIP_SETS, EQUIP_PIECE_INDEX, EQUIP_SLOT_ORDER, EquipSlotKey, EquipSetDef, EquipPieceDef } from './catalogData';
 import { StatKey, StatBag, mergeStatBags, STATS_WITHOUT_EFFECT } from './statTypes';
+import { DAILY_QUEST_POOL, QuestDef, QuestKind } from './quests';
 export { WEAPON_DEFS } from './weapons';
 export { PASSIVE_DEFS, PASSIVE_ORDER } from './passives';
 export { EQUIP_SETS, EQUIP_PIECE_INDEX, EQUIP_SLOT_ORDER, EQUIP_SLOT_LABEL } from './catalogData';
 export { STAT_LABELS, STATS_WITHOUT_EFFECT } from './statTypes';
+export { DAILY_QUEST_POOL, QUEST_KIND_LABEL } from './quests';
 export type { WeaponDef, WeaponTier, WeaponPassive } from './weapons';
 export type { PassiveDef, PassiveGroup } from './passives';
 export type { EquipSlotKey, EquipSetDef, EquipPieceDef, EquipPassive } from './catalogData';
+export type { QuestDef, QuestKind, QuestReward } from './quests';
+
+export interface QuestInstance {
+  def: QuestDef;
+  accepted: boolean;
+  progress: number;
+  claimed: boolean;
+}
 export type { StatKey, StatBag } from './statTypes';
 
 export type TimeOfDay = 'day' | 'sunset' | 'night';
@@ -1307,6 +1317,113 @@ export class GameEngine {
     this.appliedEquipHpBonus = newBonus;
   }
 
+  // ---- Missões diárias (independentes da história) ----
+  // 3 sorteadas do pool por dia (reseta à meia-noite local, via
+  // localStorage). Só contam progresso depois de aceitas.
+  dailyQuests: QuestInstance[] = [];
+  onQuestsChange?: () => void;
+
+  private static readonly QUEST_LS_KEY = 'acordelot_daily_quests_v1';
+
+  private loadOrRollDailyQuests() {
+    const today = new Date().toISOString().slice(0, 10);
+    try {
+      const raw = localStorage.getItem(GameEngine.QUEST_LS_KEY);
+      if (raw) {
+        const saved = JSON.parse(raw) as {
+          date: string;
+          quests: Array<{ id: string; accepted: boolean; progress: number; claimed: boolean }>;
+        };
+        if (saved.date === today && Array.isArray(saved.quests) && saved.quests.length === 3) {
+          const restored = saved.quests
+            .map((q) => {
+              const def = DAILY_QUEST_POOL.find((d) => d.id === q.id);
+              return def ? { def, accepted: q.accepted, progress: q.progress, claimed: q.claimed } : null;
+            })
+            .filter((q): q is QuestInstance => q !== null);
+          if (restored.length === 3) {
+            this.dailyQuests = restored;
+            return;
+          }
+        }
+      }
+    } catch {
+      /* localStorage indisponível — sorteia normalmente */
+    }
+    const pool = [...DAILY_QUEST_POOL];
+    const picked: QuestDef[] = [];
+    while (picked.length < 3 && pool.length) {
+      picked.push(pool.splice(Math.floor(Math.random() * pool.length), 1)[0]);
+    }
+    this.dailyQuests = picked.map((def) => ({ def, accepted: false, progress: 0, claimed: false }));
+    this.saveDailyQuests(today);
+  }
+  private saveDailyQuests(date?: string) {
+    try {
+      localStorage.setItem(
+        GameEngine.QUEST_LS_KEY,
+        JSON.stringify({
+          date: date ?? new Date().toISOString().slice(0, 10),
+          quests: this.dailyQuests.map((q) => ({
+            id: q.def.id,
+            accepted: q.accepted,
+            progress: q.progress,
+            claimed: q.claimed,
+          })),
+        }),
+      );
+    } catch {
+      /* ignora — missões continuam funcionando só nesta sessão */
+    }
+  }
+  acceptQuest(id: string): boolean {
+    const q = this.dailyQuests.find((x) => x.def.id === id);
+    if (!q || q.accepted) return false;
+    q.accepted = true;
+    this.saveDailyQuests();
+    this.onQuestsChange?.();
+    return true;
+  }
+  claimQuestReward(id: string): boolean {
+    const q = this.dailyQuests.find((x) => x.def.id === id);
+    if (!q || !q.accepted || q.claimed || q.progress < q.def.target) return false;
+    for (const r of q.def.rewards) {
+      if (r.item === 'clave') this.addCoins(r.qty);
+      else if (r.item.startsWith('frag_')) this.addFragment(NOTE_KEY.indexOf(r.item.slice(5)), r.qty);
+      else this.addToInventory(r.item, r.qty);
+    }
+    q.claimed = true;
+    this.saveDailyQuests();
+    this.onQuestsChange?.();
+    this.onHarvestPopup?.(`✓ Missão concluída: ${q.def.title}!`, this.player.x, this.player.y - 20);
+    return true;
+  }
+  private bumpQuestProgress(kind: QuestKind, n = 1) {
+    let changed = false;
+    for (const q of this.dailyQuests) {
+      if (!q.accepted || q.claimed || q.def.kind !== kind || q.progress >= q.def.target) continue;
+      q.progress = Math.min(q.def.target, q.progress + n);
+      changed = true;
+    }
+    if (changed) {
+      this.saveDailyQuests();
+      this.onQuestsChange?.();
+    }
+  }
+  // missão ativa mais relevante pra mostrar embaixo da barra de vida
+  get activeQuestObjective(): { title: string; text: string; progress: number; target: number; ready: boolean } | null {
+    const q = this.dailyQuests.find((x) => x.accepted && !x.claimed);
+    if (!q) return null;
+    const ready = q.progress >= q.def.target;
+    return {
+      title: q.def.title,
+      text: ready ? `${q.def.title} — pronta! Volte às Missões pra coletar.` : `${q.def.title}: ${q.def.desc} (${q.progress}/${q.def.target})`,
+      progress: q.progress,
+      target: q.def.target,
+      ready,
+    };
+  }
+
   // ---- multiplicadores derivados das passivas ----
   get basicAtkMul() {
     return (
@@ -1494,6 +1611,7 @@ export class GameEngine {
     this.initFragments();
     this.initEnemies();
     this.loadTools();
+    this.loadOrRollDailyQuests();
 
     // Passivas permanentes de HP (Harmonia Vital / Força Ressonante)
     this.stats.maxHp = Math.round(this.stats.maxHp * this.maxHpPassiveMul);
@@ -2898,6 +3016,7 @@ export class GameEngine {
       e.state = 'dead';
       e.frame = 0;
       e.stateTimer = 0;
+      this.bumpQuestProgress('kill');
       const def = ENEMY_DEFS[e.kind];
       const lvlBonus = Math.floor((e.level - 1) / 2);
       const claves = def.claveMin + lvlBonus + Math.floor(Math.random() * (def.claveMax - def.claveMin + 1));
@@ -3601,9 +3720,18 @@ export class GameEngine {
   }
 
   private collectDrop(item: string, qty: number, note: number | undefined, x: number, y: number) {
-    if (item === 'clave') this.addCoins(qty);
-    else if (item.startsWith('frag_') && note !== undefined) this.addFragment(note, qty);
-    else this.addToInventory(item, qty);
+    if (item === 'clave') {
+      this.addCoins(qty);
+      this.bumpQuestProgress('collect_clave', qty);
+    } else if (item.startsWith('frag_') && note !== undefined) {
+      this.addFragment(note, qty);
+    } else {
+      this.addToInventory(item, qty);
+    }
+    if (item === 'wood') this.bumpQuestProgress('harvest_wood', qty);
+    else if (item === 'stone') this.bumpQuestProgress('harvest_stone', qty);
+    else if (item === 'gold_raw') this.bumpQuestProgress('collect_gold', qty);
+    else if (item === 'crystal_blue_raw') this.bumpQuestProgress('collect_crystal', qty);
     for (let i = 0; i < 4; i++) this.addMiningSpark(x, y - 4);
   }
 

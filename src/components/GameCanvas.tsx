@@ -338,6 +338,7 @@ export const GameCanvas: React.FC = () => {
   // Map Editor, Time of Day & Zoom State
   const [isEditMode, setIsEditMode] = useState(false);
   const [selectedProp, setSelectedProp] = useState<SelectedPropInfo | null>(null);
+  const [groupCount, setGroupCount] = useState(0);
   const [saveNotice, setSaveNotice] = useState(false);
   const [showTokenDialog, setShowTokenDialog] = useState(false);
   const [tokenInput, setTokenInput] = useState('');
@@ -389,6 +390,8 @@ export const GameCanvas: React.FC = () => {
       if (pickupTimer.current) window.clearTimeout(pickupTimer.current);
       pickupTimer.current = window.setTimeout(() => setPickupFlash(null), 900);
     };
+
+    engine.onGroupChange = (ids) => setGroupCount(ids.length);
 
     engine.onSelectedPropChange = (prop) => {
       setSelectedProp(prop);
@@ -679,8 +682,46 @@ export const GameCanvas: React.FC = () => {
             </div>
           </div>
 
+          {/* Barra de seleção múltipla */}
+          {groupCount > 1 && (
+            <div className="bg-sky-950/95 backdrop-blur-md border border-sky-400/70 rounded-xl px-3 py-1.5 flex items-center justify-between gap-3 shadow-xl">
+              <span className="text-[11px] font-bold text-sky-200">
+                {groupCount} assets selecionados
+                <span className="text-sky-400/80 font-normal">
+                  {' '}
+                  · arraste um deles p/ mover todos · Shift+clique adiciona
+                </span>
+              </span>
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => engineRef.current?.duplicateSelection()}
+                  className="cursor-pointer bg-sky-600 hover:bg-sky-500 text-white text-xs font-semibold px-2.5 py-1 rounded-lg flex items-center gap-1 active:scale-95"
+                >
+                  <Copy className="w-3.5 h-3.5" />
+                  Copiar ({groupCount})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => engineRef.current?.deleteSelection()}
+                  className="cursor-pointer bg-rose-600/90 hover:bg-rose-500 text-white text-xs font-semibold px-2.5 py-1 rounded-lg flex items-center gap-1 active:scale-95"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  Excluir
+                </button>
+                <button
+                  type="button"
+                  onClick={() => engineRef.current?.clearSelection()}
+                  className="cursor-pointer text-sky-300 hover:text-white p-1"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* Contextual Sub-Bar: Selected Prop Controls (When an item is clicked) */}
-          {selectedProp ? (
+          {groupCount > 1 ? null : selectedProp ? (
             <div className="bg-slate-900/95 backdrop-blur-md border border-amber-400/80 rounded-xl px-3 py-1.5 flex flex-wrap items-center justify-between gap-3 shadow-xl">
               <div className="flex items-center gap-2">
                 <span className="text-[11px] font-bold text-amber-300 bg-amber-950/80 border border-amber-500/40 px-2 py-0.5 rounded-lg">

@@ -900,6 +900,13 @@ export class GameEngine {
   hoveredPropId: string | null = null;
   isDragging: boolean = false;
   dragOffset: { x: number; y: number } = { x: 0, y: 0 };
+
+  // Seleção múltipla no editor
+  multiSel: Set<string> = new Set();
+  marquee: { x0: number; y0: number; x1: number; y1: number } | null = null;
+  private groupDragAnchor: { x: number; y: number } | null = null;
+  private groupDragStart: Map<string, { x: number; y: number }> = new Map();
+  onGroupChange?: (ids: string[]) => void;
   propScales: Record<string, number> = {};
 
   onSelectedPropChange?: (prop: SelectedPropInfo | null) => void;
@@ -1143,16 +1150,29 @@ export class GameEngine {
       return;
     }
 
-    // Delete selected prop in editor
+    // Editor: apagar seleção (múltipla ou única)
     if (this.isEditMode && (e.code === 'Delete' || e.code === 'Backspace')) {
+      if (this.multiSel.size > 0) {
+        this.deleteSelection();
+        return;
+      }
       if (this.selectedPropId) {
         this.deleteProp(this.selectedPropId);
         return;
       }
     }
+    if (this.isEditMode && e.code === 'Escape') {
+      this.clearSelection();
+      return;
+    }
 
-    // Duplicate selected prop with 'D' in editor
+    // Editor: duplicar seleção com 'D'
     if (this.isEditMode && (e.code === 'KeyD' || (e.ctrlKey && e.code === 'KeyD'))) {
+      if (this.multiSel.size > 0) {
+        e.preventDefault();
+        this.duplicateSelection();
+        return;
+      }
       if (this.selectedPropId) {
         e.preventDefault();
         this.duplicateProp(this.selectedPropId);
@@ -1388,28 +1408,77 @@ export class GameEngine {
     }
 
     if (hitProp) {
+      if (e.shiftKey) {
+        // shift+clique: adiciona/remove da seleção
+        if (this.multiSel.has(hitProp.id)) this.multiSel.delete(hitProp.id);
+        else this.multiSel.add(hitProp.id);
+        this.selectedPropId = this.multiSel.size === 1 ? [...this.multiSel][0] : null;
+        this.emitGroup();
+        this.onSelectedPropChange?.(
+          this.selectedPropId ? this.getSelectedPropInfo(this.selectedPropId) : null
+        );
+        return;
+      }
+
+      if (this.multiSel.has(hitProp.id) && this.multiSel.size > 1) {
+        // arrasta o grupo inteiro
+        this.groupDragAnchor = { x: worldPos.x, y: worldPos.y };
+        this.groupDragStart.clear();
+        for (const id of this.multiSel) {
+          const p = this.props.find((pp) => pp.id === id);
+          if (p) this.groupDragStart.set(id, { x: p.x, y: p.y });
+        }
+        this.isDragging = true;
+        this.canvas.style.cursor = 'grabbing';
+        return;
+      }
+
+      this.multiSel = new Set([hitProp.id]);
       this.selectedPropId = hitProp.id;
       this.isDragging = true;
-      this.dragOffset = {
-        x: worldPos.x - hitProp.x,
-        y: worldPos.y - hitProp.y,
-      };
+      this.dragOffset = { x: worldPos.x - hitProp.x, y: worldPos.y - hitProp.y };
       this.canvas.style.cursor = 'grabbing';
-      if (this.onSelectedPropChange) {
-        this.onSelectedPropChange(this.getSelectedPropInfo(hitProp.id));
-      }
+      this.emitGroup();
+      this.onSelectedPropChange?.(this.getSelectedPropInfo(hitProp.id));
     } else {
-      this.selectedPropId = null;
-      if (this.onSelectedPropChange) {
-        this.onSelectedPropChange(null);
+      if (!e.shiftKey) {
+        this.multiSel.clear();
+        this.selectedPropId = null;
+        this.emitGroup();
+        this.onSelectedPropChange?.(null);
       }
+      // inicia retângulo de seleção
+      this.marquee = { x0: worldPos.x, y0: worldPos.y, x1: worldPos.x, y1: worldPos.y };
     }
   };
+
+  private emitGroup() {
+    this.onGroupChange?.([...this.multiSel]);
+  }
 
   onMouseMove = (e: MouseEvent) => {
     if (!this.isEditMode) return;
     const worldPos = this.getWorldPosFromEvent(e);
     if (!worldPos) return;
+
+    if (this.marquee) {
+      this.marquee.x1 = worldPos.x;
+      this.marquee.y1 = worldPos.y;
+      return;
+    }
+
+    if (this.isDragging && this.groupDragAnchor) {
+      const dx = worldPos.x - this.groupDragAnchor.x;
+      const dy = worldPos.y - this.groupDragAnchor.y;
+      for (const [id, start] of this.groupDragStart) {
+        const p = this.props.find((pp) => pp.id === id);
+        if (!p) continue;
+        p.x = Math.round(Math.max(32, Math.min(WORLD_WIDTH - p.w - 32, start.x + dx)));
+        p.y = Math.round(Math.max(32, Math.min(WORLD_HEIGHT - p.h - 32, start.y + dy)));
+        this.syncPropAutoCollider(p);
+      }
+      return;
+    }
 
     if (this.isDragging && this.selectedPropId) {
       const prop = this.props.find((p) => p.id === this.selectedPropId);
@@ -1448,12 +1517,71 @@ export class GameEngine {
 
   onMouseUp = () => {
     if (!this.isEditMode) return;
+
+    if (this.marquee) {
+      const { x0, y0, x1, y1 } = this.marquee;
+      const rx = Math.min(x0, x1);
+      const ry = Math.min(y0, y1);
+      const rw = Math.abs(x1 - x0);
+      const rh = Math.abs(y1 - y0);
+      if (rw > 6 || rh > 6) {
+        for (const p of this.props) {
+          if (!EDITABLE_PROP_METAS[p.type]) continue;
+          if (p.x + p.w > rx && p.x < rx + rw && p.y + p.h > ry && p.y < ry + rh) {
+            this.multiSel.add(p.id);
+          }
+        }
+        this.selectedPropId = this.multiSel.size === 1 ? [...this.multiSel][0] : null;
+        this.emitGroup();
+        this.onSelectedPropChange?.(
+          this.selectedPropId ? this.getSelectedPropInfo(this.selectedPropId) : null
+        );
+      }
+      this.marquee = null;
+    }
+
     if (this.isDragging) {
       this.isDragging = false;
+      this.groupDragAnchor = null;
+      this.groupDragStart.clear();
       this.canvas.style.cursor = 'grab';
       this.saveMapToStorage();
     }
   };
+
+  // Ações de grupo (chamadas pela UI)
+  duplicateSelection() {
+    if (this.multiSel.size === 0) return;
+    const newIds: string[] = [];
+    for (const id of [...this.multiSel]) {
+      const nid = this.duplicateProp(id);
+      if (nid) newIds.push(nid);
+    }
+    if (newIds.length) {
+      this.multiSel = new Set(newIds);
+      this.selectedPropId = newIds.length === 1 ? newIds[0] : null;
+      this.emitGroup();
+      this.saveMapToStorage();
+    }
+  }
+
+  deleteSelection() {
+    if (this.multiSel.size === 0) return;
+    for (const id of [...this.multiSel]) this.deleteProp(id);
+    this.multiSel.clear();
+    this.selectedPropId = null;
+    this.emitGroup();
+    this.onSelectedPropChange?.(null);
+    this.saveMapToStorage();
+  }
+
+  clearSelection() {
+    this.multiSel.clear();
+    this.selectedPropId = null;
+    this.marquee = null;
+    this.emitGroup();
+    this.onSelectedPropChange?.(null);
+  }
 
   onWheel = (e: WheelEvent) => {
     e.preventDefault();
@@ -1502,6 +1630,9 @@ export class GameEngine {
       this.selectedPropId = null;
       this.hoveredPropId = null;
       this.isDragging = false;
+      this.multiSel.clear();
+      this.marquee = null;
+      this.emitGroup();
       this.canvas.style.cursor = 'default';
       if (this.onSelectedPropChange) {
         this.onSelectedPropChange(null);
@@ -3228,6 +3359,16 @@ export class GameEngine {
 
       const isSelected = this.selectedPropId === prop.id;
       const isHovered = this.hoveredPropId === prop.id;
+      const inGroup = this.multiSel.has(prop.id);
+
+      if (inGroup && !isSelected) {
+        ctx.strokeStyle = '#38bdf8';
+        ctx.lineWidth = 2;
+        ctx.setLineDash([]);
+        ctx.strokeRect(px - 1, py - 1, prop.w + 2, prop.h + 2);
+        ctx.fillStyle = 'rgba(56,189,248,0.12)';
+        ctx.fillRect(px, py, prop.w, prop.h);
+      }
 
       if (isSelected) {
         ctx.strokeStyle = '#facc15';
@@ -3267,6 +3408,21 @@ export class GameEngine {
         ctx.setLineDash([4, 3]);
         ctx.strokeRect(px, py, prop.w, prop.h);
       }
+    }
+
+    // Retângulo de seleção (marquee)
+    if (this.marquee) {
+      const mx = Math.round(Math.min(this.marquee.x0, this.marquee.x1) - camX);
+      const my = Math.round(Math.min(this.marquee.y0, this.marquee.y1) - camY);
+      const mw = Math.round(Math.abs(this.marquee.x1 - this.marquee.x0));
+      const mh = Math.round(Math.abs(this.marquee.y1 - this.marquee.y0));
+      ctx.setLineDash([5, 3]);
+      ctx.strokeStyle = '#38bdf8';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(mx, my, mw, mh);
+      ctx.fillStyle = 'rgba(56,189,248,0.10)';
+      ctx.fillRect(mx, my, mw, mh);
+      ctx.setLineDash([]);
     }
 
     ctx.restore();

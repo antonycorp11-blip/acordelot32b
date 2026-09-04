@@ -106,27 +106,29 @@ const AKLES_DISP_SCALE = 0.35;
 const AKLES_DIR_ROW: Record<Direction, number> = { down: 0, left: 1, up: 2, right: 3 };
 
 // ---- Wins — classe da Voz (personagem temporária) ----
-// Um sheet só (corrida, 10 col x 4 lin) reaproveitado pra idle/walk/run —
-// só muda a velocidade de reprodução, igual ao Akles. Célula processada
-// em scripts/process-wins.mjs (chroma-key com descontaminação de cor +
-// erosão de 2px + filtro de maior blob conectado por frame — sem franja
-// magenta e sem sobra de linha vizinha): 136x240, pés ancorados embaixo.
-const WINS_DISP = 0.24;
+// 3 folhas SEPARADAS (idle/walk/run são animações diferentes de verdade,
+// cada uma com sua própria arte — não a mesma reaproveitada 3x). Cada
+// célula processada em scripts/process-wins.mjs tem um tamanho de origem
+// diferente; o disp de cada estado é calibrado pra bater na MESMA altura
+// final na tela (~58px) apesar disso. cw/ch abaixo são só fallback — o
+// motor deriva o tamanho real da imagem já carregada (ver drawPlayer).
+const WINS_TARGET_H = 58;
 const WINS_ANIM: Record<'idle' | 'walk' | 'run', AklesAnimMeta> = {
-  idle: { sheet: 'winsMove', cw: 136, ch: 240, cols: 10, fps: 6, loop: true, disp: WINS_DISP, feetFrac: 1 },
-  walk: { sheet: 'winsMove', cw: 136, ch: 240, cols: 10, fps: 10, loop: true, disp: WINS_DISP, feetFrac: 1 },
-  run: { sheet: 'winsMove', cw: 136, ch: 240, cols: 10, fps: 15, loop: true, disp: WINS_DISP, feetFrac: 1 },
+  idle: { sheet: 'winsIdle', cw: 128, ch: 240, cols: 10, fps: 6, loop: true, disp: WINS_TARGET_H / 240, feetFrac: 1 },
+  walk: { sheet: 'winsWalk', cw: 124, ch: 209, cols: 10, fps: 10, loop: true, disp: WINS_TARGET_H / 209, feetFrac: 1 },
+  run: { sheet: 'winsRun', cw: 130, ch: 209, cols: 10, fps: 15, loop: true, disp: WINS_TARGET_H / 209, feetFrac: 1 },
 };
 // ordem visual do sheet da Wins: 0=frente 1=esquerda 2=direita 3=costas
 const WINS_DIR_ROW: Record<Direction, number> = { down: 0, left: 1, right: 2, up: 3 };
 
 // ---- Huans — classe Cordas (personagem temporário) ----
-// Célula processada em scripts/process-wins.mjs (mesmo pipeline): 144x211.
-const HUANS_DISP = 0.27;
+// Mesma lógica: 3 folhas separadas, disp calibrado por estado pra altura
+// final consistente (~58px).
+const HUANS_TARGET_H = 58;
 const HUANS_ANIM: Record<'idle' | 'walk' | 'run', AklesAnimMeta> = {
-  idle: { sheet: 'huansMove', cw: 144, ch: 211, cols: 10, fps: 6, loop: true, disp: HUANS_DISP, feetFrac: 1 },
-  walk: { sheet: 'huansMove', cw: 144, ch: 211, cols: 10, fps: 11, loop: true, disp: HUANS_DISP, feetFrac: 1 },
-  run: { sheet: 'huansMove', cw: 144, ch: 211, cols: 10, fps: 17, loop: true, disp: HUANS_DISP, feetFrac: 1 },
+  idle: { sheet: 'huansIdle', cw: 91, ch: 211, cols: 10, fps: 6, loop: true, disp: HUANS_TARGET_H / 211, feetFrac: 1 },
+  walk: { sheet: 'huansWalk', cw: 87, ch: 199, cols: 10, fps: 11, loop: true, disp: HUANS_TARGET_H / 199, feetFrac: 1 },
+  run: { sheet: 'huansRun', cw: 118, ch: 181, cols: 10, fps: 17, loop: true, disp: HUANS_TARGET_H / 181, feetFrac: 1 },
 };
 const HUANS_DIR_ROW: Record<Direction, number> = { down: 0, left: 1, right: 2, up: 3 };
 

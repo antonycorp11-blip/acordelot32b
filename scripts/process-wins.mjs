@@ -6,7 +6,7 @@
  * e monta tudo numa única sheet com célula compartilhada (maior bbox das
  * 4 linhas), ancorada embaixo/centralizada — igual ao formato que o motor
  * já usa pro Akles (col*cw, linha*ch).
- * Uso: node scripts/process-wins.mjs <caminho-da-imagem-fonte>
+ * Uso: node scripts/process-wins.mjs <caminho-da-imagem-fonte> [pasta] [margem] [idle|walk|run]
  */
 import { PNG } from 'pngjs';
 import fs from 'fs';
@@ -18,8 +18,11 @@ const CHAR_DIR = process.argv[3] || 'wins';
 // sobra (capa/cabelo) que vaza da linha de cima quando o grid de origem
 // não é perfeitamente uniforme.
 const TOP_MARGIN = parseInt(process.argv[4] || '0', 10);
+// idle / walk / run — cada um vira um arquivo de saída separado (3 folhas
+// de origem distintas, não a mesma reaproveitada 3x).
+const STATE = process.argv[5] || 'move';
 if (!SRC) {
-  console.error('uso: node scripts/process-wins.mjs <caminho-da-imagem-fonte> [pasta-do-personagem] [margem-topo-px]');
+  console.error('uso: node scripts/process-wins.mjs <caminho-da-imagem-fonte> [pasta-do-personagem] [margem-topo-px] [idle|walk|run]');
   process.exit(1);
 }
 const OUT_DIR = path.resolve(`public/assets/characters/${CHAR_DIR}`);
@@ -158,57 +161,140 @@ chromaKey(raw);
 despeckle(raw);
 erodeAlpha(raw, 2);
 
-const cellW = Math.floor(raw.width / COLS);
 const cellH = Math.floor(raw.height / ROWS);
-for (let r = 0; r < ROWS; r++) {
-  for (let c = 0; c < COLS; c++) {
-    keepLargestComponent(raw, c * cellW, r * cellH, cellW, cellH);
-  }
-}
 const A = (x, y) => raw.data[(y * raw.width + x) * 4 + 3];
 
-function rowBBox(row) {
-  let mnX = cellW, mxX = 0, mnY = cellH, mxY = 0, found = false;
-  for (let c = 0; c < COLS; c++) {
-    const ox = c * cellW, oy = row * cellH;
-    for (let y = TOP_MARGIN; y < cellH - TOP_MARGIN; y++) {
-      for (let x = 0; x < cellW; x++) {
-        if (A(ox + x, oy + y) > 24) {
-          found = true;
-          if (x < mnX) mnX = x;
-          if (x > mxX) mxX = x;
-          if (y < mnY) mnY = y;
-          if (y > mxY) mxY = y;
-        }
+// O grid de origem nem sempre tem as 10 colunas com a MESMA largura, e em
+// poses dinâmicas (corrida) cabelo/capa de um frame às vezes encosta no
+// frame vizinho — não sobra nem um gap limpo pra separar por "zona vazia".
+// Em vez de exigir um gap perfeito, ancora cada fronteira na posição
+// uniforme esperada e desliza pra ACHAR O PONTO MAIS FINO (menos conteúdo)
+// numa janela ao redor — sempre devolve exatamente COLS bandas.
+function colBands(y0, y1) {
+  const counts = new Array(raw.width).fill(0);
+  for (let x = 0; x < raw.width; x++) {
+    let c = 0;
+    for (let y = y0; y < y1; y++) if (A(x, y) > 24) c++;
+    counts[x] = c;
+  }
+  const cellW = raw.width / COLS;
+  const search = Math.round(cellW * 0.12);
+  const bounds = [0];
+  for (let i = 1; i < COLS; i++) {
+    const guess = Math.round(i * cellW);
+    let best = guess;
+    let bestCount = Infinity;
+    for (let dx = -search; dx <= search; dx++) {
+      const x = guess + dx;
+      if (x < 1 || x >= raw.width - 1) continue;
+      if (counts[x] < bestCount) {
+        bestCount = counts[x];
+        best = x;
+      }
+    }
+    bounds.push(best);
+  }
+  bounds.push(raw.width);
+  const bands = [];
+  for (let i = 0; i < COLS; i++) bands.push([bounds[i], bounds[i + 1] - 1]);
+  return bands;
+}
+
+// bbox de UM frame isolado (célula bruta) — já filtrado pelo maior blob
+// conectado, então não precisa de margem: qualquer coisa que sobrou ali É o
+// personagem. Recorte por frame individual (não por linha inteira) evita o
+// "meio quadro" que dava quando o grid de origem não é perfeitamente
+// uniforme entre colunas. `buf` é opcional — lê de um snapshot alternativo
+// em vez de raw.data (usado pra comparar ANTES de mutar nada).
+function frameBBox(x0, y0, w, h, buf) {
+  const data = buf || raw.data;
+  const alphaAt = (x, y) => data[(y * raw.width + x) * 4 + 3];
+  let mnX = w, mxX = -1, mnY = h, mxY = -1;
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      if (alphaAt(x0 + x, y0 + y) > 24) {
+        if (x < mnX) mnX = x;
+        if (x > mxX) mxX = x;
+        if (y < mnY) mnY = y;
+        if (y > mxY) mxY = y;
       }
     }
   }
-  return found ? { mnX, mxX, mnY, mxY } : { mnX: 0, mxX: cellW - 1, mnY: 0, mxY: cellH - 1 };
+  return mxX >= 0 ? { mnX, mxX, mnY, mxY } : null;
 }
 
-const rowBoxes = [];
-for (let r = 0; r < ROWS; r++) rowBoxes.push(rowBBox(r));
+// snapshot pré-filtro-de-componente (keepLargestComponent muta raw.data
+// destrutivamente) — usado só pra COMPARAR se a banda detectada realmente
+// captura o personagem inteiro antes de aplicar o filtro de verdade.
+const cleanSnapshot = Buffer.from(raw.data);
 
-const cw = Math.max(...rowBoxes.map((b) => b.mxX - b.mnX + 1));
-const ch = Math.max(...rowBoxes.map((b) => b.mxY - b.mnY + 1));
+const rowBands = [];
+const frames = [];
+for (let r = 0; r < ROWS; r++) {
+  const y0 = r * cellH, y1 = (r + 1) * cellH;
+  const uniformCellW = raw.width / COLS;
+  const uniformBands = Array.from({ length: COLS }, (_, i) => [Math.round(i * uniformCellW), Math.round((i + 1) * uniformCellW) - 1]);
+  const detected = colBands(y0, y1);
+  const bands = [];
+  for (let c = 0; c < COLS; c++) {
+    let [bx0, bx1] = detected[c] || uniformBands[c];
+    const [ux0, ux1] = uniformBands[c];
+    const detBox = frameBBox(bx0, y0, bx1 - bx0 + 1, cellH, cleanSnapshot);
+    const uniBox = frameBBox(ux0, y0, ux1 - ux0 + 1, cellH, cleanSnapshot);
+    const detW = detBox ? detBox.mxX - detBox.mnX + 1 : 0;
+    const uniW = uniBox ? uniBox.mxX - uniBox.mnX + 1 : 0;
+    // a banda "detectada" (fronteira mais fina) pode ter cortado o
+    // personagem ao meio numa pose sem gap nenhum entre frames (corrida) —
+    // se ela rendeu bem menos conteúdo que a divisão uniforme pra esse
+    // frame específico, usa a uniforme só pra ele (nunca frame vazio/cortado).
+    if (uniW > 0 && detW < uniW * 0.65) {
+      [bx0, bx1] = [ux0, ux1];
+    }
+    bands.push([bx0, bx1]);
+  }
+  rowBands.push(bands);
+  const row = [];
+  for (const [bx0, bx1] of bands) {
+    keepLargestComponent(raw, bx0, y0, bx1 - bx0 + 1, cellH);
+    row.push(frameBBox(bx0, y0, bx1 - bx0 + 1, cellH));
+  }
+  frames.push(row);
+}
+// pé comum da linha = pé mais "no chão" entre os 10 frames (o outro pé, no
+// ar durante o passo, fica acima dele naturalmente — sem isso o personagem
+// "bobbing" ficava ainda mais estranho, ancorado individualmente por frame).
+const rowFootY = frames.map((row) => Math.max(...row.filter(Boolean).map((b) => b.mxY)));
+
+let cw = 1, ch = 1;
+for (let r = 0; r < ROWS; r++) {
+  for (const b of frames[r]) {
+    if (!b) continue;
+    cw = Math.max(cw, b.mxX - b.mnX + 1);
+    ch = Math.max(ch, rowFootY[r] - b.mnY + 1);
+  }
+}
 
 const sheet = new PNG({ width: cw * COLS, height: ch * ROWS });
-
 for (let r = 0; r < ROWS; r++) {
-  const b = rowBoxes[r];
-  const fw = b.mxX - b.mnX + 1;
-  const fh = b.mxY - b.mnY + 1;
-  const padX = Math.floor((cw - fw) / 2); // centralizado
-  const padY = ch - fh; // ancorado embaixo (pés na base da célula)
   for (let c = 0; c < COLS; c++) {
-    const srcOx = c * cellW + b.mnX;
+    const b = frames[r][c];
+    if (!b) continue;
+    const fw = b.mxX - b.mnX + 1;
+    const fh = b.mxY - b.mnY + 1;
+    const padX = Math.floor((cw - fw) / 2); // centralizado — por frame, não por linha
+    const destFootY = r * ch + ch - 1; // pé comum da linha = rodapé da célula
+    const dstOy = destFootY - (rowFootY[r] - b.mnY);
+    const srcOx = rowBands[r][c][0] + b.mnX;
     const srcOy = r * cellH + b.mnY;
     const dstOx = c * cw + padX;
-    const dstOy = r * ch + padY;
     for (let y = 0; y < fh; y++) {
+      const ty = dstOy + y;
+      if (ty < r * ch || ty >= (r + 1) * ch) continue;
       for (let x = 0; x < fw; x++) {
+        const tx = dstOx + x;
+        if (tx < c * cw || tx >= (c + 1) * cw) continue;
         const si = ((srcOy + y) * raw.width + (srcOx + x)) * 4;
-        const ti = ((dstOy + y) * sheet.width + (dstOx + x)) * 4;
+        const ti = (ty * sheet.width + tx) * 4;
         sheet.data[ti] = raw.data[si];
         sheet.data[ti + 1] = raw.data[si + 1];
         sheet.data[ti + 2] = raw.data[si + 2];
@@ -218,8 +304,8 @@ for (let r = 0; r < ROWS; r++) {
   }
 }
 
-fs.writeFileSync(path.join(OUT_DIR, `${CHAR_DIR}_move.png`), PNG.sync.write(sheet));
-console.log(`✓ ${CHAR_DIR}_move.png ${sheet.width}x${sheet.height} (célula ${cw}x${ch}, ordem: ${ROW_NAMES.join(',')})`);
+fs.writeFileSync(path.join(OUT_DIR, `${CHAR_DIR}_${STATE}.png`), PNG.sync.write(sheet));
+console.log(`✓ ${CHAR_DIR}_${STATE}.png ${sheet.width}x${sheet.height} (célula ${cw}x${ch}, ordem: ${ROW_NAMES.join(',')})`);
 
 // ícone (frame 0 da linha "down") pra botão de troca de personagem
 const icon = new PNG({ width: cw, height: ch });

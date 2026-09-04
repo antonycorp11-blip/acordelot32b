@@ -132,6 +132,20 @@ const HUANS_ANIM: Record<'idle' | 'walk' | 'run', AklesAnimMeta> = {
 };
 const HUANS_DIR_ROW: Record<Direction, number> = { down: 0, left: 1, right: 2, up: 3 };
 
+// tabelas de lookup por personagem — fora do loop de render (era recriada
+// a cada frame dentro de drawPlayer, ~60x/seg à toa; pesava mais em
+// aparelhos Android mais fracos).
+const ANIM_BY_CHAR: Record<PlayerCharacterKey, Record<'idle' | 'walk' | 'run', AklesAnimMeta>> = {
+  akles: AKLES_ANIM,
+  wins: WINS_ANIM,
+  huans: HUANS_ANIM,
+};
+const DIR_ROW_BY_CHAR: Record<PlayerCharacterKey, Record<Direction, number>> = {
+  akles: AKLES_DIR_ROW,
+  wins: WINS_DIR_ROW,
+  huans: HUANS_DIR_ROW,
+};
+
 export type PlayerCharacterKey = 'akles' | 'wins' | 'huans';
 export const CHARACTER_PORTRAITS: Record<PlayerCharacterKey, string> = {
   akles: '/icons/icon-192.png',
@@ -6020,18 +6034,8 @@ export class GameEngine {
     // Huans, conforme this.activeCharacter. Todos usam a mesma estrutura de
     // sheet (col*cw, linha*ch), só a tabela de meta/linhas por direção muda.
     const moveKey: 'idle' | 'walk' | 'run' = isMoving ? (this.heroRunning ? 'run' : 'walk') : 'idle';
-    const animByChar: Record<PlayerCharacterKey, Record<'idle' | 'walk' | 'run', AklesAnimMeta>> = {
-      akles: AKLES_ANIM,
-      wins: WINS_ANIM,
-      huans: HUANS_ANIM,
-    };
-    const dirRowByChar: Record<PlayerCharacterKey, Record<Direction, number>> = {
-      akles: AKLES_DIR_ROW,
-      wins: WINS_DIR_ROW,
-      huans: HUANS_DIR_ROW,
-    };
-    const aMeta = animByChar[this.activeCharacter][moveKey];
-    const dirRowTable = dirRowByChar[this.activeCharacter];
+    const aMeta = ANIM_BY_CHAR[this.activeCharacter][moveKey];
+    const dirRowTable = DIR_ROW_BY_CHAR[this.activeCharacter];
     const aSheet = assets?.[aMeta.sheet] as HTMLImageElement | undefined;
 
     if (aSheet && aSheet.complete && aSheet.naturalWidth > 0) {

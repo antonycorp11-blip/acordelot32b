@@ -87,8 +87,17 @@ export const TouchControls: React.FC<TouchControlsProps> = ({
   const [full, setFull] = useState(loadFullLayout);
   const layout = full[orientation];
 
+  // Altura real da tela — telas Android mais baixas que a de referência
+  // (~375px) empurravam a coluna lateral pra fora e colidiam com o widget
+  // do relógio. Em vez de posições fixas, compacta o espaçamento vertical
+  // conforme sobra espaço de verdade, então fica igual em qualquer aparelho.
+  const [viewportH, setViewportH] = useState(() => window.innerHeight);
+
   useEffect(() => {
-    const onResize = () => setOrientation(getOrientation());
+    const onResize = () => {
+      setOrientation(getOrientation());
+      setViewportH(window.innerHeight);
+    };
     window.addEventListener('resize', onResize);
     window.addEventListener('orientationchange', onResize);
     return () => {
@@ -213,6 +222,17 @@ export const TouchControls: React.FC<TouchControlsProps> = ({
   const actionBtn =
     'pointer-events-auto flex items-center justify-center rounded-full border backdrop-blur-md shadow-xl active:scale-90 transition-transform select-none touch-none';
 
+  // Coluna lateral (mochila/síntese/partitura/arma/catálogo/missões): 6
+  // ícones a partir de top:118px. Numa tela de ~375px de altura o passo de
+  // 54px entre eles cabe folgado; numa tela Android mais baixa (ex.: 320px)
+  // isso passava do rodapé — compacta espaçamento E tamanho do ícone
+  // conforme a altura real (só o espaçamento não bastava: com o ícone de
+  // 44px fixo, um passo menor que 44px fazia um sobrepor o outro).
+  const sideMenuTop0 = 118;
+  const sideMenuIcon = Math.max(30, Math.min(44, (viewportH - sideMenuTop0 - 20) / 6));
+  const sideMenuStep = Math.max(sideMenuIcon + 2, Math.min(54, (viewportH - sideMenuTop0 - 60) / 5));
+  const sideMenuTop = (i: number) => `calc(${Math.round(sideMenuTop0 + i * sideMenuStep)}px + env(safe-area-inset-top))`;
+
   // Botão arrastável: id próprio, posição própria, funciona em qualquer lugar da tela.
   const D: React.FC<{ id: string; className: string; title: string; onAction: () => void; style?: React.CSSProperties; children: React.ReactNode }> = ({
     id,
@@ -319,23 +339,23 @@ export const TouchControls: React.FC<TouchControlsProps> = ({
 
       {/* Menu lateral direito — mochila / síntese / partituras / arma
           (ficha não precisa de botão — abre pela miniatura do retrato) */}
-      <D id="btn_inv" className={`${actionBtn} absolute w-11 h-11 border-amber-400/50 bg-slate-950/80 text-amber-300`} title="Mochila" onAction={onToggleInventory} style={{ right: 'max(14px, env(safe-area-inset-right))', top: 'calc(118px + env(safe-area-inset-top))' }}>
+      <D id="btn_inv" className={`${actionBtn} absolute border-amber-400/50 bg-slate-950/80 text-amber-300`} title="Mochila" onAction={onToggleInventory} style={{ width: sideMenuIcon, height: sideMenuIcon, right: 'max(14px, env(safe-area-inset-right))', top: sideMenuTop(0) }}>
         <Backpack className="w-5 h-5" />
       </D>
-      <D id="btn_synth" className={`${actionBtn} absolute w-11 h-11 border-fuchsia-400/50 bg-slate-950/80 text-fuchsia-300`} title="Síntese de notas" onAction={onToggleSynth} style={{ right: 'max(14px, env(safe-area-inset-right))', top: 'calc(172px + env(safe-area-inset-top))' }}>
+      <D id="btn_synth" className={`${actionBtn} absolute border-fuchsia-400/50 bg-slate-950/80 text-fuchsia-300`} title="Síntese de notas" onAction={onToggleSynth} style={{ width: sideMenuIcon, height: sideMenuIcon, right: 'max(14px, env(safe-area-inset-right))', top: sideMenuTop(1) }}>
         <Music4 className="w-5 h-5" />
       </D>
-      <D id="btn_partitura" className={`${actionBtn} absolute w-11 h-11 border-amber-400/50 bg-slate-950/80 text-amber-300`} title="Síntese de Partituras" onAction={onTogglePartitura} style={{ right: 'max(14px, env(safe-area-inset-right))', top: 'calc(226px + env(safe-area-inset-top))' }}>
+      <D id="btn_partitura" className={`${actionBtn} absolute border-amber-400/50 bg-slate-950/80 text-amber-300`} title="Síntese de Partituras" onAction={onTogglePartitura} style={{ width: sideMenuIcon, height: sideMenuIcon, right: 'max(14px, env(safe-area-inset-right))', top: sideMenuTop(2) }}>
         <ScrollText className="w-5 h-5" />
       </D>
-      <D id="btn_weapon" className={`${actionBtn} absolute w-11 h-11 border-blue-400/50 bg-slate-950/80 text-blue-300`} title="Arma" onAction={onToggleWeapon} style={{ right: 'max(14px, env(safe-area-inset-right))', top: 'calc(280px + env(safe-area-inset-top))' }}>
+      <D id="btn_weapon" className={`${actionBtn} absolute border-blue-400/50 bg-slate-950/80 text-blue-300`} title="Arma" onAction={onToggleWeapon} style={{ width: sideMenuIcon, height: sideMenuIcon, right: 'max(14px, env(safe-area-inset-right))', top: sideMenuTop(3) }}>
         <Swords className="w-5 h-5" />
       </D>
       {/* Catálogo — botão temporário pra ver armas/equipamentos novos por tier */}
-      <D id="btn_catalog" className={`${actionBtn} absolute w-11 h-11 border-amber-400/50 bg-slate-950/80 text-amber-300`} title="Catálogo" onAction={onToggleCatalog} style={{ right: 'max(14px, env(safe-area-inset-right))', top: 'calc(334px + env(safe-area-inset-top))' }}>
+      <D id="btn_catalog" className={`${actionBtn} absolute border-amber-400/50 bg-slate-950/80 text-amber-300`} title="Catálogo" onAction={onToggleCatalog} style={{ width: sideMenuIcon, height: sideMenuIcon, right: 'max(14px, env(safe-area-inset-right))', top: sideMenuTop(4) }}>
         <Library className="w-5 h-5" />
       </D>
-      <D id="btn_quests" className={`${actionBtn} absolute w-11 h-11 border-emerald-400/50 bg-slate-950/80 text-emerald-300`} title="Missões" onAction={onToggleQuests} style={{ right: 'max(14px, env(safe-area-inset-right))', top: 'calc(388px + env(safe-area-inset-top))' }}>
+      <D id="btn_quests" className={`${actionBtn} absolute border-emerald-400/50 bg-slate-950/80 text-emerald-300`} title="Missões" onAction={onToggleQuests} style={{ width: sideMenuIcon, height: sideMenuIcon, right: 'max(14px, env(safe-area-inset-right))', top: sideMenuTop(5) }}>
         <ListChecks className="w-5 h-5" />
       </D>
 
@@ -373,7 +393,7 @@ export const TouchControls: React.FC<TouchControlsProps> = ({
             }`}
             title={`Trocar para ${ck === 'akles' ? 'Akles' : ck === 'wins' ? 'Wins' : 'Huans'} (V)`}
             onAction={() => engineRef.current?.switchCharacter(ck)}
-            style={{ right: `calc(${118 + i * 36}px + env(safe-area-inset-right))`, bottom: 'calc(200px + env(safe-area-inset-bottom))' }}
+            style={{ right: `calc(${118 + i * 36}px + env(safe-area-inset-right))`, bottom: 'calc(176px + env(safe-area-inset-bottom))' }}
           >
             <img src={CHARACTER_PORTRAITS[ck]} alt={ck} className="w-full h-full object-cover object-top" />
           </D>

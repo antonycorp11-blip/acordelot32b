@@ -108,23 +108,25 @@ const AKLES_DIR_ROW: Record<Direction, number> = { down: 0, left: 1, up: 2, righ
 // ---- Wins — classe da Voz (personagem temporária) ----
 // Um sheet só (corrida, 10 col x 4 lin) reaproveitado pra idle/walk/run —
 // só muda a velocidade de reprodução, igual ao Akles. Célula processada
-// em scripts/process-wins.mjs: 144x260, pés ancorados embaixo da célula.
-const WINS_DISP = 0.31;
+// em scripts/process-wins.mjs (chroma-key com descontaminação de cor +
+// erosão de 2px + filtro de maior blob conectado por frame — sem franja
+// magenta e sem sobra de linha vizinha): 136x240, pés ancorados embaixo.
+const WINS_DISP = 0.335;
 const WINS_ANIM: Record<'idle' | 'walk' | 'run', AklesAnimMeta> = {
-  idle: { sheet: 'winsMove', cw: 144, ch: 260, cols: 10, fps: 6, loop: true, disp: WINS_DISP, feetFrac: 1 },
-  walk: { sheet: 'winsMove', cw: 144, ch: 260, cols: 10, fps: 10, loop: true, disp: WINS_DISP, feetFrac: 1 },
-  run: { sheet: 'winsMove', cw: 144, ch: 260, cols: 10, fps: 15, loop: true, disp: WINS_DISP, feetFrac: 1 },
+  idle: { sheet: 'winsMove', cw: 136, ch: 240, cols: 10, fps: 6, loop: true, disp: WINS_DISP, feetFrac: 1 },
+  walk: { sheet: 'winsMove', cw: 136, ch: 240, cols: 10, fps: 10, loop: true, disp: WINS_DISP, feetFrac: 1 },
+  run: { sheet: 'winsMove', cw: 136, ch: 240, cols: 10, fps: 15, loop: true, disp: WINS_DISP, feetFrac: 1 },
 };
 // ordem visual do sheet da Wins: 0=frente 1=esquerda 2=direita 3=costas
 const WINS_DIR_ROW: Record<Direction, number> = { down: 0, left: 1, right: 2, up: 3 };
 
 // ---- Huans — classe Cordas (personagem temporário) ----
-// Célula processada em scripts/process-wins.mjs (mesmo pipeline): 144x239.
-const HUANS_DISP = 0.34;
+// Célula processada em scripts/process-wins.mjs (mesmo pipeline): 144x211.
+const HUANS_DISP = 0.38;
 const HUANS_ANIM: Record<'idle' | 'walk' | 'run', AklesAnimMeta> = {
-  idle: { sheet: 'huansMove', cw: 144, ch: 239, cols: 10, fps: 6, loop: true, disp: HUANS_DISP, feetFrac: 1 },
-  walk: { sheet: 'huansMove', cw: 144, ch: 239, cols: 10, fps: 11, loop: true, disp: HUANS_DISP, feetFrac: 1 },
-  run: { sheet: 'huansMove', cw: 144, ch: 239, cols: 10, fps: 17, loop: true, disp: HUANS_DISP, feetFrac: 1 },
+  idle: { sheet: 'huansMove', cw: 144, ch: 211, cols: 10, fps: 6, loop: true, disp: HUANS_DISP, feetFrac: 1 },
+  walk: { sheet: 'huansMove', cw: 144, ch: 211, cols: 10, fps: 11, loop: true, disp: HUANS_DISP, feetFrac: 1 },
+  run: { sheet: 'huansMove', cw: 144, ch: 211, cols: 10, fps: 17, loop: true, disp: HUANS_DISP, feetFrac: 1 },
 };
 const HUANS_DIR_ROW: Record<Direction, number> = { down: 0, left: 1, right: 2, up: 3 };
 

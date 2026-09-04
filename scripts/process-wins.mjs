@@ -40,17 +40,31 @@ function chromaKey(png) {
     br += data[i]; bg += data[i + 1]; bb += data[i + 2];
   }
   br /= samples.length; bg /= samples.length; bb /= samples.length;
+  // banda de transição + DESCONTAMINAÇÃO de cor (remove o magenta que vazou
+  // pro pixel semi-transparente por causa do anti-aliasing da arte fonte —
+  // sem isso sobra uma franja/halo rosada em volta do cabelo/roupa).
+  const LOW = 70;
+  const HIGH = 175;
   for (let p = 0; p < width * height; p++) {
     const i = p * 4;
     const r = data[i], g = data[i + 1], b = data[i + 2];
     const d = Math.abs(r - br) + Math.abs(g - bg) + Math.abs(b - bb);
-    const mag = r > 150 && b > 120 && g < Math.min(r, b) - 30;
-    if (d < 76 || mag) {
-      data[i + 3] = 0; data[i] = data[i + 1] = data[i + 2] = 0;
-    } else if (d < 150) {
-      data[i + 3] = Math.round(255 * ((d - 76) / 74));
-      data[i] = Math.round(r * 0.6);
-      data[i + 2] = Math.round(b * 0.6);
+    const magentaish = r > 140 && b > 110 && g < Math.min(r, b) - 25;
+    if (d < LOW || (magentaish && d < HIGH)) {
+      data[i + 3] = 0;
+      data[i] = data[i + 1] = data[i + 2] = 0;
+      continue;
+    }
+    if (d < HIGH) {
+      const a = (d - LOW) / (HIGH - LOW); // 0..1
+      const safeA = Math.max(a, 0.12);
+      const dr = (r - (1 - a) * br) / safeA;
+      const dg = (g - (1 - a) * bg) / safeA;
+      const db = (b - (1 - a) * bb) / safeA;
+      data[i] = Math.max(0, Math.min(255, Math.round(dr)));
+      data[i + 1] = Math.max(0, Math.min(255, Math.round(dg)));
+      data[i + 2] = Math.max(0, Math.min(255, Math.round(db)));
+      data[i + 3] = Math.round(255 * a);
     }
   }
 }
@@ -71,13 +85,86 @@ function despeckle(png) {
     }
   }
 }
+// Encolhe a silhueta em 1px (erosão morfológica no alpha) — corta o aro que
+// ainda sobra contaminado mesmo depois da descontaminação de cor. No
+// tamanho final em jogo (~80px) 1px de origem é imperceptível.
+function erodeAlpha(png, passes = 1) {
+  const { width, height } = png;
+  for (let pass = 0; pass < passes; pass++) {
+    const src = Uint8Array.from(png.data);
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        const i = (y * width + x) * 4 + 3;
+        if (src[i] === 0) continue;
+        let minA = src[i];
+        for (let dy = -1; dy <= 1; dy++) {
+          for (let dx = -1; dx <= 1; dx++) {
+            const nx = x + dx, ny = y + dy;
+            const na = nx < 0 || ny < 0 || nx >= width || ny >= height ? 0 : src[(ny * width + nx) * 4 + 3];
+            if (na < minA) minA = na;
+          }
+        }
+        png.data[i] = minA;
+      }
+    }
+  }
+}
+
+// Numa célula (frame) isolada, mantém só o MAIOR blob de pixels opacos
+// conectados e apaga o resto — remove sobras de capa/cabelo que vazaram da
+// célula vizinha (ficam desconectadas do personagem de verdade) sem cortar
+// nada do personagem em si, ao contrário de uma margem fixa por linha.
+function keepLargestComponent(png, x0, y0, w, h) {
+  const { width, data } = png;
+  const inside = (x, y) => data[((y0 + y) * width + (x0 + x)) * 4 + 3] > 24;
+  const visited = new Uint8Array(w * h);
+  let best = null;
+  for (let sy = 0; sy < h; sy++) {
+    for (let sx = 0; sx < w; sx++) {
+      const sIdx = sy * w + sx;
+      if (visited[sIdx] || !inside(sx, sy)) continue;
+      const stack = [[sx, sy]];
+      visited[sIdx] = 1;
+      const pixels = [[sx, sy]];
+      while (stack.length) {
+        const [cx, cy] = stack.pop();
+        for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+          const nx = cx + dx, ny = cy + dy;
+          if (nx < 0 || ny < 0 || nx >= w || ny >= h) continue;
+          const nIdx = ny * w + nx;
+          if (visited[nIdx] || !inside(nx, ny)) continue;
+          visited[nIdx] = 1;
+          stack.push([nx, ny]);
+          pixels.push([nx, ny]);
+        }
+      }
+      if (!best || pixels.length > best.length) best = pixels;
+    }
+  }
+  if (!best) return;
+  const keep = new Uint8Array(w * h);
+  for (const [x, y] of best) keep[y * w + x] = 1;
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      if (!keep[y * w + x] && inside(x, y)) {
+        data[((y0 + y) * width + (x0 + x)) * 4 + 3] = 0;
+      }
+    }
+  }
+}
 
 const raw = PNG.sync.read(fs.readFileSync(SRC));
 chromaKey(raw);
 despeckle(raw);
+erodeAlpha(raw, 2);
 
 const cellW = Math.floor(raw.width / COLS);
 const cellH = Math.floor(raw.height / ROWS);
+for (let r = 0; r < ROWS; r++) {
+  for (let c = 0; c < COLS; c++) {
+    keepLargestComponent(raw, c * cellW, r * cellH, cellW, cellH);
+  }
+}
 const A = (x, y) => raw.data[(y * raw.width + x) * 4 + 3];
 
 function rowBBox(row) {

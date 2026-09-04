@@ -24,6 +24,7 @@ const SHEETS = [
   { file: 'hero_run.png', name: 'akles_run' },
 ];
 const ROWS = 4;
+const COLS = 10;
 // saída[i] = índice da linha na FONTE  (down, left, up/costas, right)
 const ROW_MAP = [0, 1, 3, 2];
 
@@ -79,16 +80,17 @@ for (const cfg of SHEETS) {
   const exact = height / ROWS;
   const bounds = Array.from({ length: ROWS + 1 }, (_, i) => Math.round(i * exact));
 
-  // linha dos pés de cada linha-fonte (maior y opaco entre os 10 frames)
+  // linha dos pés de cada linha-fonte (maior y com conteúdo SÓLIDO — ignora
+  // o esfumaçado de anti-aliasing / sombra que sobra abaixo das botas)
   const footY = bounds.slice(0, ROWS).map((y0, r) => {
     const y1 = bounds[r + 1];
-    let lo = y1;
+    let lo = y0;
     for (let y = y0; y < y1; y++) {
-      let any = false;
-      for (let x = 0; x < width; x++) if (data[(y * width + x) * 4 + 3] > 40) { any = true; break; }
-      if (any) lo = y;
+      let solid = 0;
+      for (let x = 0; x < width; x++) if (data[(y * width + x) * 4 + 3] > 170) solid++;
+      if (solid >= 6) lo = y; // linha com corpo de verdade
     }
-    return lo; // último y com conteúdo
+    return lo;
   });
   // topo de cada linha-fonte
   const topY = bounds.slice(0, ROWS).map((y0, r) => {
@@ -99,25 +101,78 @@ for (const cfg of SHEETS) {
     return y0;
   });
 
-  // célula de saída FIXA em todas as folhas (idle/walk/run) — pés a 5px do rodapé
-  const cellH = 296;
-  const FOOT_MARGIN = 5;
+  // Célula de saída FIXA em todas as folhas. GUTTER transparente entre frames
+  // (senão o filtro bilinear "vaza" o frame vizinho — meio de um, meio do outro).
+  const CW = 156;
+  const CH = 300;
+  const FOOT_MARGIN = 1; // pés colados no rodapé da célula
+  const A = (x, y) => data[(y * width + x) * 4 + 3];
 
-  const out = new PNG({ width, height: cellH * ROWS });
+  // colunas de cada linha-fonte via projeção vertical
+  function colBands(y0, y1) {
+    const counts = new Array(width).fill(0);
+    for (let x = 0; x < width; x++) {
+      let c = 0;
+      for (let y = y0; y < y1; y++) if (A(x, y) > 40) c++;
+      counts[x] = c;
+    }
+    const bands = [];
+    let s = -1;
+    for (let x = 0; x < width; x++) {
+      if (counts[x] > 2) { if (s < 0) s = x; }
+      else if (s >= 0) { if (x - s >= 10) bands.push([s, x - 1]); s = -1; }
+    }
+    if (s >= 0 && width - s >= 10) bands.push([s, width - 1]);
+    return bands;
+  }
+
+  const out = new PNG({ width: CW * COLS, height: CH * ROWS });
   for (let ri = 0; ri < ROWS; ri++) {
     const sr = ROW_MAP[ri];
-    const s0 = topY[sr];
-    const s1 = footY[sr];
-    // desloca a linha inteira p/ alinhar os pés
-    const destFoot = ri * cellH + cellH - FOOT_MARGIN;
-    const destTop = destFoot - (s1 - s0);
-    for (let y = s0; y <= s1; y++) {
-      const ty = destTop + (y - s0);
-      if (ty < 0 || ty >= out.height) continue;
-      data.copy(out.data, ty * width * 4, y * width * 4, (y + 1) * width * 4);
+    const ry0 = bounds[sr];
+    const ry1 = bounds[sr + 1];
+    let bands = colBands(ry0, ry1);
+    if (bands.length !== COLS) {
+      // fallback: divisão uniforme
+      const cw0 = width / COLS;
+      bands = Array.from({ length: COLS }, (_, i) => [
+        Math.round(i * cw0), Math.round((i + 1) * cw0) - 1,
+      ]);
+    }
+    const rowFoot = footY[sr]; // linha dos pés (comum a todos os frames da linha)
+    for (let ci = 0; ci < COLS; ci++) {
+      const [bx0, bx1] = bands[ci];
+      // bbox real do frame dentro da banda
+      let mnX = bx1, mxX = bx0, mnY = ry1, mxY = ry0, f = false;
+      for (let y = ry0; y < ry1; y++)
+        for (let x = bx0; x <= bx1; x++)
+          if (A(x, y) > 30) { f = true; if (x < mnX) mnX = x; if (x > mxX) mxX = x; if (y < mnY) mnY = y; if (y > mxY) mxY = y; }
+      if (!f) continue;
+      const fw = mxX - mnX + 1;
+      const destCx = ci * CW + Math.round(CW / 2);
+      const frameCx = (mnX + mxX) / 2;
+      // âncora vertical: a linha dos pés da LINHA vai para o rodapé da célula
+      const destFoot = ri * CH + CH - FOOT_MARGIN;
+      // não copia o esfumaçado abaixo da linha sólida dos pés
+      const yBottom = Math.min(mxY, rowFoot + 1);
+      for (let y = mnY; y <= yBottom; y++) {
+        const ty = destFoot - (rowFoot - y);
+        if (ty < ri * CH || ty >= (ri + 1) * CH) continue;
+        for (let x = mnX; x <= mxX; x++) {
+          if (A(x, y) === 0) continue;
+          const tx = destCx + (x - Math.round(frameCx));
+          if (tx < ci * CW || tx >= (ci + 1) * CW) continue;
+          const si = (y * width + x) * 4;
+          const ti = (ty * out.width + tx) * 4;
+          out.data[ti] = data[si];
+          out.data[ti + 1] = data[si + 1];
+          out.data[ti + 2] = data[si + 2];
+          out.data[ti + 3] = data[si + 3];
+        }
+      }
     }
   }
   fs.writeFileSync(path.join(OUT, cfg.name + '.png'), PNG.sync.write(out));
-  console.log(`✓ ${cfg.name}.png  (${out.width}x${out.height}, 10x4, célula ${Math.round(width / 10)}x${cellH})`);
+  console.log(`✓ ${cfg.name}.png  (${out.width}x${out.height}, ${COLS}x${ROWS}, célula ${CW}x${CH})`);
 }
 console.log('\nConcluído. Saída em', OUT);

@@ -55,16 +55,17 @@ interface AklesAnimMeta {
   fps: number;
   loop: boolean;
   disp?: number; // escala de exibição própria (senão usa AKLES_DISP_SCALE)
+  feetFrac?: number; // fração da altura da célula onde ficam os pés (default (ch-4)/ch)
 }
 
 // cw/ch = tamanho da célula na sheet (alta resolução; desenhado com dispScale).
 // idle/walk/run: folhas grandes novas (10 col x 4 lin, 145x271) — arte detalhada,
 // capa/cabelo ao vento. As folhas de combate seguem as antigas.
-const HERO_DISP = 0.3;
+const HERO_DISP = 0.37;
 const AKLES_ANIM: Record<'idle' | 'walk' | 'run' | AklesAction, AklesAnimMeta> = {
-  idle: { sheet: 'aklesIdle', cw: 145, ch: 296, cols: 10, fps: 7, loop: true, disp: HERO_DISP },
-  walk: { sheet: 'aklesWalk', cw: 145, ch: 296, cols: 10, fps: 12, loop: true, disp: HERO_DISP },
-  run: { sheet: 'aklesRun', cw: 145, ch: 296, cols: 10, fps: 16, loop: true, disp: HERO_DISP },
+  idle: { sheet: 'aklesIdle', cw: 156, ch: 300, cols: 10, fps: 7, loop: true, disp: HERO_DISP, feetFrac: 1 },
+  walk: { sheet: 'aklesWalk', cw: 156, ch: 300, cols: 10, fps: 12, loop: true, disp: HERO_DISP, feetFrac: 1 },
+  run: { sheet: 'aklesRun', cw: 156, ch: 300, cols: 10, fps: 16, loop: true, disp: HERO_DISP, feetFrac: 1 },
   chop: { sheet: 'aklesSlash', cw: 192, ch: 192, cols: 6, fps: 13, loop: false, disp: 0.44 },
   mine: { sheet: 'aklesThrust', cw: 192, ch: 192, cols: 6, fps: 13, loop: false, disp: 0.44 },
   attack: { sheet: 'aklesSlash', cw: 192, ch: 192, cols: 6, fps: 15, loop: false, disp: 0.44 },
@@ -935,6 +936,64 @@ export class GameEngine {
   }> = [];
   private npcBarkCd: Record<string, number> = {};
   private barkNpcInRange: string | null = null;
+
+  // Números de dano flutuantes (causado = amarelo, sofrido = vermelho)
+  private damageTexts: Array<{
+    x: number;
+    y: number;
+    vx: number;
+    vy: number;
+    text: string;
+    color: string;
+    life: number;
+    ttl: number;
+    big: boolean;
+  }> = [];
+  addDamageText(x: number, y: number, text: string, color: string, big = false) {
+    this.damageTexts.push({
+      x,
+      y,
+      vx: (Math.random() - 0.5) * 26,
+      vy: -58 - Math.random() * 20,
+      text,
+      color,
+      life: 0,
+      ttl: big ? 1.0 : 0.8,
+      big,
+    });
+    if (this.damageTexts.length > 60) this.damageTexts.splice(0, this.damageTexts.length - 60);
+  }
+  private updateDamageTexts(dt: number) {
+    for (const t of this.damageTexts) {
+      t.life += dt;
+      t.x += t.vx * dt;
+      t.y += t.vy * dt;
+      t.vy += 120 * dt; // desacelera a subida e cai um pouco
+    }
+    this.damageTexts = this.damageTexts.filter((t) => t.life < t.ttl);
+  }
+  private renderDamageTexts(ctx: CanvasRenderingContext2D, camX: number, camY: number) {
+    if (!this.damageTexts.length) return;
+    ctx.save();
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    for (const t of this.damageTexts) {
+      const p = t.life / t.ttl;
+      const alpha = p < 0.15 ? p / 0.15 : p > 0.6 ? Math.max(0, 1 - (p - 0.6) / 0.4) : 1;
+      const sx = Math.round(t.x - camX);
+      const sy = Math.round(t.y - camY - p * 6);
+      if (sx < -40 || sx > this.viewportW + 40 || sy < -30 || sy > this.viewportH + 30) continue;
+      ctx.font = `900 ${t.big ? 17 : 13}px system-ui, sans-serif`;
+      ctx.globalAlpha = alpha;
+      ctx.lineWidth = 3;
+      ctx.strokeStyle = 'rgba(8,10,16,0.9)';
+      ctx.strokeText(t.text, sx, sy);
+      ctx.fillStyle = t.color;
+      ctx.fillText(t.text, sx, sy);
+    }
+    ctx.globalAlpha = 1;
+    ctx.restore();
+  }
   private pendingAklesReply: { text: string; at: number } | null = null;
   private static AKLES_BARKS = [
     'Um-dois-três-quatro... tô contando o compasso.',
@@ -1529,15 +1588,22 @@ export class GameEngine {
     this.setCameraZoom(1.0);
   }
 
+  // Super-amostragem: renderiza a 2x a resolução lógica e deixa o CSS reduzir.
+  // Deixa personagem/artes detalhadas bem mais nítidos sem mudar o campo de visão.
+  readonly renderScale = 2;
+
   updateViewportDimensions() {
     this.viewportW = Math.round(this.baseViewportW / this.cameraZoom);
     this.viewportH = Math.round(this.baseViewportH / this.cameraZoom);
-    this.canvas.width = this.viewportW;
-    this.canvas.height = this.viewportH;
+    const rs = this.renderScale;
+    this.canvas.width = this.viewportW * rs;
+    this.canvas.height = this.viewportH * rs;
+    this.ctx.setTransform(rs, 0, 0, rs, 0, 0);
     this.ctx.imageSmoothingEnabled = false;
 
-    this.lightCanvas.width = this.viewportW;
-    this.lightCanvas.height = this.viewportH;
+    this.lightCanvas.width = this.viewportW * rs;
+    this.lightCanvas.height = this.viewportH * rs;
+    this.lightCtx.setTransform(rs, 0, 0, rs, 0, 0);
   }
 
   private npcToInteraction(n: NPC): InteractionNpc {
@@ -1592,8 +1658,9 @@ export class GameEngine {
   getWorldPosFromEvent(e: MouseEvent): { x: number; y: number } | null {
     const rect = this.canvas.getBoundingClientRect();
     if (rect.width === 0 || rect.height === 0) return null;
-    const scaleX = this.canvas.width / rect.width;
-    const scaleY = this.canvas.height / rect.height;
+    // canvas.width é físico (renderScale x lógico) — normaliza p/ coords lógicas
+    const scaleX = this.canvas.width / rect.width / this.renderScale;
+    const scaleY = this.canvas.height / rect.height / this.renderScale;
     const canvasX = (e.clientX - rect.left) * scaleX;
     const canvasY = (e.clientY - rect.top) * scaleY;
     return {
@@ -2348,9 +2415,11 @@ export class GameEngine {
   damagePlayer(n: number) {
     if (this.playerInvuln > 0) return;
     const s = this.stats;
+    n = Math.max(1, Math.round(n));
     s.hp = Math.max(0, s.hp - n);
     this.playerHurtFlash = 0.35;
     this.playerInvuln = 0.7;
+    this.addDamageText(this.player.x + 12, this.player.y - 4, `-${n}`, '#f87171', true);
     this.onStatsChange?.({ ...s });
     if (s.hp <= 0) {
       // renasce na vila
@@ -2366,8 +2435,10 @@ export class GameEngine {
 
   damageEnemy(e: Enemy, dmg: number, fromX: number, fromY: number) {
     if (e.state === 'dead') return;
+    dmg = Math.max(1, Math.round(dmg));
     e.hp -= dmg;
     e.hurtFlash = 0.2;
+    this.addDamageText(e.x + 8, e.y - 12, String(dmg), '#fde047');
     const kd = Math.atan2(e.y - fromY, e.x - fromX);
     e.knockX = Math.cos(kd) * 90;
     e.knockY = Math.sin(kd) * 90;
@@ -3071,6 +3142,7 @@ export class GameEngine {
     this.updateFireflies(dt);
     this.updateHarvestables(dt);
     this.updateWeatherAndWind(dt);
+    this.updateDamageTexts(dt);
 
     if (Math.random() < 0.18) {
       this.addBlossomPetal(
@@ -3335,6 +3407,10 @@ export class GameEngine {
     const camX = Math.round(this.camX);
     const camY = Math.round(this.camY);
 
+    // garante a escala de super-amostragem (transform some se o canvas for redimensionado)
+    ctx.setTransform(this.renderScale, 0, 0, this.renderScale, 0, 0);
+    this.lightCtx.setTransform(this.renderScale, 0, 0, this.renderScale, 0, 0);
+
     ctx.fillStyle = '#1e4827';
     ctx.fillRect(0, 0, this.viewportW, this.viewportH);
 
@@ -3597,6 +3673,7 @@ export class GameEngine {
 
     // Balões de fala aleatórios (aproximação de NPC)
     if (!this.isEditMode) this.renderBubbles(ctx, camX, camY);
+    this.renderDamageTexts(ctx, camX, camY);
 
     // Dano ao herói — vinheta vermelha
     if (this.playerHurtFlash > 0) {
@@ -3788,7 +3865,7 @@ export class GameEngine {
     }
 
     lCtx.restore();
-    mainCtx.drawImage(this.lightCanvas, 0, 0);
+    mainCtx.drawImage(this.lightCanvas, 0, 0, this.viewportW, this.viewportH);
 
     // Banho de luar frio (azul-prateado) por cima — escala com a noite
     mainCtx.save();
@@ -3889,7 +3966,7 @@ export class GameEngine {
     }
 
     lCtx.restore();
-    mainCtx.drawImage(this.lightCanvas, 0, 0);
+    mainCtx.drawImage(this.lightCanvas, 0, 0, this.viewportW, this.viewportH);
   }
 
   private renderBubbles(ctx: CanvasRenderingContext2D, camX: number, camY: number) {
@@ -4709,8 +4786,8 @@ export class GameEngine {
       const dispScale = aMeta.disp ?? AKLES_DISP_SCALE;
       const dispW = aMeta.cw * dispScale;
       const dispH = aMeta.ch * dispScale;
-      const feetY = cy + 30;
-      const feetFrac = (aMeta.ch - 4) / aMeta.ch;
+      const feetY = cy + 31;
+      const feetFrac = aMeta.feetFrac ?? (aMeta.ch - 4) / aMeta.ch;
 
       const sheetRow = AKLES_DIR_ROW[char.direction];
       let col: number;
@@ -4723,15 +4800,18 @@ export class GameEngine {
         col = Math.floor(this.timeElapsed * aMeta.fps) % aMeta.cols;
       }
 
-      // Suaviza só o herói (as sheets têm resolução maior que o tamanho na tela)
+      // Suaviza só o herói (as sheets têm resolução maior que o tamanho na tela).
+      // Recuo de 1px na fonte p/ o filtro bilinear não puxar o frame vizinho
+      // (o que fazia "meio de um, meio do outro").
+      const gutter = 1;
       ctx.imageSmoothingEnabled = true;
       ctx.imageSmoothingQuality = 'high';
       ctx.drawImage(
         aSheet,
-        col * aMeta.cw,
-        sheetRow * aMeta.ch,
-        aMeta.cw,
-        aMeta.ch,
+        col * aMeta.cw + gutter,
+        sheetRow * aMeta.ch + gutter,
+        aMeta.cw - gutter * 2,
+        aMeta.ch - gutter * 2,
         Math.round(cx + 12 - dispW / 2),
         Math.round(feetY - dispH * feetFrac),
         Math.round(dispW),

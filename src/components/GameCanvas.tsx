@@ -620,8 +620,9 @@ export const GameCanvas: React.FC = () => {
     if (!propType || !engineRef.current || !canvasRef.current) return;
 
     const rect = canvasRef.current.getBoundingClientRect();
-    const scaleX = canvasRef.current.width / rect.width;
-    const scaleY = canvasRef.current.height / rect.height;
+    const rs = engineRef.current.renderScale;
+    const scaleX = canvasRef.current.width / rect.width / rs;
+    const scaleY = canvasRef.current.height / rect.height / rs;
     const canvasX = (e.clientX - rect.left) * scaleX;
     const canvasY = (e.clientY - rect.top) * scaleY;
 
@@ -994,7 +995,7 @@ export const GameCanvas: React.FC = () => {
         <canvas
           ref={canvasRef}
           className="w-full h-full object-contain cursor-default select-none"
-          style={{ imageRendering: 'pixelated', touchAction: 'none' }}
+          style={{ imageRendering: 'auto', touchAction: 'none' }}
         />
       </div>
 

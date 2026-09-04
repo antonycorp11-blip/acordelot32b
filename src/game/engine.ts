@@ -6033,11 +6033,20 @@ export class GameEngine {
     const aSheet = assets?.[aMeta.sheet] as HTMLImageElement | undefined;
 
     if (aSheet && aSheet.complete && aSheet.naturalWidth > 0) {
+      // Wins/Huans: deriva cw/ch do tamanho REAL da imagem carregada em vez
+      // de um valor fixo no código — se o deploy servir uma versão do PNG
+      // diferente da que o código "acha" que é (deploy dessincronizado,
+      // cache de CDN etc.), evita cortar quadro errado (personagem
+      // gigante/esticado/parado, meio quadro de um + meio do outro).
+      const isGenChar = this.activeCharacter === 'wins' || this.activeCharacter === 'huans';
+      const effCw = isGenChar ? Math.floor(aSheet.naturalWidth / aMeta.cols) : aMeta.cw;
+      const effCh = isGenChar ? Math.floor(aSheet.naturalHeight / 4) : aMeta.ch;
+
       const dispScale = aMeta.disp ?? AKLES_DISP_SCALE;
-      const dispW = aMeta.cw * dispScale;
-      const dispH = aMeta.ch * dispScale;
+      const dispW = effCw * dispScale;
+      const dispH = effCh * dispScale;
       const feetY = cy + 31;
-      const feetFrac = aMeta.feetFrac ?? (aMeta.ch - 4) / aMeta.ch;
+      const feetFrac = aMeta.feetFrac ?? (effCh - 4) / effCh;
 
       const sheetRow = dirRowTable[char.direction];
       let col: number;
@@ -6058,10 +6067,10 @@ export class GameEngine {
       ctx.imageSmoothingQuality = 'high';
       ctx.drawImage(
         aSheet,
-        col * aMeta.cw + gutter,
-        sheetRow * aMeta.ch + gutter,
-        aMeta.cw - gutter * 2,
-        aMeta.ch - gutter * 2,
+        col * effCw + gutter,
+        sheetRow * effCh + gutter,
+        effCw - gutter * 2,
+        effCh - gutter * 2,
         Math.round(cx + 12 - dispW / 2),
         Math.round(feetY - dispH * feetFrac),
         Math.round(dispW),

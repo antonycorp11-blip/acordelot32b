@@ -25,7 +25,7 @@ import {
   X,
 } from 'lucide-react';
 import type { PlayerStats } from '../game/engine';
-import { GameEngine, InteractionState, SelectedPropInfo, TimeOfDay } from '../game/engine';
+import { GameEngine, InteractionState, SelectedPropInfo, TimeOfDay, CHARACTER_ROSTER, CHARACTER_PORTRAITS } from '../game/engine';
 import { TouchControls } from './TouchControls';
 import { Inventory } from './Inventory';
 import { PlayerHud } from './PlayerHud';
@@ -482,6 +482,7 @@ export const GameCanvas: React.FC = () => {
   const [showCatalog, setShowCatalog] = useState(false);
   const [showQuests, setShowQuests] = useState(false);
   const [, setQuestTick] = useState(0);
+  const [, setCharacterTick] = useState(0);
   // Skills agora é uma aba dentro da Ficha — abrir com esse atalho já cai nela
   const [sheetInitialTab, setSheetInitialTab] = useState<
     'ficha' | 'ferramentas' | 'equipamentos' | 'skills'
@@ -562,6 +563,7 @@ export const GameCanvas: React.FC = () => {
     };
 
     engine.onQuestsChange = () => setQuestTick((t) => t + 1);
+    engine.onCharacterChange = () => setCharacterTick((t) => t + 1);
 
     const updateSize = () => {
       if (!containerRef.current || !engineRef.current) return;
@@ -599,6 +601,13 @@ export const GameCanvas: React.FC = () => {
       }
       if (e.code === 'KeyK') setShowCatalog((v) => !v);
       if (e.code === 'KeyM') setShowQuests((v) => !v);
+      if (e.code === 'KeyV') {
+        const eng = engineRef.current;
+        if (eng) {
+          const idx = CHARACTER_ROSTER.indexOf(eng.activeCharacter);
+          eng.switchCharacter(CHARACTER_ROSTER[(idx + 1) % CHARACTER_ROSTER.length]);
+        }
+      }
     };
     window.addEventListener('keydown', onKey);
 
@@ -1107,6 +1116,7 @@ export const GameCanvas: React.FC = () => {
           onOpenSheet={() => { setSheetInitialTab('ficha'); setShowSheet(true); }}
           questObjective={engineRef.current?.activeQuestObjective ?? null}
           onOpenQuests={() => setShowQuests(true)}
+          portraitSrc={engineRef.current?.activeCharacterPortrait}
         />
       )}
 
@@ -1173,6 +1183,25 @@ export const GameCanvas: React.FC = () => {
           >
             <ListChecks className="w-5 h-5" />
           </button>
+          {/* Troca de personagem estilo Genshin — um retrato por personagem */}
+          <div className="flex items-center gap-1 bg-slate-950/60 rounded-full p-1 backdrop-blur-md border border-slate-700/60">
+            {CHARACTER_ROSTER.map((ck) => {
+              const active = engineRef.current?.activeCharacter === ck;
+              return (
+                <button
+                  key={ck}
+                  type="button"
+                  onClick={() => engineRef.current?.switchCharacter(ck)}
+                  className={`cursor-pointer w-10 h-10 rounded-full overflow-hidden border-2 shadow-xl transition-all active:scale-95 ${
+                    active ? 'border-fuchsia-400 ring-2 ring-fuchsia-300/60' : 'border-slate-700 opacity-60 hover:opacity-100'
+                  }`}
+                  title={`Trocar para ${ck === 'akles' ? 'Akles' : ck === 'wins' ? 'Wins' : 'Huans'} (V)`}
+                >
+                  <img src={CHARACTER_PORTRAITS[ck]} alt={ck} className="w-full h-full object-cover object-top" />
+                </button>
+              );
+            })}
+          </div>
           <button
             type="button"
             onClick={() => setShowSynth((v) => !v)}

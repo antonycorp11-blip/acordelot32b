@@ -105,6 +105,37 @@ const AKLES_DISP_SCALE = 0.35;
 // Linhas canônicas das folhas: 0=down, 1=left, 2=up, 3=right
 const AKLES_DIR_ROW: Record<Direction, number> = { down: 0, left: 1, up: 2, right: 3 };
 
+// ---- Wins — classe da Voz (personagem temporária) ----
+// Um sheet só (corrida, 10 col x 4 lin) reaproveitado pra idle/walk/run —
+// só muda a velocidade de reprodução, igual ao Akles. Célula processada
+// em scripts/process-wins.mjs: 144x260, pés ancorados embaixo da célula.
+const WINS_DISP = 0.31;
+const WINS_ANIM: Record<'idle' | 'walk' | 'run', AklesAnimMeta> = {
+  idle: { sheet: 'winsMove', cw: 144, ch: 260, cols: 10, fps: 6, loop: true, disp: WINS_DISP, feetFrac: 1 },
+  walk: { sheet: 'winsMove', cw: 144, ch: 260, cols: 10, fps: 10, loop: true, disp: WINS_DISP, feetFrac: 1 },
+  run: { sheet: 'winsMove', cw: 144, ch: 260, cols: 10, fps: 15, loop: true, disp: WINS_DISP, feetFrac: 1 },
+};
+// ordem visual do sheet da Wins: 0=frente 1=esquerda 2=direita 3=costas
+const WINS_DIR_ROW: Record<Direction, number> = { down: 0, left: 1, right: 2, up: 3 };
+
+// ---- Huans — classe Cordas (personagem temporário) ----
+// Célula processada em scripts/process-wins.mjs (mesmo pipeline): 144x239.
+const HUANS_DISP = 0.34;
+const HUANS_ANIM: Record<'idle' | 'walk' | 'run', AklesAnimMeta> = {
+  idle: { sheet: 'huansMove', cw: 144, ch: 239, cols: 10, fps: 6, loop: true, disp: HUANS_DISP, feetFrac: 1 },
+  walk: { sheet: 'huansMove', cw: 144, ch: 239, cols: 10, fps: 11, loop: true, disp: HUANS_DISP, feetFrac: 1 },
+  run: { sheet: 'huansMove', cw: 144, ch: 239, cols: 10, fps: 17, loop: true, disp: HUANS_DISP, feetFrac: 1 },
+};
+const HUANS_DIR_ROW: Record<Direction, number> = { down: 0, left: 1, right: 2, up: 3 };
+
+export type PlayerCharacterKey = 'akles' | 'wins' | 'huans';
+export const CHARACTER_PORTRAITS: Record<PlayerCharacterKey, string> = {
+  akles: '/icons/icon-192.png',
+  wins: '/assets/characters/wins/wins_icon.png',
+  huans: '/assets/characters/huans/huans_icon.png',
+};
+export const CHARACTER_ROSTER: PlayerCharacterKey[] = ['akles', 'wins', 'huans'];
+
 // ---- RECURSOS COLETÁVEIS (árvores e pedras) ----
 export interface ItemMeta {
   name: string;
@@ -1165,6 +1196,39 @@ export class GameEngine {
     if (this.weaponLevels[key] == null) this.weaponLevels[key] = 1;
     this.syncEquipHpBonus();
     this.onWeaponChange?.();
+    return true;
+  }
+
+  // ---- Personagem ativo (Akles / Wins / Huans — personagens temporários) ----
+  activeCharacter: PlayerCharacterKey = 'akles';
+  onCharacterChange?: () => void;
+  private static readonly CHARACTER_DEFAULT_WEAPON: Record<PlayerCharacterKey, string> = {
+    akles: 'acordelamina_t2',
+    wins: 'cajado_temporario',
+    huans: 'arco_temporario',
+  };
+  private static readonly CHARACTER_IDENTITY: Record<PlayerCharacterKey, { name: string; className: string }> = {
+    akles: { name: 'Akles', className: 'Cavaleiro Errante' },
+    wins: { name: 'Wins', className: 'Arauto da Voz' },
+    huans: { name: 'Huans', className: 'Caçador das Cordas' },
+  };
+  get activeCharacterPortrait(): string {
+    return CHARACTER_PORTRAITS[this.activeCharacter];
+  }
+  switchCharacter(key: PlayerCharacterKey): boolean {
+    if (key === this.activeCharacter) return false;
+    this.activeCharacter = key;
+    const defaultWeapon = GameEngine.CHARACTER_DEFAULT_WEAPON[key];
+    if (defaultWeapon) this.equipWeapon(defaultWeapon);
+    // miniatura, nome e classe seguem o personagem ativo — vida, nível e
+    // poder já são os mesmos this.stats compartilhados, então já "seguem
+    // junto" automaticamente (mesmo progresso de personagem, corpos
+    // diferentes).
+    const identity = GameEngine.CHARACTER_IDENTITY[key];
+    this.stats.name = identity.name;
+    this.stats.className = identity.className;
+    this.onStatsChange?.({ ...this.stats });
+    this.onCharacterChange?.();
     return true;
   }
 
@@ -5711,10 +5775,11 @@ export class GameEngine {
   drawWeapon(camX: number, camY: number) {
     const ctx = this.ctx;
     const def = this.weaponDef;
+    const isProcedural = !!def.procedural;
     const energized = this.resonanceActive && def.spriteEnergizedAsset;
     const assetKey = (energized ? def.spriteEnergizedAsset : def.spriteAsset) as keyof LoadedAssets;
     const img = this.assets?.[assetKey] as HTMLImageElement | undefined;
-    if (!img || !img.complete || !img.naturalWidth) return;
+    if (!isProcedural && (!img || !img.complete || !img.naturalWidth)) return;
 
     const px = this.player.x + 12;
     const py = this.player.y + 6;
@@ -5764,7 +5829,7 @@ export class GameEngine {
     // v.scale = altura alvo em px (não multiplicador!) — normaliza o
     // tamanho na tela mesmo entre sprites de fontes com resoluções bem
     // diferentes (ex.: 125x420 vs 474x783). Largura segue a proporção.
-    const aspect = (img.naturalWidth || 100) / (img.naturalHeight || 300);
+    const aspect = isProcedural ? 0.16 : (img!.naturalWidth || 100) / (img!.naturalHeight || 300);
     const dispH = v.scale * scaleMul;
     const dispW = dispH * aspect;
     const rad = (angleDeg * Math.PI) / 180;
@@ -5772,11 +5837,53 @@ export class GameEngine {
     ctx.save();
     ctx.translate(wx, wy);
     ctx.rotate(rad + Math.PI / 2 + (spinDeg * Math.PI) / 180);
-    ctx.imageSmoothingEnabled = true;
-    ctx.imageSmoothingQuality = 'high';
-    // desenha com o cabo (base) próximo ao pivô
-    ctx.drawImage(img, -dispW / 2, -dispH * 0.72, dispW, dispH);
-    ctx.imageSmoothingEnabled = false;
+    if (def.procedural === 'staff') {
+      // cajado temporário: sem arte própria — cabo + orbe desenhados por
+      // código. Mesma convenção de eixo local que a espada (local -Y aponta
+      // pra baixo no mundo em repouso): o cabo "pendura" pra baixo a partir
+      // do pivô — igual a espada flutuante — e a orbe fica pertinho do
+      // pivô (não no chão/pés).
+      const shaftLen = dispH * 0.78;
+      const shaftW = Math.max(2, dispW * 0.22);
+      const orbR = dispW * 0.48;
+      ctx.fillStyle = '#8b5e34';
+      ctx.fillRect(-shaftW / 2, -shaftLen, shaftW, shaftLen);
+      ctx.fillStyle = '#a855f7';
+      ctx.beginPath();
+      ctx.arc(0, -shaftLen * 0.02, orbR, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = '#e9d5ff';
+      ctx.lineWidth = Math.max(1, orbR * 0.14);
+      ctx.stroke();
+      ctx.fillStyle = 'rgba(233,213,255,0.55)';
+      ctx.beginPath();
+      ctx.arc(0, -shaftLen * 0.02, orbR * 0.5, 0, Math.PI * 2);
+      ctx.fill();
+    } else if (def.procedural === 'bow') {
+      // arco temporário: sem arte própria — curva + corda desenhadas por
+      // código. Mesma convenção: pendura pra baixo a partir do pivô, tucado
+      // nas costas, sem tocar no chão.
+      const bowLen = dispH * 0.75;
+      const bowBulge = dispW * 0.55;
+      ctx.strokeStyle = '#6b4226';
+      ctx.lineWidth = Math.max(2, dispW * 0.16);
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.quadraticCurveTo(bowBulge, -bowLen * 0.5, 0, -bowLen);
+      ctx.stroke();
+      ctx.strokeStyle = 'rgba(229,231,235,0.8)';
+      ctx.lineWidth = Math.max(1, dispW * 0.04);
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.lineTo(0, -bowLen);
+      ctx.stroke();
+    } else {
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
+      // desenha com o cabo (base) próximo ao pivô
+      ctx.drawImage(img!, -dispW / 2, -dispH * 0.72, dispW, dispH);
+      ctx.imageSmoothingEnabled = false;
+    }
 
     // Ressonância ativa: notas/partículas azuis ao redor da arma
     if (this.resonanceActive) {
@@ -5905,13 +6012,22 @@ export class GameEngine {
     // corpo dele fica em idle/walk/run o tempo todo.
     const isAction = false;
 
-    // ---- Akles: herói cavaleiro animado (sprite sheets processadas) ----
-    const aklesKey: 'idle' | 'walk' | 'run' | AklesAction = isMoving
-      ? this.heroRunning
-        ? 'run'
-        : 'walk'
-      : 'idle';
-    const aMeta = AKLES_ANIM[aklesKey];
+    // ---- Personagem animado (sprite sheets processadas) — Akles, Wins ou
+    // Huans, conforme this.activeCharacter. Todos usam a mesma estrutura de
+    // sheet (col*cw, linha*ch), só a tabela de meta/linhas por direção muda.
+    const moveKey: 'idle' | 'walk' | 'run' = isMoving ? (this.heroRunning ? 'run' : 'walk') : 'idle';
+    const animByChar: Record<PlayerCharacterKey, Record<'idle' | 'walk' | 'run', AklesAnimMeta>> = {
+      akles: AKLES_ANIM,
+      wins: WINS_ANIM,
+      huans: HUANS_ANIM,
+    };
+    const dirRowByChar: Record<PlayerCharacterKey, Record<Direction, number>> = {
+      akles: AKLES_DIR_ROW,
+      wins: WINS_DIR_ROW,
+      huans: HUANS_DIR_ROW,
+    };
+    const aMeta = animByChar[this.activeCharacter][moveKey];
+    const dirRowTable = dirRowByChar[this.activeCharacter];
     const aSheet = assets?.[aMeta.sheet] as HTMLImageElement | undefined;
 
     if (aSheet && aSheet.complete && aSheet.naturalWidth > 0) {
@@ -5921,7 +6037,7 @@ export class GameEngine {
       const feetY = cy + 31;
       const feetFrac = aMeta.feetFrac ?? (aMeta.ch - 4) / aMeta.ch;
 
-      const sheetRow = AKLES_DIR_ROW[char.direction];
+      const sheetRow = dirRowTable[char.direction];
       let col: number;
       if (isAction) {
         col = Math.min(aMeta.cols - 1, Math.max(0, char.frame));

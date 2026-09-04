@@ -7,10 +7,11 @@ interface PlayerHudProps {
   onOpenSheet: () => void;
   questObjective?: { title: string; text: string; ready: boolean } | null;
   onOpenQuests?: () => void;
+  portraitSrc?: string;
 }
 
 /** Canto superior esquerdo: retrato + barra de vida + barra de XP + objetivo da missão ativa. */
-export const PlayerHud: React.FC<PlayerHudProps> = ({ stats, onOpenSheet, questObjective, onOpenQuests }) => {
+export const PlayerHud: React.FC<PlayerHudProps> = ({ stats, onOpenSheet, questObjective, onOpenQuests, portraitSrc }) => {
   const hpPct = Math.max(0, Math.min(100, (stats.hp / stats.maxHp) * 100));
   const xpPct = Math.max(0, Math.min(100, (stats.xp / stats.xpNext) * 100));
 
@@ -30,7 +31,7 @@ export const PlayerHud: React.FC<PlayerHudProps> = ({ stats, onOpenSheet, questO
         title="Ficha do personagem (C)"
       >
         <img
-          src="/icons/icon-192.png"
+          src={portraitSrc ?? '/icons/icon-192.png'}
           alt={stats.name}
           className="w-full h-full object-cover object-top"
         />

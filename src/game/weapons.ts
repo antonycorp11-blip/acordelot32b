@@ -49,9 +49,92 @@ export interface WeaponDef {
   visual: WeaponVisualCfg;
   // custo de material p/ subir do nível `level` -> `level+1`
   upgradeCost: (level: number) => Record<string, number>;
+  // arma sem arte própria — desenhada por código (formas simples), não por
+  // ctx.drawImage. Usado pro cajado temporário da Wins / arco da Huans.
+  procedural?: 'staff' | 'bow';
 }
 
 export const WEAPON_DEFS: Record<string, WeaponDef> = {};
+
+const STAFF_ICON_SVG =
+  'data:image/svg+xml;utf8,' +
+  encodeURIComponent(
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 60 220"><rect x="25" y="46" width="10" height="164" rx="5" fill="#8b5e34"/><circle cx="30" cy="30" r="26" fill="#a855f7"/><circle cx="30" cy="30" r="26" fill="none" stroke="#e9d5ff" stroke-width="3"/></svg>',
+  );
+
+// ---------------------------------------------------------------------------
+// Wins — classe da Voz. Arma temporária (placeholder): cajado desenhado por
+// código, sem arte própria ainda. Mesma arquitetura de arma flutuante.
+// ---------------------------------------------------------------------------
+WEAPON_DEFS.cajado_temporario = {
+  key: 'cajado_temporario',
+  name: 'Cajado Temporário',
+  tier: 1,
+  rarity: 'Provisório',
+  spriteAsset: '',
+  img: STAFF_ICON_SVG,
+  baseAtk: 10,
+  atkPerLevel: 2,
+  maxLevel: 10,
+  statBonus: { skillDmgPct: 5 },
+  procedural: 'staff',
+  // mesma config visual da Acordelâmina T2 — flutuante, tucada nas costas
+  // em repouso, sem tocar no chão nem nos pés.
+  visual: {
+    restOffset: { x: -2, y: -18 },
+    scale: 50,
+    restRotationDeg: -35,
+    floatAmplitude: 2,
+    floatSpeed: 1.7,
+    attackSpeed: 1,
+    returnSpeed: 7,
+    followSmoothing: 9,
+  },
+  upgradeCost: (lvl) => ({
+    gold_refined: 1 + lvl,
+    gold_raw: 3 + lvl * 2,
+  }),
+};
+
+// ---------------------------------------------------------------------------
+// Huans — classe Cordas. Arma temporária (placeholder): arco desenhado por
+// código, sem arte própria ainda. Mesma arquitetura de arma flutuante.
+// ---------------------------------------------------------------------------
+const BOW_ICON_SVG =
+  'data:image/svg+xml;utf8,' +
+  encodeURIComponent(
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 220"><path d="M20 10 Q60 110 20 210" fill="none" stroke="#6b4226" stroke-width="8"/><line x1="20" y1="10" x2="20" y2="210" stroke="#e5e7eb" stroke-width="2"/></svg>',
+  );
+
+WEAPON_DEFS.arco_temporario = {
+  key: 'arco_temporario',
+  name: 'Arco Temporário',
+  tier: 1,
+  rarity: 'Provisório',
+  spriteAsset: '',
+  img: BOW_ICON_SVG,
+  baseAtk: 13,
+  atkPerLevel: 3,
+  maxLevel: 10,
+  statBonus: { critChancePct: 4 },
+  procedural: 'bow',
+  // mesma config visual da Acordelâmina T2 — flutuante, tucada nas costas
+  // em repouso, sem tocar no chão nem nos pés.
+  visual: {
+    restOffset: { x: -2, y: -18 },
+    scale: 50,
+    restRotationDeg: -35,
+    floatAmplitude: 2,
+    floatSpeed: 1.7,
+    attackSpeed: 1,
+    returnSpeed: 7,
+    followSmoothing: 9,
+  },
+  upgradeCost: (lvl) => ({
+    gold_refined: 1 + lvl,
+    gold_raw: 3 + lvl * 2,
+  }),
+};
 
 // ---------------------------------------------------------------------------
 // Catálogo da classe Teclas (Tier 1-5) — kit completo conforme especificação.

@@ -238,6 +238,13 @@ const ASSET_PATHS: Record<keyof LoadedAssets, string> = {
   npcSeminima: '/assets/characters/npcs/seminima.png',
   npcDiapasao: '/assets/characters/npcs/diapasao.png',
 
+  // Wins - Classe da Voz (personagem temporária)
+  winsMove: '/assets/characters/wins/wins_move.png',
+  winsIcon: '/assets/characters/wins/wins_icon.png',
+  // Huans - Classe Cordas (personagem temporária)
+  huansMove: '/assets/characters/huans/huans_move.png',
+  huansIcon: '/assets/characters/huans/huans_icon.png',
+
   // Akles - Herói Cavaleiro
   aklesIdle: '/assets/characters/akles/akles_idle.png',
   aklesWalk: '/assets/characters/akles/akles_walk.png',

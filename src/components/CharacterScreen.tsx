@@ -630,7 +630,11 @@ const FichaTab: React.FC<{
     <div className="flex gap-3 h-full">
       <div className="w-44 shrink-0 flex flex-col gap-2">
         <div className="rounded-xl overflow-hidden border-2 border-amber-400/60 bg-gradient-to-b from-slate-800 to-slate-950 shadow-lg aspect-[3/4]">
-          <img src="/icons/icon-512.png" alt={stats.name} className="w-full h-full object-cover object-top scale-110" />
+          <img
+            src={engine?.activeCharacterPortrait ?? '/icons/icon-512.png'}
+            alt={stats.name}
+            className="w-full h-full object-cover object-top scale-110"
+          />
         </div>
         <p className="text-center text-[11px] text-slate-400 -mt-1">{stats.className}</p>
         <p className="text-center text-sm font-bold text-amber-300">Nível {stats.level}</p>

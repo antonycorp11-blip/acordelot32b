@@ -49,13 +49,16 @@ import {
   DIR_ANGLE_DEG,
 } from './weapons';
 import { PASSIVE_DEFS } from './passives';
-import { EQUIP_ITEMS, EQUIP_SLOT_ORDER, EquipSlot } from './equipment';
+import { EQUIP_SETS, EQUIP_PIECE_INDEX, EQUIP_SLOT_ORDER, EquipSlotKey, EquipSetDef, EquipPieceDef } from './catalogData';
+import { StatKey, StatBag, mergeStatBags, STATS_WITHOUT_EFFECT } from './statTypes';
 export { WEAPON_DEFS } from './weapons';
 export { PASSIVE_DEFS, PASSIVE_ORDER } from './passives';
-export { EQUIP_ITEMS, EQUIP_SLOT_ORDER } from './equipment';
-export type { WeaponDef, WeaponTier } from './weapons';
+export { EQUIP_SETS, EQUIP_PIECE_INDEX, EQUIP_SLOT_ORDER, EQUIP_SLOT_LABEL } from './catalogData';
+export { STAT_LABELS, STATS_WITHOUT_EFFECT } from './statTypes';
+export type { WeaponDef, WeaponTier, WeaponPassive } from './weapons';
 export type { PassiveDef, PassiveGroup } from './passives';
-export type { EquipSlot, EquipItemDef } from './equipment';
+export type { EquipSlotKey, EquipSetDef, EquipPieceDef, EquipPassive } from './catalogData';
+export type { StatKey, StatBag } from './statTypes';
 
 export type TimeOfDay = 'day' | 'sunset' | 'night';
 
@@ -1150,6 +1153,7 @@ export class GameEngine {
     if (!WEAPON_DEFS[key] || key === this.equippedWeaponKey) return false;
     this.equippedWeaponKey = key;
     if (this.weaponLevels[key] == null) this.weaponLevels[key] = 1;
+    this.syncEquipHpBonus();
     this.onWeaponChange?.();
     return true;
   }
@@ -1191,43 +1195,93 @@ export class GameEngine {
     this.passiveLevels[id] = Math.max(0, Math.min(5, Math.round(level)));
   }
 
-  // ---- Equipamentos (Aura visual + Catalisador/Anel/Colar só estatística) ----
-  // 0 = não equipado ainda. onEquip incrementa o nível (equipa no clique
-  // seguinte se estiver em 0) — sem material definido ainda, é grátis.
-  equipLevels: Record<EquipSlot, number> = { aura: 0, catalisador: 0, anel: 0, colar: 0 };
+  // ---- Equipamentos (Colar / Anel / Aura / Catalisador) ----
+  // Cada slot guarda a CHAVE da peça equipada (de qualquer conjunto/tier) —
+  // permite montar builds mistas (4 peças de um conjunto, ou 2+2 de dois
+  // conjuntos diferentes). Aprimoramento (+0 a +15) é guardado por peça,
+  // independente de ela estar equipada agora.
+  equippedPieces: Record<EquipSlotKey, string | null> = {
+    colar: null,
+    anel: null,
+    aura: null,
+    catalisador: null,
+  };
+  pieceLevels: Record<string, number> = {};
   onEquipChange?: () => void;
-  getEquipLevel(slot: EquipSlot): number {
-    return this.equipLevels[slot] ?? 0;
+  private appliedEquipHpBonus = 0;
+
+  getPieceLevel(key: string): number {
+    return this.pieceLevels[key] ?? 0;
   }
-  levelUpEquip(slot: EquipSlot): boolean {
-    const def = EQUIP_ITEMS[slot];
-    const cur = this.equipLevels[slot] ?? 0;
-    if (cur >= def.maxLevel) return false;
-    const beforeHp = this.equipMaxHpBonus;
-    this.equipLevels[slot] = cur + 1;
-    if (slot === 'colar') {
-      const gained = this.equipMaxHpBonus - beforeHp;
-      this.stats.maxHp += gained;
-      this.stats.hp += gained;
-      this.onStatsChange?.({ ...this.stats });
-    }
+  canUpgradePiece(key: string): boolean {
+    return this.getPieceLevel(key) < 15;
+  }
+  upgradePiece(key: string): boolean {
+    if (!EQUIP_PIECE_INDEX[key] || !this.canUpgradePiece(key)) return false;
+    this.pieceLevels[key] = this.getPieceLevel(key) + 1;
+    this.syncEquipHpBonus();
     this.onEquipChange?.();
     return true;
   }
-  equipStatBonus(slot: EquipSlot): number {
-    const lvl = this.getEquipLevel(slot);
-    if (lvl <= 0) return 0;
-    const def = EQUIP_ITEMS[slot];
-    return def.statBase + def.statPerLevel * (lvl - 1);
+  equipPiece(key: string): boolean {
+    const entry = EQUIP_PIECE_INDEX[key];
+    if (!entry) return false;
+    this.equippedPieces[entry.piece.slot] = key;
+    this.syncEquipHpBonus();
+    this.onEquipChange?.();
+    return true;
   }
-  get equipSkillDmgBonusPct() {
-    return (this.equipStatBonus('aura') + this.equipStatBonus('catalisador')) / 100;
+  unequipSlot(slot: EquipSlotKey) {
+    this.equippedPieces[slot] = null;
+    this.syncEquipHpBonus();
+    this.onEquipChange?.();
   }
-  get equipAtkSpeedBonusPct() {
-    return this.equipStatBonus('anel') / 100;
+  // Quantas peças de cada conjunto estão equipadas agora — base do bônus 2/4.
+  get activeSetCounts(): Record<string, number> {
+    const counts: Record<string, number> = {};
+    for (const slot of EQUIP_SLOT_ORDER) {
+      const key = this.equippedPieces[slot];
+      const entry = key ? EQUIP_PIECE_INDEX[key] : undefined;
+      if (!entry) continue;
+      counts[entry.set.key] = (counts[entry.set.key] ?? 0) + 1;
+    }
+    return counts;
   }
-  get equipMaxHpBonus() {
-    return this.equipStatBonus('colar');
+  // Soma total de uma stat: peças equipadas (com aprimoramento) + bônus de
+  // conjunto ativo (2/4 peças) + arma equipada. Em pontos percentuais.
+  equipStat(key: StatKey): number {
+    let total = 0;
+    for (const slot of EQUIP_SLOT_ORDER) {
+      const pieceKey = this.equippedPieces[slot];
+      const entry = pieceKey ? EQUIP_PIECE_INDEX[pieceKey] : undefined;
+      if (!entry) continue;
+      const base = entry.piece.stats[key] ?? 0;
+      if (base === 0) continue;
+      const lvl = this.getPieceLevel(pieceKey!);
+      total += base * (1 + lvl * 0.08); // aprimoramento: +8%/nível (até +15 ≈ +120%)
+    }
+    const counts = this.activeSetCounts;
+    for (const set of EQUIP_SETS) {
+      const n = counts[set.key] ?? 0;
+      if (n >= 2) total += set.bonus2[key] ?? 0;
+      if (n >= 4) total += set.bonus4[key] ?? 0;
+    }
+    total += this.weaponDef.statBonus[key] ?? 0;
+    return total;
+  }
+  // HP Máximo é % — reconciliado como delta flat sobre stats.maxHp sempre
+  // que algo muda (equipar/desequipar/upar peça, trocar de arma).
+  private syncEquipHpBonus() {
+    const pct = this.equipStat('hpPct');
+    const baseForPct = this.stats.maxHp - this.appliedEquipHpBonus;
+    const newBonus = Math.round(baseForPct * (pct / 100));
+    const delta = newBonus - this.appliedEquipHpBonus;
+    if (delta !== 0) {
+      this.stats.maxHp += delta;
+      this.stats.hp = delta > 0 ? this.stats.hp + delta : Math.min(this.stats.hp, this.stats.maxHp);
+      this.onStatsChange?.({ ...this.stats });
+    }
+    this.appliedEquipHpBonus = newBonus;
   }
 
   // ---- multiplicadores derivados das passivas ----
@@ -1236,7 +1290,8 @@ export class GameEngine {
       1 +
       this.passiveValue('afinacaoPermanente') +
       this.passiveValue('forcaRessonante') +
-      this.passiveValue('maestriaDaLamina')
+      this.passiveValue('maestriaDaLamina') +
+      (this.equipStat('atkPct') + this.equipStat('basicDmgPct')) / 100
     );
   }
   get skillDmgMul() {
@@ -1244,11 +1299,15 @@ export class GameEngine {
       1 +
       this.passiveValue('canalizacao') +
       this.passiveValue('ressonanciaInterior') +
-      this.equipSkillDmgBonusPct
+      (this.equipStat('atkPct') + this.equipStat('skillDmgPct')) / 100
     );
   }
   get critChanceBonus() {
-    return this.passiveValue('ouvidoAbsoluto');
+    return this.passiveValue('ouvidoAbsoluto') + this.equipStat('critChancePct') / 100;
+  }
+  // multiplicador do dano crítico — base 1.6x + "Dano Crítico" de arma/set
+  get critDmgMul() {
+    return 1.6 + this.equipStat('critDmgPct') / 100;
   }
   get moveSpeedMul() {
     return 1 + this.passiveValue('corpoEmCompasso');
@@ -1257,10 +1316,15 @@ export class GameEngine {
     return 1 + this.passiveValue('harmoniaVital') + this.passiveValue('forcaRessonante');
   }
   get meleeAreaMul() {
-    return 1 + this.passiveValue('expansao');
+    return 1 + this.passiveValue('expansao') + this.equipStat('areaPct') / 100;
   }
   get cooldownMul() {
-    return Math.max(0.3, 1 - this.passiveValue('fluxoSonoro'));
+    return Math.max(0.3, 1 - this.passiveValue('fluxoSonoro') - this.equipStat('cooldownReductionPct') / 100);
+  }
+  // redutor de dano recebido — "DEF" + "Resistência" de arma/equipamentos
+  // (cap em 65% de redução pra não anular o combate).
+  get incomingDmgMul() {
+    return Math.max(0.35, 1 - (this.equipStat('defPct') + this.equipStat('resistPct')) / 100);
   }
 
   // Ficha do personagem
@@ -2757,7 +2821,7 @@ export class GameEngine {
     if (this.playerInvuln > 0) return;
     this.lastCombatAt = this.timeElapsed;
     const s = this.stats;
-    n = Math.max(1, Math.round(n));
+    n = Math.max(1, Math.round(n * this.incomingDmgMul));
     s.hp = Math.max(0, s.hp - n);
     this.playerHurtFlash = 0.35;
     this.playerInvuln = 0.7;
@@ -3726,9 +3790,12 @@ export class GameEngine {
       this.player.isMoving = false;
       this.player.vx = 0;
       this.player.vy = 0;
-      // Pulso Acelerado: ataques básicos mais rápidos enquanto Ressonância ativa
+      // Pulso Acelerado (passiva, só durante Ressonância) + Velocidade de
+      // Ataque de arma/equipamentos (sempre ativa, qualquer ação)
       const atkSpeedMul =
-        act === 'attack' && this.resonanceActive ? 1 + this.passiveValue('pulsoAcelerado') : 1;
+        1 +
+        this.equipStat('atkSpeedPct') / 100 +
+        (act === 'attack' && this.resonanceActive ? this.passiveValue('pulsoAcelerado') : 0);
       this.player.actionTimer = (this.player.actionTimer || 0) + dt * meta.fps * atkSpeedMul;
       this.player.frame = Math.min(meta.cols - 1, Math.floor(this.player.actionTimer));
 
@@ -3745,7 +3812,7 @@ export class GameEngine {
         if (act === 'attack') {
           const crit = this.rollCrit();
           let dmg = this.basicAttackDamage();
-          if (crit) dmg *= 1.6;
+          if (crit) dmg *= this.critDmgMul;
           this.applyMeleeHit(dmg, 46, { crit });
           this.onComboHitLanded();
         }
@@ -4233,7 +4300,7 @@ export class GameEngine {
       draw: () => this.drawCompanion(camX, camY),
     });
 
-    if (this.equipLevels.aura > 0) {
+    if (this.equippedPieces.aura) {
       renderables.push({
         sortY: this.player.y + 5,
         draw: () => this.drawAura(camX, camY),
@@ -4252,11 +4319,14 @@ export class GameEngine {
       });
     } else {
       // arma flutuante (não durante coleta — a ferramenta assume o lugar).
-      // Em repouso fica ATRÁS do Akles (não tampa ele); golpeando, na FRENTE
-      // pra dar pra ver o combo.
+      // Em repouso, de frente/lado fica ATRÁS do Akles (não tampa ele); de
+      // costas (direção 'up', o jogador vê as costas dele) ela é o que fica
+      // visível ali montada nas costas, então vai NA FRENTE. Golpeando,
+      // sempre na frente pra dar pra ver o combo.
       const swinging = this.player.actionState === 'attack' || this.player.actionState === 'spin';
+      const backVisible = this.player.direction === 'up';
       renderables.push({
-        sortY: this.player.y + (swinging ? 40 : 6),
+        sortY: this.player.y + (swinging || backVisible ? 40 : 6),
         draw: () => this.drawWeapon(camX, camY),
       });
     }
@@ -5441,10 +5511,15 @@ export class GameEngine {
   // Ferramenta de coleta ao lado do Akles (ele fica parado, a ferramenta bate).
   // Aura Ressonante (único equipamento visual) — brilho + notas orbitando
   drawAura(camX: number, camY: number) {
-    const lvl = this.equipLevels.aura;
-    if (lvl <= 0) return;
+    const auraKey = this.equippedPieces.aura;
+    if (!auraKey) return;
+    const entry = EQUIP_PIECE_INDEX[auraKey];
+    if (!entry) return;
+    // reaproveita a curva visual antiga (pensada pra níveis 0-5) mapeando o
+    // aprimoramento 0-15 da peça pra essa mesma faixa.
+    const lvl = Math.min(5, 1 + Math.floor(this.getPieceLevel(auraKey) / 3));
     const ctx = this.ctx;
-    const def = EQUIP_ITEMS.aura;
+    const color = entry.set.color;
     const cx = Math.round(this.player.x + 12 - camX);
     const cy = Math.round(this.player.y + 26 - camY);
     const t = this.timeElapsed;
@@ -5453,8 +5528,8 @@ export class GameEngine {
     // anel no chão
     const pulse = 0.6 + Math.sin(t * 2) * 0.2;
     const g = ctx.createRadialGradient(cx, cy, 2, cx, cy, 20 + lvl * 2);
-    g.addColorStop(0, def.color + '55');
-    g.addColorStop(1, def.color + '00');
+    g.addColorStop(0, color + '55');
+    g.addColorStop(1, color + '00');
     ctx.fillStyle = g;
     ctx.beginPath();
     ctx.ellipse(cx, cy, 18 + lvl * 2, 8 + lvl, 0, 0, Math.PI * 2);
@@ -5468,7 +5543,7 @@ export class GameEngine {
       const ox = cx + Math.cos(ang) * rx;
       const oy = cy - 14 + Math.sin(ang) * ry - Math.abs(Math.sin(t * 2 + i)) * 6;
       ctx.globalAlpha = Math.min(1, 0.55 + 0.3 * pulse);
-      ctx.fillStyle = def.color;
+      ctx.fillStyle = color;
       ctx.beginPath();
       ctx.arc(ox, oy, 1.6, 0, Math.PI * 2);
       ctx.fill();

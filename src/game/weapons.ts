@@ -5,6 +5,8 @@
 // é feito por código a partir destes parâmetros configuráveis.
 // ============================================================================
 
+import type { StatBag } from './statTypes';
+
 export type WeaponTier = 1 | 2 | 3 | 4 | 5;
 
 export interface WeaponVisualCfg {
@@ -25,6 +27,11 @@ export interface WeaponVisualCfg {
   followSmoothing: number; // 1/seg — suavização ao seguir o personagem
 }
 
+export interface WeaponPassive {
+  name: string;
+  desc: string;
+}
+
 export interface WeaponDef {
   key: string;
   name: string;
@@ -33,49 +40,23 @@ export interface WeaponDef {
   spriteAsset: string; // chave em LoadedAssets — sprite normal
   spriteEnergizedAsset?: string; // sprite p/ Ressonância ativa (se existir)
   img: string; // caminho público pro ícone/arte grande (telas de UI)
-  baseAtk: number;
+  baseAtk: number; // ATQ da arma em +0, conforme o kit da classe Teclas
   atkPerLevel: number;
   maxLevel: number;
+  statBonus: StatBag; // bônus fixos da arma em +0 (não escala com o nível)
+  passive?: WeaponPassive; // só T4/T5
+  aklesSynergy?: string; // bônus extra só quando equipada em Akles (texto)
   visual: WeaponVisualCfg;
   // custo de material p/ subir do nível `level` -> `level+1`
   upgradeCost: (level: number) => Record<string, number>;
 }
 
-export const WEAPON_DEFS: Record<string, WeaponDef> = {
-  acordelamina_t2: {
-    key: 'acordelamina_t2',
-    name: 'Acordelâmina T2',
-    tier: 2,
-    rarity: 'Incomum',
-    spriteAsset: 'weaponAcordelaminaT2',
-    spriteEnergizedAsset: 'weaponAcordelaminaT2Energized',
-    img: '/assets/weapons/acordelamina_t2.png',
-    baseAtk: 14,
-    atkPerLevel: 3,
-    maxLevel: 10,
-    visual: {
-      restOffset: { x: -2, y: -18 },
-      scale: 50,
-      restRotationDeg: -35,
-      floatAmplitude: 2,
-      floatSpeed: 1.7,
-      attackSpeed: 1,
-      returnSpeed: 7,
-      followSmoothing: 9,
-    },
-    upgradeCost: (lvl) => ({
-      gold_refined: 2 + lvl * 2,
-      crystal_blue_refined: 1 + Math.floor(lvl * 1.4),
-      gold_raw: 4 + lvl * 3,
-      crystal_blue_raw: 3 + lvl * 2,
-    }),
-  },
-};
+export const WEAPON_DEFS: Record<string, WeaponDef> = {};
 
 // ---------------------------------------------------------------------------
-// Catálogo da classe Teclas (Tier 1-5) — armas geradas por template. Todas
-// usam a mesma arquitetura de arma flutuante acima; só escala/atk/custo
-// variam por tier. Arte já vem cortada/limpa em public/assets/catalogo/armas.
+// Catálogo da classe Teclas (Tier 1-5) — kit completo conforme especificação.
+// Todo valor abaixo é o item em +0. Arte já vem cortada/limpa em
+// public/assets/catalogo/armas.
 // ---------------------------------------------------------------------------
 const RARITY_BY_TIER: Record<WeaponTier, string> = {
   1: 'Comum',
@@ -84,7 +65,6 @@ const RARITY_BY_TIER: Record<WeaponTier, string> = {
   4: 'Épico',
   5: 'Lendário',
 };
-const BASE_ATK_BY_TIER: Record<WeaponTier, number> = { 1: 8, 2: 14, 3: 22, 4: 32, 5: 45 };
 const ATK_PER_LVL_BY_TIER: Record<WeaponTier, number> = { 1: 2, 2: 3, 3: 4, 4: 5, 5: 6 };
 // altura alvo na tela (px), não multiplicador — ver comentário em WeaponVisualCfg
 const SCALE_BY_TIER: Record<WeaponTier, number> = { 1: 42, 2: 50, 3: 58, 4: 66, 5: 76 };
@@ -102,17 +82,35 @@ function visualForTier(tier: WeaponTier): WeaponVisualCfg {
   };
 }
 
-function makeWeapon(key: string, name: string, tier: WeaponTier, slug: string): WeaponDef {
+interface WeaponSpec {
+  key: string;
+  name: string;
+  tier: WeaponTier;
+  slug: string;
+  atk: number;
+  stats: StatBag;
+  passive?: WeaponPassive;
+  aklesSynergy?: string;
+  /** T2 acordelamina_t2 usa os assets originais (weapons/), não os do catálogo. */
+  legacyAsset?: boolean;
+}
+
+function makeWeapon(spec: WeaponSpec): WeaponDef {
+  const { key, name, tier, slug, atk, stats, passive, aklesSynergy, legacyAsset } = spec;
   return {
     key,
     name,
     tier,
     rarity: RARITY_BY_TIER[tier],
-    spriteAsset: `weapon_${slug}`,
-    img: `/assets/catalogo/armas/${slug}.png`,
-    baseAtk: BASE_ATK_BY_TIER[tier],
+    spriteAsset: legacyAsset ? 'weaponAcordelaminaT2' : `weapon_${slug}`,
+    spriteEnergizedAsset: legacyAsset ? 'weaponAcordelaminaT2Energized' : undefined,
+    img: legacyAsset ? '/assets/weapons/acordelamina_t2.png' : `/assets/catalogo/armas/${slug}.png`,
+    baseAtk: atk,
     atkPerLevel: ATK_PER_LVL_BY_TIER[tier],
     maxLevel: 10,
+    statBonus: stats,
+    passive,
+    aklesSynergy,
     visual: visualForTier(tier),
     upgradeCost: (lvl) => ({
       gold_refined: tier * (2 + lvl * 2),
@@ -123,35 +121,86 @@ function makeWeapon(key: string, name: string, tier: WeaponTier, slug: string): 
   };
 }
 
-const CATALOG_WEAPONS: [string, string, WeaponTier, string][] = [
-  // T1
-  ['tecla_de_carvalho', 'Tecla de Carvalho', 1, 'tecla_de_carvalho'],
-  ['ferro_do_pianista', 'Ferro do Pianista', 1, 'ferro_do_pianista'],
-  ['cravo_de_batalha', 'Cravo de Batalha', 1, 'cravo_de_batalha'],
-  ['acordeonita', 'Acordeonita', 1, 'acordeonita'],
-  // T2 (além da Acordelâmina T2 acima)
-  ['cravo_azul', 'Cravo Azul', 2, 'cravo_azul'],
-  ['teclado_resonante', 'Teclado Resonante', 2, 'teclado_resonante'],
-  ['acordeon_de_aco', 'Acordeon de Aço', 2, 'acordeon_de_aco'],
-  ['orgao_do_peregrino', 'Órgão do Peregrino', 2, 'orgao_do_peregrino'],
-  // T3
-  ['piano_de_cristal', 'Piano de Cristal', 3, 'piano_de_cristal'],
-  ['cravo_real_de_acordelot', 'Cravo Real de Acordelot', 3, 'cravo_real_de_acordelot'],
-  ['orgao_resonante_arma', 'Órgão Resonante', 3, 'orgao_resonante_arma'],
-  ['celesta_lunar_arma', 'Celesta Lunar', 3, 'celesta_lunar_arma'],
-  // T4
-  ['piano_do_maestro', 'Piano do Maestro', 4, 'piano_do_maestro'],
-  ['catedral_harmonica_arma', 'Catedral Harmônica', 4, 'catedral_harmonica_arma'],
-  ['cravo_do_rei', 'Cravo do Rei', 4, 'cravo_do_rei'],
-  ['concerto_de_cristal', 'Concerto de Cristal', 4, 'concerto_de_cristal'],
-  // T5
-  ['virtuose_arma', 'Virtuose', 5, 'virtuose_arma'],
-  ['orgao_celestial', 'Órgão Celestial', 5, 'orgao_celestial'],
-  ['requiem_do_cravo', 'Réquiem do Cravo', 5, 'requiem_do_cravo'],
+const CATALOG_WEAPONS: WeaponSpec[] = [
+  // ---- T1 ----
+  { key: 'tecla_de_carvalho', name: 'Tecla de Carvalho', tier: 1, slug: 'tecla_de_carvalho', atk: 28, stats: { hpPct: 3 } },
+  { key: 'ferro_do_pianista', name: 'Ferro do Pianista', tier: 1, slug: 'ferro_do_pianista', atk: 30, stats: { defPct: 4 } },
+  { key: 'cravo_de_batalha', name: 'Cravo de Batalha', tier: 1, slug: 'cravo_de_batalha', atk: 31, stats: { critChancePct: 2 } },
+  { key: 'acordeonita', name: 'Acordeonita', tier: 1, slug: 'acordeonita', atk: 27, stats: { atkSpeedPct: 4 } },
+  // ---- T2 ----
+  { key: 'acordelamina_t2', name: 'Acordelâmina T2', tier: 2, slug: 'acordelamina_t2', atk: 48, stats: { basicDmgPct: 6 }, legacyAsset: true },
+  { key: 'cravo_azul', name: 'Cravo Azul', tier: 2, slug: 'cravo_azul', atk: 50, stats: { critChancePct: 4 } },
+  { key: 'teclado_resonante', name: 'Teclado Resonante', tier: 2, slug: 'teclado_resonante', atk: 46, stats: { energyMaxPct: 8 } },
+  { key: 'acordeon_de_aco', name: 'Acordeon de Aço', tier: 2, slug: 'acordeon_de_aco', atk: 54, stats: { hpPct: 6 } },
+  { key: 'orgao_do_peregrino', name: 'Órgão do Peregrino', tier: 2, slug: 'orgao_do_peregrino', atk: 49, stats: { skillDmgPct: 6 } },
+  // ---- T3 ----
+  { key: 'piano_de_cristal', name: 'Piano de Cristal', tier: 3, slug: 'piano_de_cristal', atk: 76, stats: { critChancePct: 7 } },
+  { key: 'cravo_real_de_acordelot', name: 'Cravo Real de Acordelot', tier: 3, slug: 'cravo_real_de_acordelot', atk: 82, stats: { critDmgPct: 12 } },
+  { key: 'orgao_resonante_arma', name: 'Órgão Resonante', tier: 3, slug: 'orgao_resonante_arma', atk: 78, stats: { skillDmgPct: 10 } },
+  { key: 'celesta_lunar_arma', name: 'Celesta Lunar', tier: 3, slug: 'celesta_lunar_arma', atk: 74, stats: { cooldownReductionPct: 6 } },
+  // ---- T4 ----
+  {
+    key: 'piano_do_maestro', name: 'Piano do Maestro', tier: 4, slug: 'piano_do_maestro', atk: 116,
+    stats: { atkSpeedPct: 10, critChancePct: 8 },
+    passive: {
+      name: 'Cadência Magistral',
+      desc: 'Cada ataque básico concede 1 Compasso (máx. 4). Ao chegar a 4, a próxima Skill causa +20% de dano; usar a Skill consome todos os Compassos.',
+    },
+  },
+  {
+    key: 'catedral_harmonica_arma', name: 'Catedral Harmônica', tier: 4, slug: 'catedral_harmonica_arma', atk: 120,
+    stats: { skillDmgPct: 12, areaPct: 10 },
+    passive: {
+      name: 'Eco da Catedral',
+      desc: 'Quando uma Skill atinge 3+ inimigos, cria um Eco Harmônico que causa 40% do dano da Skill numa pequena área (cooldown interno de 5s).',
+    },
+  },
+  {
+    key: 'cravo_do_rei', name: 'Cravo do Rei', tier: 4, slug: 'cravo_do_rei', atk: 124,
+    stats: { critChancePct: 10, critDmgPct: 18 },
+    passive: {
+      name: 'Execução Real',
+      desc: 'Acertar um crítico concede +3% ATQ por 6s (máx. 5 acúmulos, até +15% ATQ).',
+    },
+  },
+  {
+    key: 'concerto_de_cristal', name: 'Concerto de Cristal', tier: 4, slug: 'concerto_de_cristal', atk: 118,
+    stats: { skillDmgPct: 14, energyMaxPct: 12 },
+    passive: {
+      name: 'Cristalização',
+      desc: 'Usar uma Skill gera 1 Cristal Harmônico (máx. 3). Ao chegar a 3, os cristais explodem: 60% do ATQ em área, e as cargas zeram.',
+    },
+  },
+  // ---- T5 ----
+  {
+    key: 'virtuose_arma', name: 'Virtuose', tier: 5, slug: 'virtuose_arma', atk: 170,
+    stats: { atkPct: 15, critChancePct: 12, basicDmgPct: 15 },
+    passive: {
+      name: 'Virtuosidade Absoluta',
+      desc: 'Ataques básicos e Skills concedem 1 Compasso (máx. 5). Ao alcançar 5: +20% Dano Geral por 8s; depois os Compassos zeram.',
+    },
+    aklesSynergy: 'Equipada por Akles: Ressonância dura +2s e ganha +10% Velocidade de Ataque adicional durante ela.',
+  },
+  {
+    key: 'orgao_celestial', name: 'Órgão Celestial', tier: 5, slug: 'orgao_celestial', atk: 166,
+    stats: { skillDmgPct: 20, cooldownReductionPct: 10, energyMaxPct: 15 },
+    passive: {
+      name: 'Concerto Celestial',
+      desc: 'Usar uma Skill concede +5% Dano de Skill por 8s (máx. 4 acúmulos, até +20%). No máximo, recupera 10% da Energia Harmônica (cooldown de 12s).',
+    },
+  },
+  {
+    key: 'requiem_do_cravo', name: 'Réquiem do Cravo', tier: 5, slug: 'requiem_do_cravo', atk: 176,
+    stats: { critChancePct: 15, critDmgPct: 25 },
+    passive: {
+      name: 'Nota Fúnebre',
+      desc: 'Críticos aplicam Dissonância no alvo: +4% de dano recebido por carga (máx. 4 cargas, até +16%), por 6s.',
+    },
+  },
 ];
 
-for (const [key, name, tier, slug] of CATALOG_WEAPONS) {
-  WEAPON_DEFS[key] = makeWeapon(key, name, tier, slug);
+for (const spec of CATALOG_WEAPONS) {
+  WEAPON_DEFS[spec.key] = makeWeapon(spec);
 }
 
 // ---------------------------------------------------------------------------

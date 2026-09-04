@@ -7,13 +7,14 @@ import {
   Hammer,
   Gem,
   Zap,
-  ChevronLeft,
   User,
   Sparkles,
   RefreshCw,
+  ArrowUpCircle,
+  CheckCircle2,
 } from 'lucide-react';
-import type { PlayerStats, AttrKey, GameEngine, PassiveGroup, EquipSlot } from '../game/engine';
-import { PASSIVE_DEFS, PASSIVE_ORDER, EQUIP_ITEMS, EQUIP_SLOT_ORDER } from '../game/engine';
+import type { PlayerStats, AttrKey, GameEngine, PassiveGroup, EquipSlotKey, StatKey } from '../game/engine';
+import { PASSIVE_DEFS, PASSIVE_ORDER, EQUIP_SETS, EQUIP_SLOT_ORDER, EQUIP_SLOT_LABEL, STAT_LABELS } from '../game/engine';
 import type { ToolTier } from '../game/types';
 
 interface CharacterScreenProps {
@@ -115,71 +116,213 @@ const FerramentasTab: React.FC<{ engine: GameEngine }> = ({ engine }) => {
 };
 
 // ============================================================================
-// Aba: EQUIPAMENTOS (Aura visual + Catalisador/Anel/Colar só estatística)
+// Aba: EQUIPAMENTOS (Colar / Anel / Aura / Catalisador) — mesmo layout da
+// tela de Arma: lista à esquerda, detalhe grande à direita.
 // ============================================================================
+type PieceRow = { key: string; slot: EquipSlotKey; name: string; img?: string; setName: string; setColor: string; setKey: string };
+
+function statLines(stats: Partial<Record<StatKey, number>>): string[] {
+  return (Object.keys(stats) as StatKey[])
+    .filter((k) => stats[k])
+    .map((k) => `${STAT_LABELS[k]}: +${stats[k]}%`);
+}
+
 const EquipamentosTab: React.FC<{ engine: GameEngine }> = ({ engine }) => {
   const [, force] = React.useReducer((n) => n + 1, 0);
-  const levelUp = (slot: EquipSlot) => {
-    if (engine.levelUpEquip(slot)) force();
+
+  const allPieces: PieceRow[] = React.useMemo(() => {
+    const rows: PieceRow[] = [];
+    for (const set of EQUIP_SETS) {
+      for (const slot of EQUIP_SLOT_ORDER) {
+        const p = set.pieces[slot];
+        rows.push({ key: p.key, slot, name: p.name, img: p.img, setName: set.name, setColor: set.color, setKey: set.key });
+      }
+    }
+    return rows;
+  }, []);
+
+  const [selectedKey, setSelectedKey] = React.useState(allPieces[0].key);
+  const findEntry = (key: string) => {
+    for (const set of EQUIP_SETS) {
+      for (const slot of EQUIP_SLOT_ORDER) {
+        if (set.pieces[slot].key === key) return { set, piece: set.pieces[slot], slot };
+      }
+    }
+    return null;
   };
+  const selected = findEntry(selectedKey)!;
+  const piece = selected.piece;
+  const set = selected.set;
+  const slot = selected.slot;
+
+  const equippedInSlot = engine.equippedPieces[slot];
+  const isEquipped = equippedInSlot === piece.key;
+  const level = engine.getPieceLevel(piece.key);
+  const maxed = level >= 15;
+  const setCount = engine.activeSetCounts[set.key] ?? 0;
+
+  const doEquip = () => {
+    if (engine.equipPiece(piece.key)) force();
+  };
+  const doUnequip = () => {
+    engine.unequipSlot(slot);
+    force();
+  };
+  const doUpgrade = () => {
+    if (engine.upgradePiece(piece.key)) force();
+  };
+
   return (
-    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-      {EQUIP_SLOT_ORDER.map((slot) => {
-        const def = EQUIP_ITEMS[slot];
-        const lvl = engine.getEquipLevel(slot);
-        const equipped = lvl > 0;
-        const bonus = engine.equipStatBonus(slot);
-        return (
-          <div
-            key={slot}
-            className="rounded-xl border bg-slate-950/50 p-3 flex flex-col items-center gap-1.5 text-center"
-            style={{ borderColor: def.color + (equipped ? '66' : '2a') }}
-          >
-            <div className="flex items-center gap-1">
-              <span className="text-[10px] font-bold uppercase tracking-wide" style={{ color: def.color }}>
-                {def.slot}
-              </span>
-              {def.visual && (
-                <span className="text-[8px] font-black bg-sky-500/20 text-sky-300 px-1 rounded">VISUAL</span>
-              )}
-            </div>
-            <div
-              className="w-14 h-14 rounded-full flex items-center justify-center text-2xl"
-              style={{ background: def.color + '18', border: `2px solid ${def.color}55` }}
-            >
-              <Gem className="w-6 h-6" style={{ color: def.color }} />
-            </div>
-            <p className="text-[11px] font-bold text-slate-100 leading-tight">{def.name}</p>
-            <p className="text-[9px] text-slate-500 leading-snug">{def.desc}</p>
-            <span className="flex gap-0.5 mt-0.5">
-              {Array.from({ length: def.maxLevel }).map((_, i) => (
-                <span key={i} className="w-2 h-1 rounded-full" style={{ background: i < lvl ? def.color : '#334155' }} />
-              ))}
-            </span>
-            {equipped ? (
-              <p className="text-[10px] font-bold" style={{ color: def.color }}>
-                Nv.{lvl} · {def.statLabel} +{bonus}
-              </p>
+    <div className="flex h-full gap-3">
+      {/* Coluna esquerda: 4 slots equipados + lista de todas as peças */}
+      <div className="w-44 shrink-0 flex flex-col gap-2 min-h-0">
+        <div className="grid grid-cols-4 gap-1">
+          {EQUIP_SLOT_ORDER.map((s) => {
+            const key = engine.equippedPieces[s];
+            const entry = key ? findEntry(key) : null;
+            return (
+              <button
+                key={s}
+                type="button"
+                onClick={() => key && setSelectedKey(key)}
+                title={entry ? entry.piece.name : `${EQUIP_SLOT_LABEL[s]} vazio`}
+                className={`aspect-square rounded-lg border flex items-center justify-center overflow-hidden ${
+                  entry ? 'border-emerald-500/60 bg-emerald-950/20' : 'border-dashed border-slate-700 bg-slate-950/40'
+                }`}
+              >
+                {entry?.piece.img ? (
+                  <img src={entry.piece.img} alt="" className="w-full h-full object-contain p-0.5" style={{ imageRendering: 'pixelated' }} />
+                ) : (
+                  <span className="text-[8px] text-slate-600">{EQUIP_SLOT_LABEL[s].slice(0, 3)}</span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+        <div className="flex-1 min-h-0 overflow-y-auto flex flex-col gap-1 pr-1">
+          {allPieces.map((row) => {
+            const eq = engine.equippedPieces[row.slot] === row.key;
+            return (
+              <button
+                key={row.key}
+                type="button"
+                onClick={() => setSelectedKey(row.key)}
+                className={`flex items-center gap-1.5 rounded-lg border p-1.5 text-left transition-all ${
+                  selectedKey === row.key
+                    ? 'bg-blue-950/50 border-blue-400/70 ring-1 ring-blue-400/50'
+                    : 'bg-slate-950/60 border-slate-800 hover:border-slate-600'
+                }`}
+              >
+                {row.img ? (
+                  <img src={row.img} alt="" className="w-7 h-7 object-contain shrink-0" style={{ imageRendering: 'pixelated' }} />
+                ) : (
+                  <div
+                    className="w-7 h-7 rounded shrink-0 flex items-center justify-center text-[7px] font-bold"
+                    style={{ background: row.setColor + '22', color: row.setColor }}
+                  >
+                    {row.slot.slice(0, 3)}
+                  </div>
+                )}
+                <div className="min-w-0">
+                  <p className="text-[9px] font-bold text-slate-100 truncate">{row.name}</p>
+                  <p className="text-[8px] text-slate-500 truncate">{EQUIP_SLOT_LABEL[row.slot]}</p>
+                </div>
+                {eq && <CheckCircle2 className="w-3 h-3 text-emerald-400 shrink-0 ml-auto" />}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Coluna direita: detalhe grande da peça selecionada */}
+      <div className="flex-1 min-w-0 flex flex-col gap-2 overflow-y-auto pr-1">
+        <div className="flex gap-3 items-center rounded-xl border p-3" style={{ borderColor: set.color + '40', background: 'rgba(2,6,23,0.6)' }}>
+          <div className="relative w-20 h-20 flex items-center justify-center shrink-0">
+            <div className="absolute inset-0 rounded-full blur-xl" style={{ background: set.color + '30' }} />
+            {piece.img ? (
+              <img src={piece.img} alt={piece.name} className="relative max-w-full max-h-full object-contain" style={{ imageRendering: 'pixelated' }} />
             ) : (
-              <p className="text-[10px] text-slate-600">Não equipado</p>
+              <Gem className="relative w-9 h-9" style={{ color: set.color }} />
             )}
-            <button
-              type="button"
-              onClick={() => levelUp(slot)}
-              disabled={lvl >= def.maxLevel}
-              className={`w-full mt-1 rounded-lg px-2 py-1.5 text-[11px] font-bold transition-all ${
-                lvl >= def.maxLevel
-                  ? 'bg-slate-800 text-slate-600 cursor-not-allowed'
-                  : equipped
-                    ? 'bg-emerald-600 hover:bg-emerald-500 text-white active:scale-95'
-                    : 'bg-cyan-600 hover:bg-cyan-500 text-white active:scale-95'
-              }`}
-            >
-              {lvl >= def.maxLevel ? 'Máximo' : equipped ? 'Upar' : 'Equipar'}
-            </button>
           </div>
-        );
-      })}
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-black text-slate-100">{piece.name}</p>
+            <p className="text-[10px] font-semibold" style={{ color: set.color }}>
+              {EQUIP_SLOT_LABEL[slot]} · Tier {set.tier} · {set.name}
+            </p>
+            <p className="text-[11px] text-slate-400 mt-1">
+              Aprimoramento <span className="text-slate-100 font-bold">+{level}</span>
+              <span className="text-slate-600"> / +15</span>
+            </p>
+            {isEquipped ? (
+              <button
+                type="button"
+                onClick={doUnequip}
+                className="mt-1.5 flex items-center gap-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-[11px] font-bold px-3 py-1.5"
+              >
+                Desequipar
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={doEquip}
+                className="mt-1.5 flex items-center gap-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 active:scale-95 text-white text-[11px] font-bold px-3 py-1.5 shadow-lg shadow-blue-600/25"
+              >
+                <CheckCircle2 className="w-3.5 h-3.5" /> Equipar
+              </button>
+            )}
+          </div>
+        </div>
+
+        <div className="rounded-xl border border-slate-800 bg-slate-950/50 p-2.5">
+          <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Atributos (+0)</p>
+          <div className="flex flex-col gap-0.5">
+            {statLines(piece.stats).map((line) => (
+              <p key={line} className="text-[11px] text-slate-200">{line}</p>
+            ))}
+          </div>
+          {piece.passive && (
+            <div className="mt-2 pt-2 border-t border-slate-800">
+              <p className="text-[10px] font-bold" style={{ color: set.color }}>
+                ★ {piece.passive.name}
+              </p>
+              <p className="text-[10px] text-slate-400 leading-snug">{piece.passive.desc}</p>
+            </div>
+          )}
+        </div>
+
+        <div className="rounded-xl border border-slate-800 bg-slate-950/50 p-2.5 flex items-center justify-between gap-2">
+          <p className="text-[10px] text-slate-500">
+            Aprimoramento sobe os atributos-base em +8%/nível (não afeta passiva nem bônus de conjunto).
+          </p>
+          <button
+            type="button"
+            onClick={doUpgrade}
+            disabled={maxed}
+            className={`shrink-0 flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[11px] font-bold transition-all ${
+              maxed ? 'bg-slate-800 text-slate-600 cursor-not-allowed' : 'bg-emerald-600 hover:bg-emerald-500 text-white active:scale-95'
+            }`}
+          >
+            <ArrowUpCircle className="w-3.5 h-3.5" /> {maxed ? 'Máximo' : 'Aprimorar'}
+          </button>
+        </div>
+
+        <div className="rounded-xl border border-slate-800 bg-slate-950/50 p-2.5">
+          <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
+            Bônus de Conjunto — {set.name} ({setCount}/4 equipadas)
+          </p>
+          <div className={`text-[10px] leading-snug ${setCount >= 2 ? 'text-emerald-300' : 'text-slate-600'}`}>
+            2 peças: {statLines(set.bonus2).join(' · ') || '—'}
+          </div>
+          <div className={`text-[10px] leading-snug ${setCount >= 4 ? 'text-emerald-300' : 'text-slate-600'}`}>
+            4 peças: {[...statLines(set.bonus4), set.bonus4Extra].filter(Boolean).join(' · ') || '—'}
+          </div>
+          {set.aklesExtra && (
+            <p className="text-[9px] text-amber-300/90 mt-1 leading-snug">★ Com Akles: {set.aklesExtra}</p>
+          )}
+          <p className="text-[9px] text-slate-600 mt-1.5 leading-snug">{set.identity}</p>
+        </div>
+      </div>
     </div>
   );
 };
@@ -196,98 +339,121 @@ const SKILL_GROUPS: Array<{ key: PassiveGroup; label: string; blurb: string; col
 ];
 const fmtPassive = (id: string, v: number) => (id === 'notaPerfeita' ? `crítico a cada ${v}` : `+${Math.round(v * 100)}%`);
 
+// Mesmo layout da tela de Arma: lista à esquerda (todas as passivas, com a
+// cor do grupo), detalhe grande com nível/valor/descrição à direita.
 const SkillsTab: React.FC<{ engine: GameEngine }> = ({ engine }) => {
   const [, force] = React.useReducer((n) => n + 1, 0);
-  const [group, setGroup] = React.useState<PassiveGroup | null>(null);
+  const [selectedId, setSelectedId] = React.useState(PASSIVE_ORDER[0]);
 
-  if (group) {
-    const g = SKILL_GROUPS.find((x) => x.key === group)!;
-    const ids = PASSIVE_ORDER.filter((id) => PASSIVE_DEFS[id].group === group);
-    return (
-      <div className="flex flex-col gap-2 h-full">
-        <button
-          type="button"
-          onClick={() => setGroup(null)}
-          className="self-start flex items-center gap-1 text-[11px] font-bold text-slate-300 hover:text-white mb-1"
-        >
-          <ChevronLeft className="w-4 h-4" /> Skills
-        </button>
-        <div className="grid grid-cols-2 lg:grid-cols-3 gap-2 overflow-y-auto pr-1">
-          {ids.map((id) => {
-            const def = PASSIVE_DEFS[id];
-            const lvl = engine.getPassiveLevel(id);
-            const val = engine.passiveValue(id);
-            return (
-              <div key={id} className="rounded-xl border bg-slate-950/60 p-2.5 flex flex-col gap-1.5" style={{ borderColor: g.color + '35' }}>
-                <div className="flex items-center justify-between gap-1">
-                  <span className="text-[11px] font-bold text-slate-100 leading-tight">{def.name}</span>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const cur = engine.getPassiveLevel(id);
-                      if (cur < 5) {
-                        engine.setPassiveLevel(id, cur + 1);
-                        force();
-                      }
-                    }}
-                    disabled={lvl >= 5}
-                    className={`shrink-0 w-6 h-6 rounded-full flex items-center justify-center transition-all ${
-                      lvl >= 5 ? 'bg-slate-800 text-slate-600 cursor-not-allowed' : 'bg-emerald-600 hover:bg-emerald-500 text-white active:scale-90'
-                    }`}
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-                <span className="flex gap-0.5">
-                  {[1, 2, 3, 4, 5].map((n) => (
-                    <span key={n} className="flex-1 h-1 rounded-full" style={{ background: n <= lvl ? g.color : '#334155' }} />
-                  ))}
-                </span>
-                <p className="text-[9px] text-slate-500 leading-snug">{def.desc}</p>
-                {lvl > 0 ? (
-                  <p className="text-[10px] font-bold" style={{ color: g.color }}>
-                    Nv.{lvl}: {fmtPassive(id, val)}
-                  </p>
-                ) : (
-                  <p className="text-[10px] text-slate-600">Não aprendida</p>
-                )}
-                {lvl >= 5 && def.level5Bonus && (
-                  <p className="text-[9px] text-amber-300/90 leading-snug border-t border-slate-800 pt-1">★ {def.level5Bonus}</p>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      </div>
-    );
-  }
+  const groupOf = (id: string) => SKILL_GROUPS.find((g) => g.key === PASSIVE_DEFS[id].group)!;
+  const def = PASSIVE_DEFS[selectedId];
+  const g = groupOf(selectedId);
+  const lvl = engine.getPassiveLevel(selectedId);
+  const val = engine.passiveValue(selectedId);
+  const maxed = lvl >= 5;
+
+  const levelUp = () => {
+    if (lvl < 5) {
+      engine.setPassiveLevel(selectedId, lvl + 1);
+      force();
+    }
+  };
 
   return (
-    <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
-      {SKILL_GROUPS.map((g) => {
-        const ids = PASSIVE_ORDER.filter((id) => PASSIVE_DEFS[id].group === g.key);
-        const totalLvls = ids.reduce((s, id) => s + engine.getPassiveLevel(id), 0);
-        const maxLvls = ids.length * 5;
-        return (
-          <button
-            key={g.key}
-            type="button"
-            onClick={() => setGroup(g.key)}
-            className="rounded-xl border bg-slate-950/60 p-3 flex flex-col items-center gap-1.5 text-center hover:bg-slate-900 transition-all active:scale-95"
-            style={{ borderColor: g.color + '45' }}
-          >
-            <div className="w-11 h-11 rounded-full flex items-center justify-center" style={{ background: g.color + '18', color: g.color }}>
-              {g.icon}
+    <div className="flex h-full gap-3">
+      {/* Coluna esquerda: todas as passivas */}
+      <div className="w-48 shrink-0 overflow-y-auto flex flex-col gap-1.5 pr-1">
+        {PASSIVE_ORDER.map((id) => {
+          const d = PASSIVE_DEFS[id];
+          const gg = groupOf(id);
+          const l = engine.getPassiveLevel(id);
+          return (
+            <button
+              key={id}
+              type="button"
+              onClick={() => setSelectedId(id)}
+              className={`flex items-center gap-2 rounded-xl border p-2 transition-all text-left ${
+                selectedId === id
+                  ? 'bg-blue-950/50 border-blue-400/70 ring-1 ring-blue-400/50'
+                  : 'bg-slate-950/60 border-slate-800 hover:border-slate-600'
+              }`}
+            >
+              <div className="w-7 h-7 rounded-full flex items-center justify-center shrink-0" style={{ background: gg.color + '18', color: gg.color }}>
+                {gg.icon}
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-[10px] font-bold text-slate-100 truncate">{d.name}</p>
+                <span className="flex gap-0.5 mt-0.5">
+                  {[1, 2, 3, 4, 5].map((n) => (
+                    <span key={n} className="flex-1 h-1 rounded-full" style={{ background: n <= l ? gg.color : '#334155' }} />
+                  ))}
+                </span>
+              </div>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Coluna direita: detalhe grande da passiva selecionada */}
+      <div className="flex-1 min-w-0 flex flex-col gap-3">
+        <div className="flex gap-4 items-center rounded-xl border p-4" style={{ borderColor: g.color + '35', background: 'rgba(2,6,23,0.6)' }}>
+          <div className="relative w-16 h-16 flex items-center justify-center shrink-0 rounded-full" style={{ background: g.color + '18' }}>
+            <div style={{ color: g.color }}>{g.icon}</div>
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-base font-black text-slate-100">{def.name}</p>
+            <p className="text-[11px] font-semibold" style={{ color: g.color }}>
+              {g.label}
+            </p>
+            <div className="flex items-center gap-4 mt-1.5">
+              <p className="text-[12px] text-slate-400">
+                Nível <span className="text-slate-100 font-bold">{lvl}</span>
+                <span className="text-slate-600"> / 5</span>
+              </p>
+              {lvl > 0 && (
+                <p className="text-[12px] font-bold" style={{ color: g.color }}>
+                  {fmtPassive(selectedId, val)}
+                </p>
+              )}
             </div>
-            <p className="text-[12px] font-bold text-slate-100">{g.label}</p>
-            <p className="text-[9px] text-slate-500 leading-snug">{g.blurb}</p>
-            <div className="w-full h-1.5 rounded-full bg-slate-900 overflow-hidden mt-1">
-              <div className="h-full" style={{ width: `${(totalLvls / maxLvls) * 100}%`, background: g.color }} />
-            </div>
-            <p className="text-[9px] text-slate-600">{ids.length} passivas</p>
-          </button>
-        );
-      })}
+          </div>
+        </div>
+
+        <div className="rounded-xl border border-slate-800 bg-slate-950/50 p-3 flex flex-col gap-2">
+          <p className="text-[11px] text-slate-300 leading-snug">{def.desc}</p>
+          <div className="grid grid-cols-5 gap-1.5 mt-1">
+            {def.values.map((v, i) => (
+              <div
+                key={i}
+                className={`rounded-lg border px-1.5 py-1 text-center ${
+                  i < lvl ? 'border-current bg-slate-900/70' : 'border-slate-800 bg-slate-950/40 opacity-50'
+                }`}
+                style={i < lvl ? { color: g.color, borderColor: g.color + '55' } : undefined}
+              >
+                <p className="text-[8px] text-slate-500">Nv.{i + 1}</p>
+                <p className="text-[10px] font-bold">{fmtPassive(selectedId, v)}</p>
+              </div>
+            ))}
+          </div>
+          {maxed && def.level5Bonus && (
+            <p className="text-[10px] text-amber-300/90 leading-snug border-t border-slate-800 pt-2 mt-1">
+              ★ {def.level5Bonus}
+            </p>
+          )}
+        </div>
+
+        <button
+          type="button"
+          onClick={levelUp}
+          disabled={maxed}
+          className={`w-full flex items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-xs font-bold transition-all ${
+            maxed ? 'bg-slate-800 text-slate-600 cursor-not-allowed' : 'bg-emerald-600 hover:bg-emerald-500 text-white active:scale-95 shadow-lg shadow-emerald-600/25'
+          }`}
+        >
+          <Plus className="w-4 h-4" />
+          {maxed ? 'Nível máximo' : 'Aumentar passiva'}
+        </button>
+      </div>
     </div>
   );
 };

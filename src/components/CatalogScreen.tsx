@@ -2,7 +2,14 @@ import React from 'react';
 import { X, Library, Sword, CheckCircle2 } from 'lucide-react';
 import type { GameEngine } from '../game/engine';
 import { WEAPON_DEFS } from '../game/engine';
-import { CATALOG_EQUIP_SETS, catalogEquipImg } from '../game/catalogData';
+import { EQUIP_SETS, EQUIP_SLOT_ORDER, STAT_LABELS } from '../game/engine';
+import type { StatKey } from '../game/engine';
+
+function firstStat(stats: Partial<Record<StatKey, number>>): string {
+  const entry = Object.entries(stats)[0] as [StatKey, number] | undefined;
+  if (!entry) return '';
+  return `${STAT_LABELS[entry[0]]} +${entry[1]}%`;
+}
 
 interface Props {
   open: boolean;
@@ -30,7 +37,7 @@ export const CatalogScreen: React.FC<Props> = ({ open, onClose, engine }) => {
   if (!open || !engine) return null;
 
   const weaponsInTier = Object.values(WEAPON_DEFS).filter((d) => d.tier === tier);
-  const setsInTier = CATALOG_EQUIP_SETS.filter((s) => s.tier === tier);
+  const setsInTier = EQUIP_SETS.filter((s) => s.tier === tier);
   const equippedKey = engine.equippedWeaponKey;
 
   return (
@@ -91,6 +98,7 @@ export const CatalogScreen: React.FC<Props> = ({ open, onClose, engine }) => {
                         style={{ imageRendering: 'pixelated' }}
                       />
                       <p className="text-[9px] font-bold text-slate-200 text-center leading-tight">{d.name}</p>
+                      <p className="text-[8px] text-amber-300/90 -mt-0.5">ATQ {d.baseAtk}</p>
                       {isEquipped ? (
                         <span className="text-[8px] font-black text-emerald-300 bg-emerald-950/60 px-1 rounded flex items-center gap-0.5">
                           <CheckCircle2 className="w-2.5 h-2.5" /> Equipada
@@ -125,27 +133,41 @@ export const CatalogScreen: React.FC<Props> = ({ open, onClose, engine }) => {
               <div className="flex flex-col gap-2">
                 {setsInTier.map((s) => (
                   <div key={s.key} className="rounded-xl border border-slate-800 bg-slate-950/50 p-2">
-                    <p className="text-[10px] font-bold text-slate-300 mb-1.5">{s.name}</p>
+                    <p className="text-[10px] font-bold text-slate-300 mb-0.5">{s.name}</p>
+                    <p className="text-[8px] text-slate-500 mb-1.5">{s.identity}</p>
                     <div className="grid grid-cols-4 gap-2">
-                      {s.pieces.map((p) => (
-                        <div key={p.slug} className="flex flex-col items-center gap-1">
-                          <img
-                            src={catalogEquipImg(p.slug)}
-                            alt={p.name}
-                            className="w-12 h-12 object-contain"
-                            style={{ imageRendering: 'pixelated' }}
-                          />
-                          <p className="text-[8px] text-slate-400 text-center leading-tight capitalize">{p.slot}</p>
-                        </div>
-                      ))}
+                      {EQUIP_SLOT_ORDER.map((slot) => {
+                        const p = s.pieces[slot];
+                        return (
+                          <div key={p.key} className="flex flex-col items-center gap-1">
+                            {p.img ? (
+                              <img
+                                src={p.img}
+                                alt={p.name}
+                                className="w-12 h-12 object-contain"
+                                style={{ imageRendering: 'pixelated' }}
+                              />
+                            ) : (
+                              <div
+                                className="w-12 h-12 rounded-lg flex items-center justify-center text-[9px] font-bold"
+                                style={{ background: s.color + '22', color: s.color, border: `1px solid ${s.color}55` }}
+                              >
+                                {slot.slice(0, 3)}
+                              </div>
+                            )}
+                            <p className="text-[8px] text-slate-400 text-center leading-tight capitalize">{slot}</p>
+                            <p className="text-[7px] text-slate-500 text-center leading-tight">{firstStat(p.stats)}</p>
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
                 ))}
               </div>
             )}
             <p className="text-[9px] text-slate-600 mt-2">
-              Equipamentos aqui são só pra visualizar por enquanto — o up deles com materiais
-              específicos vem numa próxima etapa.
+              Pra equipar peças e ver o bônus de conjunto ativo, use a aba Equipamentos na Ficha do
+              personagem.
             </p>
           </div>
         </div>

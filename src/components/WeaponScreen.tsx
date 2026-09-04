@@ -1,7 +1,13 @@
 import React from 'react';
 import { X, Sword, ArrowUpCircle, CheckCircle2 } from 'lucide-react';
-import type { GameEngine } from '../game/engine';
-import { ITEM_META, WEAPON_DEFS } from '../game/engine';
+import type { GameEngine, StatKey } from '../game/engine';
+import { ITEM_META, WEAPON_DEFS, STAT_LABELS } from '../game/engine';
+
+function statLines(stats: Partial<Record<StatKey, number>>): string[] {
+  return (Object.keys(stats) as StatKey[])
+    .filter((k) => stats[k])
+    .map((k) => `${STAT_LABELS[k]}: +${stats[k]}%`);
+}
 
 interface Props {
   open: boolean;
@@ -117,6 +123,24 @@ export const WeaponScreen: React.FC<Props> = ({ open, onClose, engine, inventory
                   </button>
                 )}
               </div>
+            </div>
+
+            <div className="rounded-xl border border-slate-800 bg-slate-950/50 p-2.5">
+              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Atributos (+0)</p>
+              <div className="flex flex-col gap-0.5">
+                {statLines(def.statBonus).map((line) => (
+                  <p key={line} className="text-[11px] text-slate-200">{line}</p>
+                ))}
+              </div>
+              {def.passive && (
+                <div className="mt-2 pt-2 border-t border-slate-800">
+                  <p className="text-[10px] font-bold text-blue-300">★ {def.passive.name}</p>
+                  <p className="text-[10px] text-slate-400 leading-snug">{def.passive.desc}</p>
+                </div>
+              )}
+              {def.aklesSynergy && (
+                <p className="text-[9px] text-amber-300/90 mt-1.5 leading-snug">★ Com Akles: {def.aklesSynergy}</p>
+              )}
             </div>
 
             {viewingEquipped &&

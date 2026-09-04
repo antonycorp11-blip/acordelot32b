@@ -13,17 +13,20 @@
  */
 import { Rect, WorldProp, NPC } from './types';
 
-export const MAP_COLS = 72;
-export const MAP_ROWS = 54;
+// Mapa 4x maior — muita floresta e rios em volta da vila.
+export const MAP_COLS = 144;
+export const MAP_ROWS = 108;
 export const TILE_SIZE = 32;
-export const WORLD_WIDTH = MAP_COLS * TILE_SIZE; // 2304px
-export const WORLD_HEIGHT = MAP_ROWS * TILE_SIZE; // 1728px
+export const WORLD_WIDTH = MAP_COLS * TILE_SIZE; // 4608px
+export const WORLD_HEIGHT = MAP_ROWS * TILE_SIZE; // 3456px
 
-/** Tile IDs do tileset Terrain2 (36 colunas). */
+/** Tile IDs do tileset Terrain2 (36 colunas) + sentinelas de água. */
 export const TERRAIN_TILES = {
   GRASS_BASE: 56,
   GRASS_FLOWER1: 92,
   GRASS_FLOWER2: 128,
+  GRASS_DARK: 128,
+  SAND_BANK: 308,
   STONE_CENTER: 344,
   STONE_CENTER_VAR: 380,
   STONE_TOP: 308,
@@ -34,6 +37,9 @@ export const TERRAIN_TILES = {
   STONE_TR: 309,
   STONE_BL: 415,
   STONE_BR: 417,
+  // sentinelas (renderizados como água animada, fora do tileset)
+  WATER_DEEP: 9000,
+  WATER_SHALLOW: 9001,
 };
 
 export interface MapGrid {
@@ -393,14 +399,114 @@ export function buildMap(): MapGrid {
     'mixed'
   );
 
-  // Cinturão de floresta na borda
-  for (let c = 2; c < MAP_COLS - 2; c += 5) {
-    addPine(`bN_${t++}`, c * TILE_SIZE, 1 * TILE_SIZE);
-    addOak(`bS_${t++}`, c * TILE_SIZE, 51 * TILE_SIZE);
+  // =====================================================================
+  //  MUNDO SELVAGEM: rios, riachos e florestas densas (procedural)
+  // =====================================================================
+  // PRNG determinístico simples
+  let seed = 1337;
+  const rnd = () => {
+    seed = (seed * 1664525 + 1013904223) >>> 0;
+    return seed / 4294967296;
+  };
+  const fnoise = (x: number, y: number) =>
+    (Math.sin(x * 0.14 + y * 0.09) +
+      Math.cos(x * 0.06 - y * 0.13) +
+      Math.sin((x + y) * 0.045) * 1.2) /
+    3.2;
+
+  // reserva da vila (nada de rio/floresta densa aqui dentro)
+  const inTown = (c: number, r: number) => c >= 1 && c <= 69 && r >= 1 && r <= 53;
+  const isRoad = (c: number, r: number) =>
+    (c >= 33 && c <= 38) || (r >= 24 && r <= 29) || (c >= 26 && c <= 45 && r >= 20 && r <= 33);
+  const isWater = (c: number, r: number) =>
+    ground[r]?.[c] === TERRAIN_TILES.WATER_DEEP || ground[r]?.[c] === TERRAIN_TILES.WATER_SHALLOW;
+
+  // --- RIOS: caminhos sinuosos atravessando o mapa ---
+  const carveRiver = (
+    startCol: number,
+    vertical: boolean,
+    width: number,
+    wiggle: number,
+    shallow = false
+  ) => {
+    const len = vertical ? MAP_ROWS : MAP_COLS;
+    for (let i = 0; i < len; i++) {
+      const center =
+        startCol + Math.sin(i * 0.045) * wiggle + Math.sin(i * 0.13 + 1) * wiggle * 0.35;
+      const cc = Math.round(center);
+      for (let d = -width; d <= width; d++) {
+        const c = vertical ? cc + d : i;
+        const r = vertical ? i : cc + d;
+        if (c < 1 || c >= MAP_COLS - 1 || r < 1 || r >= MAP_ROWS - 1) continue;
+        if (inTown(c, r)) continue; // rio contorna a vila
+        const edge = Math.abs(d) >= width;
+        if (edge) {
+          if (ground[r][c] !== TERRAIN_TILES.WATER_DEEP)
+            ground[r][c] = TERRAIN_TILES.SAND_BANK;
+        } else {
+          ground[r][c] = shallow ? TERRAIN_TILES.WATER_SHALLOW : TERRAIN_TILES.WATER_DEEP;
+        }
+      }
+    }
+  };
+
+  carveRiver(96, true, 3, 8); // grande rio a leste
+  carveRiver(20, true, 2, 6); // rio a oeste
+  carveRiver(74, false, 2, 7); // rio ao sul
+  carveRiver(110, true, 1, 5, true); // riacho raso (atravessável)
+  carveRiver(48, false, 1, 4, true); // riacho raso
+
+  // colisores da água FUNDA — coalescidos em faixas por linha (perf)
+  for (let r = 1; r < MAP_ROWS - 1; r++) {
+    let runStart = -1;
+    for (let c = 1; c <= MAP_COLS - 1; c++) {
+      const deep = c < MAP_COLS - 1 && ground[r][c] === TERRAIN_TILES.WATER_DEEP;
+      if (deep && runStart < 0) runStart = c;
+      else if (!deep && runStart >= 0) {
+        solidColliders.push({
+          x: runStart * TILE_SIZE + 4,
+          y: r * TILE_SIZE + 4,
+          w: (c - runStart) * TILE_SIZE - 8,
+          h: TILE_SIZE - 8,
+        });
+        runStart = -1;
+      }
+    }
   }
-  for (let r = 4; r < MAP_ROWS - 4; r += 5) {
-    addOak(`bW_${t++}`, 1 * TILE_SIZE, r * TILE_SIZE);
-    addPine(`bE_${t++}`, 69 * TILE_SIZE, r * TILE_SIZE);
+
+  // --- FLORESTAS DENSAS PROCEDURAIS (com teto de perf) ---
+  let fid = 0;
+  const MAX_FOREST = 1500;
+  for (let r = 2; r < MAP_ROWS - 2 && fid < MAX_FOREST; r++) {
+    for (let c = 2; c < MAP_COLS - 2 && fid < MAX_FOREST; c++) {
+      if (isRoad(c, r) || isWater(c, r) || inTown(c, r)) continue;
+
+      const n = fnoise(c, r);
+      const nearWater =
+        isWater(c - 2, r) || isWater(c + 2, r) || isWater(c, r - 2) || isWater(c, r + 2);
+      const density = n > 0.4 ? 0.5 : n > 0.05 ? 0.2 : 0.05;
+      if (rnd() > density) continue;
+
+      const x = c * TILE_SIZE + Math.round((rnd() - 0.5) * 14);
+      const y = r * TILE_SIZE + Math.round((rnd() - 0.5) * 14);
+      const pick = rnd();
+      if (nearWater && pick < 0.5) addBlossom(`f_b${fid++}`, x, y);
+      else if (n > 0.3)
+        pick < 0.62 ? addPine(`f_p${fid++}`, x, y) : addOak(`f_o${fid++}`, x, y);
+      else pick < 0.5 ? addOak(`f_o${fid++}`, x, y) : addPine(`f_p${fid++}`, x, y);
+
+      if (rnd() < 0.16) addBush(`f_s${fid++}`, x + 18, y + 34);
+    }
+  }
+
+  // Cinturão de floresta bem fechado nas 4 bordas
+  for (let c = 2; c < MAP_COLS - 2; c += 3) {
+    addPine(`bN_${t++}`, c * TILE_SIZE + (t % 2) * 12, (1 + (t % 2)) * TILE_SIZE);
+    addOak(`bS_${t++}`, c * TILE_SIZE, (MAP_ROWS - 3 - (t % 2)) * TILE_SIZE);
+  }
+  for (let r = 3; r < MAP_ROWS - 3; r += 3) {
+    addOak(`bW_${t++}`, (1 + (t % 2)) * TILE_SIZE, r * TILE_SIZE);
+    addPine(`bE_${t++}`, (MAP_COLS - 3 - (t % 2)) * TILE_SIZE, r * TILE_SIZE);
   }
 
   // 10. MERCADOR GILDOR (lado leste da praça)

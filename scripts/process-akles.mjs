@@ -18,15 +18,16 @@ fs.mkdirSync(OUT, { recursive: true });
 
 // ordem de saída canônica das linhas: [down, left, up, right]
 // rowMap[i] = índice da linha na folha original que vira a linha i da saída
+// células em alta resolução (2x) — desenhadas menores com suavização no jogo
 const SHEETS = [
-  { file: 'idle.png', name: 'akles_idle', cols: 6, cell: [64, 88], rowMap: [0, 1, 3, 1], mirrorRows: [3] },
-  { file: 'walk.png', name: 'akles_walk', cols: 8, cell: [64, 80], rowMap: [0, 1, 2, 3] },
-  { file: 'run.png', name: 'akles_run', cols: 8, cell: [64, 80], rowMap: [0, 3, 2, 1] },
-  { file: 'slash.png', name: 'akles_slash', cols: 6, cell: [96, 96], rowMap: [0, 1, 2, 3] },
-  { file: 'thrust.png', name: 'akles_thrust', cols: 6, cell: [96, 96], rowMap: [0, 1, 2, 3] },
-  { file: 'spin.png', name: 'akles_spin', cols: 6, cell: [96, 96], rowMap: [0, 1, 2, 3] },
-  { file: 'special.png', name: 'akles_special', cols: 6, cell: [112, 96], rowMap: [0, 1, 2, 3] },
-  { file: 'cast.png', name: 'akles_cast', cols: 6, cell: [128, 96], rowMap: [0, 1, 2, 3] },
+  { file: 'idle.png', name: 'akles_idle', cols: 6, cell: [128, 176], rowMap: [0, 1, 3, 1], mirrorRows: [3] },
+  { file: 'walk.png', name: 'akles_walk', cols: 8, cell: [128, 160], rowMap: [0, 1, 2, 3] },
+  { file: 'run.png', name: 'akles_run', cols: 8, cell: [128, 160], rowMap: [0, 3, 2, 1] },
+  { file: 'slash.png', name: 'akles_slash', cols: 6, cell: [192, 192], rowMap: [0, 1, 2, 3] },
+  { file: 'thrust.png', name: 'akles_thrust', cols: 6, cell: [192, 192], rowMap: [0, 1, 2, 3] },
+  { file: 'spin.png', name: 'akles_spin', cols: 6, cell: [192, 192], rowMap: [0, 1, 2, 3] },
+  { file: 'special.png', name: 'akles_special', cols: 6, cell: [224, 192], rowMap: [0, 1, 2, 3] },
+  { file: 'cast.png', name: 'akles_cast', cols: 6, cell: [256, 192], rowMap: [0, 1, 2, 3] },
 ];
 
 const load = (f) => PNG.sync.read(fs.readFileSync(path.join(SRC, f)));
@@ -175,7 +176,7 @@ function processSheet(cfg) {
   });
 
   // ---- Escala ÚNICA da folha (sem reescala por frame = sem "tranco") ----
-  const bodyScale = 58 / rowH;
+  const bodyScale = 116 / rowH;
   let maxFh = 1;
   let maxFw = 1;
   for (const rd of rowData)

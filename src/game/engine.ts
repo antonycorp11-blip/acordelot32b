@@ -51,16 +51,18 @@ interface AklesAnimMeta {
   loop: boolean;
 }
 
+// cw/ch = tamanho da célula na sheet (alta resolução; desenhado com dispScale)
 const AKLES_ANIM: Record<'idle' | 'walk' | 'run' | AklesAction, AklesAnimMeta> = {
-  idle: { sheet: 'aklesIdle', cw: 64, ch: 88, cols: 6, fps: 6, loop: true },
-  walk: { sheet: 'aklesWalk', cw: 64, ch: 80, cols: 8, fps: 11, loop: true },
-  run: { sheet: 'aklesRun', cw: 64, ch: 80, cols: 8, fps: 15, loop: true },
-  chop: { sheet: 'aklesSlash', cw: 96, ch: 96, cols: 6, fps: 13, loop: false },
-  mine: { sheet: 'aklesThrust', cw: 96, ch: 96, cols: 6, fps: 13, loop: false },
-  attack: { sheet: 'aklesSlash', cw: 96, ch: 96, cols: 6, fps: 15, loop: false },
-  spin: { sheet: 'aklesSpin', cw: 96, ch: 96, cols: 6, fps: 13, loop: false },
-  cast: { sheet: 'aklesCast', cw: 128, ch: 96, cols: 6, fps: 11, loop: false },
+  idle: { sheet: 'aklesIdle', cw: 128, ch: 176, cols: 6, fps: 6, loop: true },
+  walk: { sheet: 'aklesWalk', cw: 128, ch: 160, cols: 8, fps: 11, loop: true },
+  run: { sheet: 'aklesRun', cw: 128, ch: 160, cols: 8, fps: 15, loop: true },
+  chop: { sheet: 'aklesSlash', cw: 192, ch: 192, cols: 6, fps: 13, loop: false },
+  mine: { sheet: 'aklesThrust', cw: 192, ch: 192, cols: 6, fps: 13, loop: false },
+  attack: { sheet: 'aklesSlash', cw: 192, ch: 192, cols: 6, fps: 15, loop: false },
+  spin: { sheet: 'aklesSpin', cw: 192, ch: 192, cols: 6, fps: 13, loop: false },
+  cast: { sheet: 'aklesCast', cw: 256, ch: 192, cols: 6, fps: 11, loop: false },
 };
+const AKLES_DISP_SCALE = 0.35;
 
 // Linhas canônicas das folhas: 0=down, 1=left, 2=up, 3=right
 const AKLES_DIR_ROW: Record<Direction, number> = { down: 0, left: 1, up: 2, right: 3 };
@@ -81,6 +83,21 @@ export const ITEM_META: Record<string, ItemMeta> = {
 
 // Peso máximo que o Akles carrega
 export const MAX_CARRY_WEIGHT = 40;
+
+export interface PlayerStats {
+  name: string;
+  className: string;
+  level: number;
+  xp: number;
+  xpNext: number;
+  hp: number;
+  maxHp: number;
+  forca: number;
+  agilidade: number;
+  vitalidade: number;
+  inteligencia: number;
+  sorte: number;
+}
 
 export function inventoryWeight(inv: Record<string, number>): number {
   let w = 0;
@@ -673,6 +690,55 @@ export class GameEngine {
   onHarvestPopup?: (text: string, worldX: number, worldY: number) => void;
   private actionHitDone = false;
 
+  // Ficha do personagem
+  stats: PlayerStats = {
+    name: 'Akles',
+    className: 'Cavaleiro Errante',
+    level: 1,
+    xp: 0,
+    xpNext: 100,
+    hp: 120,
+    maxHp: 120,
+    forca: 9,
+    agilidade: 7,
+    vitalidade: 10,
+    inteligencia: 5,
+    sorte: 6,
+  };
+  onStatsChange?: (s: PlayerStats) => void;
+
+  get combatPower(): number {
+    const s = this.stats;
+    return Math.round(
+      s.forca * 2.4 +
+        s.agilidade * 1.8 +
+        s.vitalidade * 2.0 +
+        s.inteligencia * 1.5 +
+        s.sorte * 1.1 +
+        s.level * 6 +
+        s.maxHp * 0.25
+    );
+  }
+
+  gainXp(n: number) {
+    const s = this.stats;
+    s.xp += n;
+    let leveled = false;
+    while (s.xp >= s.xpNext) {
+      s.xp -= s.xpNext;
+      s.level += 1;
+      s.xpNext = Math.round(s.xpNext * 1.45);
+      s.maxHp += 12;
+      s.hp = s.maxHp;
+      s.forca += 1;
+      s.vitalidade += 1;
+      if (s.level % 2 === 0) s.agilidade += 1;
+      leveled = true;
+    }
+    this.onStatsChange?.({ ...s });
+    if (leveled) this.onHarvestPopup?.(`Nível ${s.level}!`, this.player.x, this.player.y - 20);
+  }
+
   camX: number = 0;
   camY: number = 0;
   viewportW: number = 480;
@@ -690,6 +756,11 @@ export class GameEngine {
   fireflies: Firefly[] = [];
   footstepTimer: number = 0;
   timeElapsed: number = 0;
+
+  // Clima e vento
+  weather: 'clear' | 'rain' = 'clear';
+  windX: number = 10;
+  rain: Array<{ x: number; y: number; len: number; speed: number }> = [];
 
   isEditMode: boolean = false;
   selectedPropId: string | null = null;
@@ -775,11 +846,11 @@ export class GameEngine {
     this.camY = this.player.y + 16 - this.viewportH / 2;
     this.clampCamera();
 
-    // Spawn 24 butterflies
+    // Borboletas (dia)
     const butterflyColors = ['#38bdf8', '#f59e0b', '#f43f5e', '#4ade80', '#c084fc', '#f1f5f9'];
-    for (let i = 0; i < 24; i++) {
-      const bx = (10 + Math.random() * 52) * TILE_SIZE;
-      const by = (8 + Math.random() * 38) * TILE_SIZE;
+    for (let i = 0; i < 40; i++) {
+      const bx = (6 + Math.random() * (MAP_COLS - 12)) * TILE_SIZE;
+      const by = (6 + Math.random() * (MAP_ROWS - 12)) * TILE_SIZE;
       this.butterflies.push({
         x: bx,
         y: by,
@@ -791,19 +862,19 @@ export class GameEngine {
       });
     }
 
-    // Spawn 20 fireflies
-    for (let i = 0; i < 20; i++) {
-      const fx = (12 + Math.random() * 48) * TILE_SIZE;
-      const fy = (10 + Math.random() * 34) * TILE_SIZE;
+    // Vagalumes (noite) — enchem o mapa
+    for (let i = 0; i < 650; i++) {
+      const fx = (5 + Math.random() * (MAP_COLS - 10)) * TILE_SIZE;
+      const fy = (5 + Math.random() * (MAP_ROWS - 10)) * TILE_SIZE;
       this.fireflies.push({
         x: fx,
         y: fy,
         baseX: fx,
         baseY: fy,
-        color: i % 2 === 0 ? '#fde047' : '#a3e635',
+        color: i % 3 === 0 ? '#a3e635' : '#fde68a',
         phase: Math.random() * Math.PI * 2,
-        speed: 0.9 + Math.random() * 0.7,
-        radius: 20 + Math.random() * 30,
+        speed: 0.6 + Math.random() * 0.9,
+        radius: 14 + Math.random() * 26,
       });
     }
 
@@ -828,6 +899,10 @@ export class GameEngine {
     window.addEventListener('mousemove', this.onMouseMove);
     window.addEventListener('mouseup', this.onMouseUp);
     this.canvas.addEventListener('wheel', this.onWheel, { passive: false });
+
+    this.canvas.addEventListener('touchstart', this.onTouchStart, { passive: false });
+    this.canvas.addEventListener('touchmove', this.onTouchMove, { passive: false });
+    this.canvas.addEventListener('touchend', this.onTouchEnd);
   }
 
   unbindEvents() {
@@ -839,7 +914,35 @@ export class GameEngine {
     window.removeEventListener('mousemove', this.onMouseMove);
     window.removeEventListener('mouseup', this.onMouseUp);
     this.canvas.removeEventListener('wheel', this.onWheel);
+
+    this.canvas.removeEventListener('touchstart', this.onTouchStart);
+    this.canvas.removeEventListener('touchmove', this.onTouchMove);
+    this.canvas.removeEventListener('touchend', this.onTouchEnd);
   }
+
+  private pinchDist = 0;
+  private touchGap(e: TouchEvent) {
+    return Math.hypot(
+      e.touches[0].clientX - e.touches[1].clientX,
+      e.touches[0].clientY - e.touches[1].clientY
+    );
+  }
+  onTouchStart = (e: TouchEvent) => {
+    if (e.touches.length === 2) this.pinchDist = this.touchGap(e);
+  };
+  onTouchMove = (e: TouchEvent) => {
+    if (e.touches.length === 2) {
+      e.preventDefault();
+      const d = this.touchGap(e);
+      if (this.pinchDist > 0) {
+        this.setCameraZoom(this.cameraZoom * (d / this.pinchDist));
+      }
+      this.pinchDist = d;
+    }
+  };
+  onTouchEnd = (e: TouchEvent) => {
+    if (e.touches.length < 2) this.pinchDist = 0;
+  };
 
   onBlur = () => {
     this.keys = {};
@@ -976,6 +1079,63 @@ export class GameEngine {
     this.timeOfDay = time;
   }
 
+  setWeather(w: 'clear' | 'rain') {
+    this.weather = w;
+    if (w === 'rain' && this.rain.length === 0) {
+      for (let i = 0; i < 260; i++) {
+        this.rain.push({
+          x: Math.random() * (this.viewportW + 200) - 100,
+          y: Math.random() * this.viewportH,
+          len: 8 + Math.random() * 10,
+          speed: 620 + Math.random() * 320,
+        });
+      }
+    }
+  }
+
+  updateWeatherAndWind(dt: number) {
+    // vento suave que oscila
+    this.windX = 12 + Math.sin(this.timeElapsed * 0.13) * 16 + Math.sin(this.timeElapsed * 0.9) * 3;
+
+    if (this.weather !== 'rain') {
+      if (this.rain.length) this.rain.length = 0;
+      return;
+    }
+    const angle = this.windX * 0.9;
+    for (const d of this.rain) {
+      d.y += d.speed * dt;
+      d.x += angle * dt * 3;
+      if (d.y > this.viewportH + 20) {
+        d.y = -20 - Math.random() * 40;
+        d.x = Math.random() * (this.viewportW + 200) - 100;
+      }
+      if (d.x > this.viewportW + 60) d.x -= this.viewportW + 120;
+    }
+    // respingos ocasionais nos pés do herói
+    if (Math.random() < 0.4) this.addFootstepDust(this.player.x + 12, this.player.y + 30);
+  }
+
+  renderRain(ctx: CanvasRenderingContext2D) {
+    if (this.weather !== 'rain') return;
+    const w = this.viewportW;
+    const h = this.viewportH;
+    // leve escurecida / azulado de tempestade
+    ctx.fillStyle = 'rgba(30, 41, 66, 0.16)';
+    ctx.fillRect(0, 0, w, h);
+
+    ctx.save();
+    ctx.strokeStyle = 'rgba(190, 214, 240, 0.5)';
+    ctx.lineWidth = 1;
+    const ax = this.windX * 0.04;
+    ctx.beginPath();
+    for (const d of this.rain) {
+      ctx.moveTo(d.x, d.y);
+      ctx.lineTo(d.x - ax * d.len, d.y + d.len);
+    }
+    ctx.stroke();
+    ctx.restore();
+  }
+
   setViewportSize(w: number, h: number) {
     this.baseViewportW = w;
     this.baseViewportH = h;
@@ -983,7 +1143,7 @@ export class GameEngine {
   }
 
   setCameraZoom(zoom: number) {
-    this.cameraZoom = Math.max(0.4, Math.min(2.5, Math.round(zoom * 100) / 100));
+    this.cameraZoom = Math.max(0.3, Math.min(2.6, Math.round(zoom * 100) / 100));
     this.updateViewportDimensions();
     this.clampCamera();
     if (this.onZoomChange) {
@@ -1340,7 +1500,7 @@ export class GameEngine {
         }));
 
       // 1. Instant local persistence
-      localStorage.setItem('vila_encantada_custom_map_v2', JSON.stringify(savedProps));
+      localStorage.setItem('acordelot_map_v3', JSON.stringify(savedProps));
 
       // 2. Direct Code Persistence on Disk (src/game/customMapLayout.json) via Vite endpoint
       fetch('/api/save-map', {
@@ -1362,7 +1522,7 @@ export class GameEngine {
   loadMapFromStorage() {
     try {
       let parsed: Array<{ id: string; type: string; x: number; y: number; scale: number }> | null = null;
-      const data = localStorage.getItem('vila_encantada_custom_map_v2');
+      const data = localStorage.getItem('acordelot_map_v3');
       if (data) {
         try {
           parsed = JSON.parse(data);
@@ -1425,7 +1585,7 @@ export class GameEngine {
 
   resetMapToDefault() {
     try {
-      localStorage.removeItem('vila_encantada_custom_map_v2');
+      localStorage.removeItem('acordelot_map_v3');
       localStorage.removeItem('vila_encantada_buildings_v1');
     } catch (e) {}
 
@@ -1555,10 +1715,12 @@ export class GameEngine {
 
     // ganho parcial por golpe
     let gained = this.addToInventory(h.drop, 1);
+    this.gainXp(3);
 
     if (h.hp <= 0) {
       const bonus = h.dropMin + Math.floor(Math.random() * (h.dropMax - h.dropMin + 1));
       gained += this.addToInventory(h.drop, bonus);
+      this.gainXp(h.kind === 'rock' ? 14 : 9);
       h.downUntil = this.timeElapsed + h.respawnSecs;
       h.hp = 0;
       // poeira/folhas da queda
@@ -1761,6 +1923,7 @@ export class GameEngine {
     this.updateButterflies(dt);
     this.updateFireflies(dt);
     this.updateHarvestables(dt);
+    this.updateWeatherAndWind(dt);
 
     if (Math.random() < 0.18) {
       this.addBlossomPetal(
@@ -1963,7 +2126,7 @@ export class GameEngine {
         this.particles.splice(i, 1);
         continue;
       }
-      p.x += p.vx * dt;
+      p.x += (p.vx + this.windX) * dt;
       p.y += p.vy * dt;
       p.alpha = Math.max(0, 1 - p.life / p.maxLife);
     }
@@ -1980,16 +2143,17 @@ export class GameEngine {
         b.targetX = b.x + (Math.random() - 0.5) * 110;
         b.targetY = b.y + (Math.random() - 0.5) * 110;
       } else {
-        b.x += (dx / dist) * b.speed * dt;
+        b.x += (dx / dist) * b.speed * dt + this.windX * 0.35 * dt;
         b.y += (dy / dist) * b.speed * dt + Math.sin(this.timeElapsed * 6) * 0.5;
       }
     }
   }
 
   updateFireflies(dt: number) {
+    const wob = this.windX * 0.02;
     for (const f of this.fireflies) {
       f.phase += dt * f.speed;
-      f.x = f.baseX + Math.cos(f.phase) * f.radius;
+      f.x = f.baseX + Math.cos(f.phase) * f.radius + Math.sin(this.timeElapsed * 0.7 + f.phase) * wob * 4;
       f.y = f.baseY + Math.sin(f.phase * 1.5) * (f.radius * 0.6);
     }
   }
@@ -2009,16 +2173,21 @@ export class GameEngine {
     const startRow = Math.max(0, Math.floor(camY / TILE_SIZE));
     const endRow = Math.min(MAP_ROWS - 1, Math.ceil((camY + this.viewportH) / TILE_SIZE));
 
-    // 1. Ground Tiles
+    // 1. Ground Tiles (+ água "shader" para os sentinelas 9000/9001)
+    const wt = this.timeElapsed;
     if (terrainImg && terrainImg.complete && terrainImg.naturalWidth > 0) {
       for (let r = startRow; r <= endRow; r++) {
         for (let c = startCol; c <= endCol; c++) {
           const tileId = this.ground[r][c];
-          const sx = (tileId % 36) * 32;
-          const sy = Math.floor(tileId / 36) * 32;
           const screenX = c * TILE_SIZE - camX;
           const screenY = r * TILE_SIZE - camY;
 
+          if (tileId >= 9000) {
+            this.drawWaterTile(ctx, screenX, screenY, c, r, tileId === 9001, wt);
+            continue;
+          }
+          const sx = (tileId % 36) * 32;
+          const sy = Math.floor(tileId / 36) * 32;
           ctx.drawImage(terrainImg, sx, sy, 32, 32, screenX, screenY, 32, 32);
         }
       }
@@ -2099,25 +2268,28 @@ export class GameEngine {
       ctx.fillRect(bx, by - 1, 1, 3);
     }
 
+    // Vagalumes: quase invisíveis de dia, brilhantes à noite/entardecer
+    const fireflyVis = this.timeOfDay === 'night' ? 1 : this.timeOfDay === 'sunset' ? 0.5 : 0.12;
     for (const f of this.fireflies) {
       const fx = Math.round(f.x - camX);
       const fy = Math.round(f.y - camY);
       if (fx < -15 || fx > this.viewportW + 15 || fy < -15 || fy > this.viewportH + 15) continue;
 
-      const glow = 0.5 + Math.sin(f.phase * 3.5) * 0.4;
-      ctx.fillStyle =
-        f.color === '#fde047'
-          ? `rgba(253, 224, 71, ${glow * 0.35})`
-          : `rgba(163, 230, 53, ${glow * 0.35})`;
+      const glow = (0.45 + Math.sin(f.phase * 3.5) * 0.45) * fireflyVis;
+      if (glow <= 0.02) continue;
+      const rgb = f.color === '#a3e635' ? '163, 230, 53' : '253, 230, 138';
+      ctx.fillStyle = `rgba(${rgb}, ${glow * 0.4})`;
       ctx.beginPath();
       ctx.arc(fx, fy, 4, 0, Math.PI * 2);
       ctx.fill();
-
-      ctx.fillStyle = f.color;
+      ctx.fillStyle = `rgba(${rgb}, ${Math.min(1, glow + 0.15)})`;
       ctx.beginPath();
-      ctx.arc(fx, fy, 1.5, 0, Math.PI * 2);
+      ctx.arc(fx, fy, 1.4, 0, Math.PI * 2);
       ctx.fill();
     }
+
+    // 3.5 Chuva (atrás do shader de luz)
+    this.renderRain(ctx);
 
     // 4. Lighting Shader Pass
     this.renderLightingShader(ctx, camX, camY);
@@ -2197,154 +2369,140 @@ export class GameEngine {
       return;
     }
 
-    // NIGHT MODE
-    lCtx.fillStyle = 'rgba(7, 13, 29, 0.90)';
+    // ===== NOITE — azulada, com luar; nem tão escura, nem só os postes =====
+    // Véu de escuridão bem mais leve que antes
+    lCtx.fillStyle = 'rgba(16, 24, 48, 0.55)';
     lCtx.fillRect(0, 0, w, h);
 
     lCtx.save();
     lCtx.globalCompositeOperation = 'destination-out';
 
-    // A. Street Lanterns Lights
+    // Luar ambiente: clareia o mapa inteiro de forma uniforme e suave
+    lCtx.fillStyle = 'rgba(0, 0, 0, 0.34)';
+    lCtx.fillRect(0, 0, w, h);
+
+    // A. Postes — halo menor e mais discreto
     for (const prop of this.props) {
-      if (prop.type === 'streetLantern') {
-        const lampX = Math.round(prop.x + prop.w * 0.49 - camX);
-        const lampY = Math.round(prop.y + prop.h * 0.24 - camY);
+      if (prop.type !== 'streetLantern') continue;
+      const lampX = Math.round(prop.x + prop.w * 0.49 - camX);
+      const lampY = Math.round(prop.y + prop.h * 0.24 - camY);
+      if (lampX < -120 || lampX > w + 120 || lampY < -120 || lampY > h + 120) continue;
 
-        if (lampX < -150 || lampX > w + 150 || lampY < -150 || lampY > h + 150) continue;
-
-        const flicker = Math.sin(this.timeElapsed * 7 + prop.x) * 4;
-        const radius = Math.max(30, Math.round(115 + flicker));
-
-        const lightGrad = lCtx.createRadialGradient(lampX, lampY, 2, lampX, lampY, radius);
-        lightGrad.addColorStop(0, 'rgba(0, 0, 0, 1)');
-        lightGrad.addColorStop(0.35, 'rgba(0, 0, 0, 0.85)');
-        lightGrad.addColorStop(0.7, 'rgba(0, 0, 0, 0.4)');
-        lightGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
-
-        lCtx.fillStyle = lightGrad;
-        lCtx.beginPath();
-        lCtx.arc(lampX, lampY, radius, 0, Math.PI * 2);
-        lCtx.fill();
-      }
-    }
-
-    // B. Warm Interior House Windows Lights
-    for (const prop of this.props) {
-      if (
-        prop.type.startsWith('townHall') ||
-        prop.type.startsWith('bakery') ||
-        prop.type.startsWith('bldg') ||
-        prop.type === 'blacksmithFront' ||
-        prop.type === 'residentialFront'
-      ) {
-        const winX = Math.round(prop.x + prop.w * 0.5 - camX);
-        const winY = Math.round(prop.y + prop.h * 0.65 - camY);
-        if (winX < -150 || winX > w + 150 || winY < -150 || winY > h + 150) continue;
-
-        const grad = lCtx.createRadialGradient(winX, winY, 4, winX, winY, 80);
-        grad.addColorStop(0, 'rgba(0, 0, 0, 0.9)');
-        grad.addColorStop(0.5, 'rgba(0, 0, 0, 0.45)');
-        grad.addColorStop(1, 'rgba(0, 0, 0, 0)');
-        lCtx.fillStyle = grad;
-        lCtx.beginPath();
-        lCtx.arc(winX, winY, 80, 0, Math.PI * 2);
-        lCtx.fill();
-      }
-    }
-
-    // C. Sacred Ancient Fountain / Shrine Aura
-    const shrineX = Math.round(36 * TILE_SIZE - camX);
-    const shrineY = Math.round(23 * TILE_SIZE - camY);
-    if (shrineX > -180 && shrineX < w + 180 && shrineY > -180 && shrineY < h + 180) {
-      const shrineGrad = lCtx.createRadialGradient(shrineX, shrineY, 10, shrineX, shrineY, 130);
-      shrineGrad.addColorStop(0, 'rgba(0, 0, 0, 0.95)');
-      shrineGrad.addColorStop(0.5, 'rgba(0, 0, 0, 0.5)');
-      shrineGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
-      lCtx.fillStyle = shrineGrad;
+      const flicker = Math.sin(this.timeElapsed * 7 + prop.x) * 3;
+      const radius = Math.max(24, Math.round(58 + flicker));
+      const g = lCtx.createRadialGradient(lampX, lampY, 2, lampX, lampY, radius);
+      g.addColorStop(0, 'rgba(0,0,0,0.9)');
+      g.addColorStop(0.45, 'rgba(0,0,0,0.5)');
+      g.addColorStop(1, 'rgba(0,0,0,0)');
+      lCtx.fillStyle = g;
       lCtx.beginPath();
-      lCtx.arc(shrineX, shrineY, 130, 0, Math.PI * 2);
+      lCtx.arc(lampX, lampY, radius, 0, Math.PI * 2);
       lCtx.fill();
     }
 
-    // D. Hero & Companion Light Aura
-    const heroX = Math.round(this.player.x + 12 - camX);
-    const heroY = Math.round(this.player.y + 16 - camY);
-    const heroGrad = lCtx.createRadialGradient(heroX, heroY, 4, heroX, heroY, 70);
-    heroGrad.addColorStop(0, 'rgba(0, 0, 0, 0.85)');
-    heroGrad.addColorStop(0.6, 'rgba(0, 0, 0, 0.4)');
-    heroGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
-    lCtx.fillStyle = heroGrad;
-    lCtx.beginPath();
-    lCtx.arc(heroX, heroY, 70, 0, Math.PI * 2);
-    lCtx.fill();
+    // B. Janelas quentes das casas
+    for (const prop of this.props) {
+      if (
+        !(
+          prop.type.startsWith('townHall') ||
+          prop.type.startsWith('bakery') ||
+          prop.type.startsWith('bldg') ||
+          prop.type.startsWith('house') ||
+          prop.type.startsWith('lodge') ||
+          prop.type.startsWith('herbalist') ||
+          prop.type === 'blacksmithFront' ||
+          prop.type === 'residentialFront' ||
+          prop.type === 'apothecaryFront'
+        )
+      )
+        continue;
+      const winX = Math.round(prop.x + prop.w * 0.5 - camX);
+      const winY = Math.round(prop.y + prop.h * 0.62 - camY);
+      if (winX < -150 || winX > w + 150 || winY < -150 || winY > h + 150) continue;
+      const g = lCtx.createRadialGradient(winX, winY, 4, winX, winY, 56);
+      g.addColorStop(0, 'rgba(0,0,0,0.8)');
+      g.addColorStop(0.5, 'rgba(0,0,0,0.35)');
+      g.addColorStop(1, 'rgba(0,0,0,0)');
+      lCtx.fillStyle = g;
+      lCtx.beginPath();
+      lCtx.arc(winX, winY, 56, 0, Math.PI * 2);
+      lCtx.fill();
+    }
 
-    // E. Fireflies Glow Cutouts
+    // C. Aura da Fonte Sagrada
+    const shrine = this.props.find((p) => p.type === 'shrine');
+    const shrineX = shrine ? Math.round(shrine.x + shrine.w / 2 - camX) : -999;
+    const shrineY = shrine ? Math.round(shrine.y + shrine.h / 2 - camY) : -999;
+    if (shrine && shrineX > -180 && shrineX < w + 180 && shrineY > -180 && shrineY < h + 180) {
+      const g = lCtx.createRadialGradient(shrineX, shrineY, 8, shrineX, shrineY, 100);
+      g.addColorStop(0, 'rgba(0,0,0,0.75)');
+      g.addColorStop(0.5, 'rgba(0,0,0,0.35)');
+      g.addColorStop(1, 'rgba(0,0,0,0)');
+      lCtx.fillStyle = g;
+      lCtx.beginPath();
+      lCtx.arc(shrineX, shrineY, 100, 0, Math.PI * 2);
+      lCtx.fill();
+    }
+
+    // D. Vagalumes recortam pontinhos de luz
     for (const f of this.fireflies) {
       const fx = Math.round(f.x - camX);
       const fy = Math.round(f.y - camY);
       if (fx < -20 || fx > w + 20 || fy < -20 || fy > h + 20) continue;
-
-      const fGrad = lCtx.createRadialGradient(fx, fy, 1, fx, fy, 18);
-      fGrad.addColorStop(0, 'rgba(0, 0, 0, 0.8)');
-      fGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
-      lCtx.fillStyle = fGrad;
+      const g = lCtx.createRadialGradient(fx, fy, 1, fx, fy, 13);
+      g.addColorStop(0, 'rgba(0,0,0,0.7)');
+      g.addColorStop(1, 'rgba(0,0,0,0)');
+      lCtx.fillStyle = g;
       lCtx.beginPath();
-      lCtx.arc(fx, fy, 18, 0, Math.PI * 2);
+      lCtx.arc(fx, fy, 13, 0, Math.PI * 2);
       lCtx.fill();
     }
 
     lCtx.restore();
-
     mainCtx.drawImage(this.lightCanvas, 0, 0);
 
+    // Banho de luar frio (azul-prateado) por cima
     mainCtx.save();
+    const moon = mainCtx.createLinearGradient(0, 0, 0, h);
+    moon.addColorStop(0, 'rgba(130, 160, 225, 0.12)');
+    moon.addColorStop(1, 'rgba(50, 70, 150, 0.05)');
+    mainCtx.fillStyle = moon;
+    mainCtx.fillRect(0, 0, w, h);
+
     mainCtx.globalCompositeOperation = 'lighter';
 
-    // Golden Halo on Lantern Bulbs
+    // Brilho dourado suave nas lâmpadas
     for (const prop of this.props) {
-      if (prop.type === 'streetLantern') {
-        const lampX = Math.round(prop.x + prop.w * 0.49 - camX);
-        const lampY = Math.round(prop.y + prop.h * 0.24 - camY);
-        if (lampX < -150 || lampX > w + 150 || lampY < -150 || lampY > h + 150) continue;
-
-        const flicker = Math.sin(this.timeElapsed * 7 + prop.x) * 0.05;
-
-        mainCtx.fillStyle = `rgba(255, 255, 220, ${0.9 + flicker})`;
-        mainCtx.beginPath();
-        mainCtx.arc(lampX, lampY, 3, 0, Math.PI * 2);
-        mainCtx.fill();
-
-        const flare = mainCtx.createRadialGradient(lampX, lampY, 2, lampX, lampY, 70);
-        flare.addColorStop(0, `rgba(254, 240, 138, ${0.55 + flicker})`);
-        flare.addColorStop(0.35, `rgba(245, 158, 11, ${0.28 + flicker})`);
-        flare.addColorStop(0.7, 'rgba(217, 119, 6, 0.08)');
-        flare.addColorStop(1, 'rgba(217, 119, 6, 0)');
-
-        mainCtx.fillStyle = flare;
-        mainCtx.beginPath();
-        mainCtx.arc(lampX, lampY, 70, 0, Math.PI * 2);
-        mainCtx.fill();
-      }
-    }
-
-    // Celestial Cyan Glow at Shrine
-    if (shrineX > -180 && shrineX < w + 180 && shrineY > -180 && shrineY < h + 180) {
-      const shrineCyan = mainCtx.createRadialGradient(shrineX, shrineY, 4, shrineX, shrineY, 90);
-      shrineCyan.addColorStop(0, 'rgba(56, 189, 248, 0.45)');
-      shrineCyan.addColorStop(0.5, 'rgba(14, 165, 233, 0.18)');
-      shrineCyan.addColorStop(1, 'rgba(14, 165, 233, 0)');
-      mainCtx.fillStyle = shrineCyan;
+      if (prop.type !== 'streetLantern') continue;
+      const lampX = Math.round(prop.x + prop.w * 0.49 - camX);
+      const lampY = Math.round(prop.y + prop.h * 0.24 - camY);
+      if (lampX < -120 || lampX > w + 120 || lampY < -120 || lampY > h + 120) continue;
+      const flicker = Math.sin(this.timeElapsed * 7 + prop.x) * 0.04;
+      mainCtx.fillStyle = `rgba(255,255,225,${0.75 + flicker})`;
       mainCtx.beginPath();
-      mainCtx.arc(shrineX, shrineY, 90, 0, Math.PI * 2);
+      mainCtx.arc(lampX, lampY, 2.4, 0, Math.PI * 2);
+      mainCtx.fill();
+      const flare = mainCtx.createRadialGradient(lampX, lampY, 2, lampX, lampY, 40);
+      flare.addColorStop(0, `rgba(254,240,180,${0.32 + flicker})`);
+      flare.addColorStop(0.4, `rgba(245,180,90,${0.12 + flicker})`);
+      flare.addColorStop(1, 'rgba(217,119,6,0)');
+      mainCtx.fillStyle = flare;
+      mainCtx.beginPath();
+      mainCtx.arc(lampX, lampY, 40, 0, Math.PI * 2);
       mainCtx.fill();
     }
 
-    // Cool Moonlight Wash
-    const moonGrad = mainCtx.createLinearGradient(0, 0, 0, h);
-    moonGrad.addColorStop(0, 'rgba(56, 189, 248, 0.06)');
-    moonGrad.addColorStop(1, 'rgba(30, 58, 138, 0.02)');
-    mainCtx.fillStyle = moonGrad;
-    mainCtx.fillRect(0, 0, w, h);
+    // Brilho ciano da fonte
+    if (shrine && shrineX > -180 && shrineX < w + 180 && shrineY > -180 && shrineY < h + 180) {
+      const g = mainCtx.createRadialGradient(shrineX, shrineY, 4, shrineX, shrineY, 80);
+      g.addColorStop(0, 'rgba(56,189,248,0.32)');
+      g.addColorStop(0.5, 'rgba(14,165,233,0.12)');
+      g.addColorStop(1, 'rgba(14,165,233,0)');
+      mainCtx.fillStyle = g;
+      mainCtx.beginPath();
+      mainCtx.arc(shrineX, shrineY, 80, 0, Math.PI * 2);
+      mainCtx.fill();
+    }
 
     mainCtx.restore();
   }
@@ -2583,6 +2741,40 @@ export class GameEngine {
     }
   }
 
+  // "Shader" de água simples em canvas: base + ondas roláveis + brilho
+  drawWaterTile(
+    ctx: CanvasRenderingContext2D,
+    x: number,
+    y: number,
+    c: number,
+    r: number,
+    shallow: boolean,
+    t: number
+  ) {
+    ctx.fillStyle = shallow ? '#3f8592' : '#1c4a72';
+    ctx.fillRect(x, y, 32, 32);
+
+    // leve variação de profundidade
+    ctx.fillStyle = shallow ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.10)';
+    if ((c + r) % 2 === 0) ctx.fillRect(x, y, 32, 32);
+
+    // ondas: faixas claras que rolam com o vento
+    const drift = t * 26 + this.windX * 1.5;
+    ctx.fillStyle = shallow ? 'rgba(220,245,250,0.22)' : 'rgba(150,200,235,0.16)';
+    for (let i = 0; i < 2; i++) {
+      const phase = (drift + i * 40 + c * 6 + r * 10) % 64;
+      const yy = y + (phase < 32 ? phase : 64 - phase) + Math.sin(t * 1.5 + c + r) * 1.5;
+      ctx.fillRect(x, Math.round(yy), 32, 1);
+    }
+
+    // brilho especular ocasional
+    const spec = Math.sin(c * 1.7 + r * 1.1 + t * 2.3);
+    if (spec > 0.86) {
+      ctx.fillStyle = `rgba(255,255,255,${(spec - 0.86) * 3})`;
+      ctx.fillRect(x + ((c * 11) % 22) + 4, y + ((r * 7) % 20) + 4, 3, 2);
+    }
+  }
+
   drawNPC(npc: NPC, camX: number, camY: number) {
     const ctx = this.ctx;
     const cx = Math.round(npc.x - camX);
@@ -2667,7 +2859,7 @@ export class GameEngine {
     const aSheet = assets?.[aMeta.sheet] as HTMLImageElement | undefined;
 
     if (aSheet && aSheet.complete && aSheet.naturalWidth > 0) {
-      const dispScale = 0.7;
+      const dispScale = AKLES_DISP_SCALE;
       const dispW = aMeta.cw * dispScale;
       const dispH = aMeta.ch * dispScale;
       const feetY = cy + 30;
@@ -2684,6 +2876,9 @@ export class GameEngine {
         col = Math.floor(this.timeElapsed * aMeta.fps) % aMeta.cols;
       }
 
+      // Suaviza só o herói (as sheets têm resolução maior que o tamanho na tela)
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
       ctx.drawImage(
         aSheet,
         col * aMeta.cw,
@@ -2695,6 +2890,7 @@ export class GameEngine {
         Math.round(dispW),
         Math.round(dispH)
       );
+      ctx.imageSmoothingEnabled = false;
       return;
     }
 

@@ -24,10 +24,12 @@ import {
   Layers,
   X,
 } from 'lucide-react';
-import { GameEngine, InteractionState, SelectedPropInfo, TimeOfDay } from '../game/engine';
+import { GameEngine, InteractionState, SelectedPropInfo, TimeOfDay, PlayerStats } from '../game/engine';
 import { TouchControls } from './TouchControls';
 import { Inventory } from './Inventory';
-import { Backpack, Hand } from 'lucide-react';
+import { PlayerHud } from './PlayerHud';
+import { CharacterScreen } from './CharacterScreen';
+import { Backpack, Hand, User, CloudRain } from 'lucide-react';
 
 interface PropPaletteItem {
   type: string;
@@ -317,11 +319,14 @@ export const GameCanvas: React.FC = () => {
   const [dialogueIdx, setDialogueIdx] = useState(0);
   const [showShop, setShowShop] = useState(false);
 
-  // Inventário / coleta
+  // Inventário / coleta / ficha
   const [inventory, setInventory] = useState<Record<string, number>>({});
   const [showInventory, setShowInventory] = useState(false);
+  const [showSheet, setShowSheet] = useState(false);
   const [pickupFlash, setPickupFlash] = useState<string | null>(null);
   const pickupTimer = useRef<number | null>(null);
+  const [stats, setStats] = useState<PlayerStats | null>(null);
+  const [isRaining, setIsRaining] = useState(false);
 
   // Map Editor, Time of Day & Zoom State
   const [isEditMode, setIsEditMode] = useState(false);
@@ -356,6 +361,11 @@ export const GameCanvas: React.FC = () => {
     engine.onInventoryChange = (inv) => {
       setInventory(inv);
     };
+
+    engine.onStatsChange = (s) => {
+      setStats(s);
+    };
+    setStats({ ...engine.stats });
 
     engine.onHarvestPopup = (text) => {
       setPickupFlash(text);
@@ -399,6 +409,7 @@ export const GameCanvas: React.FC = () => {
 
     const onKey = (e: KeyboardEvent) => {
       if (e.code === 'KeyI') setShowInventory((v) => !v);
+      if (e.code === 'KeyC') setShowSheet((v) => !v);
     };
     window.addEventListener('keydown', onKey);
 
@@ -818,9 +829,14 @@ export const GameCanvas: React.FC = () => {
         <canvas
           ref={canvasRef}
           className="w-full h-full object-contain cursor-default select-none"
-          style={{ imageRendering: 'pixelated' }}
+          style={{ imageRendering: 'pixelated', touchAction: 'none' }}
         />
       </div>
+
+      {/* Barra de vida + retrato + XP */}
+      {!isEditMode && stats && (
+        <PlayerHud stats={stats} onOpenSheet={() => setShowSheet(true)} />
+      )}
 
       {/* Joystick + botões de ação para celular */}
       {isTouchDevice && !isEditMode && (
@@ -831,9 +847,26 @@ export const GameCanvas: React.FC = () => {
         />
       )}
 
+      {stats && (
+        <CharacterScreen
+          open={showSheet && !isEditMode}
+          onClose={() => setShowSheet(false)}
+          stats={stats}
+          power={engineRef.current?.combatPower ?? 0}
+        />
+      )}
+
       {/* HUD de coleta — desktop */}
       {!isEditMode && !isTouchDevice && (
         <div className="fixed bottom-6 right-6 z-30 flex items-end gap-3 pointer-events-auto">
+          <button
+            type="button"
+            onClick={() => setShowSheet((v) => !v)}
+            className="cursor-pointer w-12 h-12 rounded-full bg-slate-950/85 hover:bg-slate-800 text-sky-300 border border-sky-500/40 hover:border-sky-400/80 shadow-xl flex items-center justify-center backdrop-blur-md transition-all active:scale-95"
+            title="Ficha do personagem (C)"
+          >
+            <User className="w-5 h-5" />
+          </button>
           <button
             type="button"
             onClick={() => setShowInventory((v) => !v)}
@@ -869,7 +902,28 @@ export const GameCanvas: React.FC = () => {
 
       {/* Top Right Quick Controls (Quando o editor está fechado) */}
       {!isEditMode && (
-        <div className="absolute top-4 right-4 z-20 flex items-center gap-2">
+        <div
+          className="absolute right-4 z-20 flex items-center gap-2"
+          style={{ top: 'calc(16px + env(safe-area-inset-top))' }}
+        >
+          {/* Chuva */}
+          <button
+            type="button"
+            onClick={() => {
+              const next = !isRaining;
+              setIsRaining(next);
+              engineRef.current?.setWeather(next ? 'rain' : 'clear');
+            }}
+            className={`cursor-pointer backdrop-blur-md p-2 rounded-xl border shadow-xl transition-all ${
+              isRaining
+                ? 'bg-sky-950/80 text-sky-300 border-sky-500/60'
+                : 'bg-slate-900/85 text-slate-400 border-slate-700/80 hover:bg-slate-800'
+            }`}
+            title="Alternar chuva"
+          >
+            <CloudRain className="w-4 h-4" />
+          </button>
+
           {/* Day / Night quick button */}
           <button
             type="button"

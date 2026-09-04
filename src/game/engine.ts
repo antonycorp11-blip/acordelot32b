@@ -4144,10 +4144,9 @@ export class GameEngine {
       });
     } else {
       // arma flutuante (não durante coleta — a ferramenta assume o lugar).
-      // Em repouso fica ATRÁS do Akles (sortY menor); golpeando, na FRENTE.
-      const swinging = this.player.actionState === 'attack' || this.player.actionState === 'spin';
+      // Sempre na FRENTE — precisa dar pra ver bem qual arma está equipada.
       renderables.push({
-        sortY: this.player.y + (swinging ? 40 : 8),
+        sortY: this.player.y + 40,
         draw: () => this.drawWeapon(camX, camY),
       });
     }
@@ -5379,8 +5378,9 @@ export class GameEngine {
       wy = Math.round(py + Math.sin(rad) * reach * 0.55 - camY);
     } else {
       // repouso: SEMPRE nas costas do Akles — offset fixo, não gira com a
-      // direção que ele encara (nem de frente ela aparece na mão).
-      angleDeg = 250;
+      // direção que ele encara (nem de frente ela aparece na mão). Lâmina
+      // apontando pra baixo (ângulo 90° = ponta pra baixo neste espaço).
+      angleDeg = 95;
       scaleMul = 1;
       const bob = Math.sin(this.timeElapsed * v.floatSpeed) * v.floatAmplitude;
       wx = Math.round(px + v.restOffset.x - camX);

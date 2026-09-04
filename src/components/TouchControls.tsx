@@ -13,8 +13,6 @@ import {
   Zap,
   Settings,
   Check,
-  Plus,
-  Minus,
 } from 'lucide-react';
 import type { GameEngine, AklesAction } from '../game/engine';
 
@@ -33,42 +31,39 @@ const JOYSTICK_SIZE = 132;
 const KNOB_SIZE = 58;
 const MAX_RADIUS = (JOYSTICK_SIZE - KNOB_SIZE) / 2;
 
-// ---- Layout do HUD editável (posição + tamanho de cada bloco) ----
-type BlockCfg = { dx: number; dy: number; scale: number };
-type HudLayout = { joystick: BlockCfg; side: BlockCfg; actions: BlockCfg };
-const DEFAULT_LAYOUT: HudLayout = {
-  joystick: { dx: 0, dy: 0, scale: 1 },
-  side: { dx: 0, dy: 0, scale: 1 },
-  actions: { dx: 0, dy: 0, scale: 1 },
-};
-const HUD_LS_KEY = 'acordelot_hud_layout_v1';
-function loadHudLayout(): HudLayout {
+// ---- Layout do HUD editável: CADA botão tem sua própria posição, salva
+// separadamente para retrato e paisagem (o jogo troca de layout sozinho ao
+// girar o celular). ----
+type Pos = { dx: number; dy: number };
+type Orientation = 'portrait' | 'landscape';
+type Layout = Record<string, Pos>;
+const HUD_LS_KEY = 'acordelot_hud_layout_v2';
+function loadFullLayout(): Record<Orientation, Layout> {
   try {
     const raw = localStorage.getItem(HUD_LS_KEY);
-    if (!raw) return { ...DEFAULT_LAYOUT };
+    if (!raw) return { portrait: {}, landscape: {} };
     const p = JSON.parse(raw);
-    return {
-      joystick: { ...DEFAULT_LAYOUT.joystick, ...p.joystick },
-      side: { ...DEFAULT_LAYOUT.side, ...p.side },
-      actions: { ...DEFAULT_LAYOUT.actions, ...p.actions },
-    };
+    return { portrait: p.portrait ?? {}, landscape: p.landscape ?? {} };
   } catch {
-    return { ...DEFAULT_LAYOUT };
+    return { portrait: {}, landscape: {} };
   }
 }
-function saveHudLayout(l: HudLayout) {
+function saveFullLayout(l: Record<Orientation, Layout>) {
   try {
     localStorage.setItem(HUD_LS_KEY, JSON.stringify(l));
   } catch {}
+}
+function getOrientation(): Orientation {
+  return window.innerWidth > window.innerHeight ? 'landscape' : 'portrait';
 }
 
 /**
  * Controles de toque para celular: joystick analógico virtual (esquerda) e
  * botões de ação de combate (direita). O joystick alimenta engine.setTouchVector().
  *
- * Modo de edição do HUD (botão de engrenagem, canto inferior esquerdo):
- * arrasta cada bloco (joystick / menu lateral / anel de ação) e ajusta o
- * tamanho com +/-. Fica salvo no aparelho (localStorage).
+ * Modo de edição do HUD (engrenagem, canto inferior esquerdo): arrasta CADA
+ * botão individualmente. A posição fica salva no aparelho — separada para
+ * retrato e paisagem — e volta exatamente ali da próxima vez.
  */
 export const TouchControls: React.FC<TouchControlsProps> = ({
   engineRef,
@@ -87,9 +82,67 @@ export const TouchControls: React.FC<TouchControlsProps> = ({
   const [active, setActive] = useState(false);
 
   const [hudEdit, setHudEdit] = useState(false);
-  const [layout, setLayout] = useState<HudLayout>(() => loadHudLayout());
-  const dragRef = useRef<{ block: keyof HudLayout; pointerId: number; startX: number; startY: number; origDx: number; origDy: number } | null>(null);
+  const [orientation, setOrientation] = useState<Orientation>(getOrientation);
+  const [full, setFull] = useState(loadFullLayout);
+  const layout = full[orientation];
 
+  useEffect(() => {
+    const onResize = () => setOrientation(getOrientation());
+    window.addEventListener('resize', onResize);
+    window.addEventListener('orientationchange', onResize);
+    return () => {
+      window.removeEventListener('resize', onResize);
+      window.removeEventListener('orientationchange', onResize);
+    };
+  }, []);
+
+  const getPos = (id: string): Pos => layout[id] ?? { dx: 0, dy: 0 };
+  const dragRef = useRef<{ id: string; pointerId: number; startX: number; startY: number; orig: Pos } | null>(null);
+
+  const startDrag = (id: string) => (e: React.PointerEvent) => {
+    if (!hudEdit) return;
+    e.preventDefault();
+    e.stopPropagation();
+    dragRef.current = { id, pointerId: e.pointerId, startX: e.clientX, startY: e.clientY, orig: getPos(id) };
+  };
+  useEffect(() => {
+    if (!hudEdit) return;
+    const move = (e: PointerEvent) => {
+      const d = dragRef.current;
+      if (!d || e.pointerId !== d.pointerId) return;
+      e.preventDefault();
+      const dx = d.orig.dx + (e.clientX - d.startX);
+      const dy = d.orig.dy + (e.clientY - d.startY);
+      setFull((prev) => ({ ...prev, [orientation]: { ...prev[orientation], [d.id]: { dx, dy } } }));
+    };
+    const up = (e: PointerEvent) => {
+      const d = dragRef.current;
+      if (!d || e.pointerId !== d.pointerId) return;
+      dragRef.current = null;
+      setFull((cur) => {
+        saveFullLayout(cur);
+        return cur;
+      });
+    };
+    window.addEventListener('pointermove', move, { passive: false });
+    window.addEventListener('pointerup', up);
+    window.addEventListener('pointercancel', up);
+    return () => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+      window.removeEventListener('pointercancel', up);
+    };
+  }, [hudEdit, orientation]);
+
+  const resetLayout = () => {
+    setFull((prev) => {
+      const next = { ...prev, [orientation]: {} };
+      saveFullLayout(next);
+      return next;
+    });
+  };
+
+  // ---- joystick (vira Draggable também) ----
   const applyVector = useCallback(
     (dx: number, dy: number) => {
       const dist = Math.hypot(dx, dy);
@@ -98,16 +151,13 @@ export const TouchControls: React.FC<TouchControlsProps> = ({
       const kx = Math.cos(angle) * clamped;
       const ky = Math.sin(angle) * clamped;
       setKnob({ x: kx, y: ky });
-
       const nx = kx / MAX_RADIUS;
       const ny = ky / MAX_RADIUS;
-      // zona morta
       const mag = Math.hypot(nx, ny);
       engineRef.current?.setTouchVector(mag < 0.22 ? 0 : nx, mag < 0.22 ? 0 : ny);
     },
     [engineRef]
   );
-
   const reset = useCallback(() => {
     pointerIdRef.current = null;
     originRef.current = null;
@@ -115,9 +165,8 @@ export const TouchControls: React.FC<TouchControlsProps> = ({
     setActive(false);
     engineRef.current?.setTouchVector(0, 0);
   }, [engineRef]);
-
   const onPointerDown = (e: React.PointerEvent) => {
-    if (hudEdit) return; // no modo de edição o joystick não move o personagem
+    if (hudEdit) return;
     if (pointerIdRef.current !== null) return;
     pointerIdRef.current = e.pointerId;
     const rect = baseRef.current!.getBoundingClientRect();
@@ -125,7 +174,6 @@ export const TouchControls: React.FC<TouchControlsProps> = ({
     setActive(true);
     applyVector(e.clientX - originRef.current.x, e.clientY - originRef.current.y);
   };
-
   useEffect(() => {
     const move = (e: PointerEvent) => {
       if (e.pointerId !== pointerIdRef.current || !originRef.current) return;
@@ -146,69 +194,6 @@ export const TouchControls: React.FC<TouchControlsProps> = ({
     };
   }, [applyVector, reset]);
 
-  // ---- arrastar blocos no modo de edição ----
-  const startDrag = (block: keyof HudLayout) => (e: React.PointerEvent) => {
-    if (!hudEdit) return;
-    e.preventDefault();
-    e.stopPropagation();
-    dragRef.current = {
-      block,
-      pointerId: e.pointerId,
-      startX: e.clientX,
-      startY: e.clientY,
-      origDx: layout[block].dx,
-      origDy: layout[block].dy,
-    };
-  };
-  useEffect(() => {
-    if (!hudEdit) return;
-    const move = (e: PointerEvent) => {
-      const d = dragRef.current;
-      if (!d || e.pointerId !== d.pointerId) return;
-      e.preventDefault();
-      setLayout((prev) => ({
-        ...prev,
-        [d.block]: {
-          ...prev[d.block],
-          dx: d.origDx + (e.clientX - d.startX),
-          dy: d.origDy + (e.clientY - d.startY),
-        },
-      }));
-    };
-    const up = (e: PointerEvent) => {
-      const d = dragRef.current;
-      if (!d || e.pointerId !== d.pointerId) return;
-      dragRef.current = null;
-      setLayout((cur) => {
-        saveHudLayout(cur);
-        return cur;
-      });
-    };
-    window.addEventListener('pointermove', move, { passive: false });
-    window.addEventListener('pointerup', up);
-    window.addEventListener('pointercancel', up);
-    return () => {
-      window.removeEventListener('pointermove', move);
-      window.removeEventListener('pointerup', up);
-      window.removeEventListener('pointercancel', up);
-    };
-  }, [hudEdit]);
-
-  const rescale = (block: keyof HudLayout, delta: number) => {
-    setLayout((prev) => {
-      const next = {
-        ...prev,
-        [block]: { ...prev[block], scale: Math.max(0.6, Math.min(1.6, prev[block].scale + delta)) },
-      };
-      saveHudLayout(next);
-      return next;
-    });
-  };
-  const resetLayout = () => {
-    setLayout({ ...DEFAULT_LAYOUT });
-    saveHudLayout({ ...DEFAULT_LAYOUT });
-  };
-
   const fireAction = (action: AklesAction) => (e: React.PointerEvent) => {
     if (hudEdit) return;
     e.preventDefault();
@@ -218,39 +203,39 @@ export const TouchControls: React.FC<TouchControlsProps> = ({
   const actionBtn =
     'pointer-events-auto flex items-center justify-center rounded-full border backdrop-blur-md shadow-xl active:scale-90 transition-transform select-none touch-none';
 
-  // moldura + controles de edição para um bloco do HUD
-  const EditFrame: React.FC<{ block: keyof HudLayout; label: string }> = ({ block, label }) =>
-    !hudEdit ? null : (
-      <div
-        className="absolute inset-0 -m-2 rounded-2xl border-2 border-dashed border-amber-400/70 bg-amber-400/5 pointer-events-auto cursor-move flex flex-col items-center justify-between p-1"
-        onPointerDown={startDrag(block)}
-        style={{ touchAction: 'none' }}
+  // Botão arrastável: id próprio, posição própria, funciona em qualquer lugar da tela.
+  const D: React.FC<{ id: string; className: string; title: string; onAction: () => void; style?: React.CSSProperties; children: React.ReactNode }> = ({
+    id,
+    className,
+    title,
+    onAction,
+    style,
+    children,
+  }) => {
+    const p = getPos(id);
+    return (
+      <button
+        type="button"
+        onPointerDown={(e) => {
+          if (hudEdit) {
+            startDrag(id)(e);
+            return;
+          }
+          e.preventDefault();
+          onAction();
+        }}
+        className={`${className} ${hudEdit ? 'outline outline-2 outline-dashed outline-amber-400/80 outline-offset-2' : ''}`}
+        title={title}
+        style={{
+          ...style,
+          transform: `${style?.transform ? style.transform + ' ' : ''}translate(${p.dx}px, ${p.dy}px)`,
+          touchAction: 'none',
+        }}
       >
-        <span className="text-[8px] font-bold text-amber-300 bg-slate-950/80 px-1 rounded">{label}</span>
-        <div className="flex gap-1 mb-0.5">
-          <button
-            type="button"
-            onPointerDown={(e) => {
-              e.stopPropagation();
-              rescale(block, -0.1);
-            }}
-            className="w-5 h-5 rounded-full bg-slate-950/90 border border-amber-400/60 text-amber-300 flex items-center justify-center"
-          >
-            <Minus className="w-3 h-3" />
-          </button>
-          <button
-            type="button"
-            onPointerDown={(e) => {
-              e.stopPropagation();
-              rescale(block, 0.1);
-            }}
-            className="w-5 h-5 rounded-full bg-slate-950/90 border border-amber-400/60 text-amber-300 flex items-center justify-center"
-          >
-            <Plus className="w-3 h-3" />
-          </button>
-        </div>
-      </div>
+        {children}
+      </button>
     );
+  };
 
   return (
     <div className="fixed inset-0 z-30 pointer-events-none select-none" style={{ touchAction: 'none' }}>
@@ -261,256 +246,120 @@ export const TouchControls: React.FC<TouchControlsProps> = ({
           e.preventDefault();
           setHudEdit((v) => !v);
         }}
-        className={`pointer-events-auto absolute w-9 h-9 rounded-full border shadow-xl flex items-center justify-center backdrop-blur-md transition-all active:scale-90 ${
-          hudEdit
-            ? 'bg-amber-500 border-amber-300 text-slate-950'
-            : 'bg-slate-950/80 border-slate-700 text-slate-400'
+        className={`pointer-events-auto absolute w-9 h-9 rounded-full border shadow-xl flex items-center justify-center backdrop-blur-md transition-all active:scale-90 z-40 ${
+          hudEdit ? 'bg-amber-500 border-amber-300 text-slate-950' : 'bg-slate-950/80 border-slate-700 text-slate-400'
         }`}
         style={{ left: 'max(18px, env(safe-area-inset-left))', bottom: 'calc(158px + env(safe-area-inset-bottom))' }}
-        title="Editar posição/tamanho do HUD"
+        title="Editar posição dos botões (arraste cada um)"
       >
         {hudEdit ? <Check className="w-4 h-4" /> : <Settings className="w-4 h-4" />}
       </button>
       {hudEdit && (
-        <button
-          type="button"
-          onPointerDown={(e) => {
-            e.preventDefault();
-            resetLayout();
-          }}
-          className="pointer-events-auto absolute px-2 py-1 rounded-lg text-[10px] font-bold bg-slate-950/85 border border-slate-700 text-slate-300"
-          style={{ left: 'max(18px, env(safe-area-inset-left))', bottom: 'calc(202px + env(safe-area-inset-bottom))' }}
-        >
-          Restaurar
-        </button>
+        <>
+          <div
+            className="pointer-events-none absolute px-2 py-1 rounded-lg text-[9px] font-bold bg-amber-500 text-slate-950 z-40"
+            style={{ left: 'max(18px, env(safe-area-inset-left))', bottom: 'calc(200px + env(safe-area-inset-bottom))' }}
+          >
+            Arraste os botões · {orientation === 'landscape' ? 'paisagem' : 'retrato'}
+          </div>
+          <button
+            type="button"
+            onPointerDown={(e) => {
+              e.preventDefault();
+              resetLayout();
+            }}
+            className="pointer-events-auto absolute px-2 py-1 rounded-lg text-[10px] font-bold bg-slate-950/85 border border-slate-700 text-slate-300 z-40"
+            style={{ left: 'calc(64px + env(safe-area-inset-left))', bottom: 'calc(158px + env(safe-area-inset-bottom))' }}
+          >
+            Restaurar
+          </button>
+        </>
       )}
 
       {/* Joystick — canto inferior esquerdo */}
       <div
-        className="absolute"
+        ref={baseRef}
+        onPointerDown={hudEdit ? startDrag('joystick') : onPointerDown}
+        className={`absolute pointer-events-auto rounded-full border border-amber-400/40 bg-slate-950/40 backdrop-blur-sm shadow-2xl ${
+          hudEdit ? 'outline outline-2 outline-dashed outline-amber-400/80 outline-offset-2' : ''
+        }`}
         style={{
-          left: 'max(18px, env(safe-area-inset-left))',
-          bottom: 'calc(20px + env(safe-area-inset-bottom))',
           width: JOYSTICK_SIZE,
           height: JOYSTICK_SIZE,
-          transform: `translate(${layout.joystick.dx}px, ${layout.joystick.dy}px) scale(${layout.joystick.scale})`,
+          left: 'max(18px, env(safe-area-inset-left))',
+          bottom: 'calc(20px + env(safe-area-inset-bottom))',
+          touchAction: 'none',
+          transform: `translate(${getPos('joystick').dx}px, ${getPos('joystick').dy}px)`,
         }}
       >
+        <div className="absolute inset-3 rounded-full border border-slate-100/10" />
         <div
-          ref={baseRef}
-          onPointerDown={onPointerDown}
-          className="absolute inset-0 pointer-events-auto rounded-full border border-amber-400/40 bg-slate-950/40 backdrop-blur-sm shadow-2xl"
-          style={{ touchAction: 'none' }}
-        >
-          <div className="absolute inset-3 rounded-full border border-slate-100/10" />
-          <div
-            className={`absolute rounded-full border ${
-              active ? 'border-amber-300 bg-amber-400/30' : 'border-slate-100/30 bg-slate-100/15'
-            } shadow-lg transition-colors`}
-            style={{
-              width: KNOB_SIZE,
-              height: KNOB_SIZE,
-              left: '50%',
-              top: '50%',
-              transform: `translate(calc(-50% + ${knob.x}px), calc(-50% + ${knob.y}px))`,
-            }}
-          />
-        </div>
-        <EditFrame block="joystick" label="Analógico" />
+          className={`absolute rounded-full border ${
+            active ? 'border-amber-300 bg-amber-400/30' : 'border-slate-100/30 bg-slate-100/15'
+          } shadow-lg transition-colors`}
+          style={{
+            width: KNOB_SIZE,
+            height: KNOB_SIZE,
+            left: '50%',
+            top: '50%',
+            transform: `translate(calc(-50% + ${knob.x}px), calc(-50% + ${knob.y}px))`,
+          }}
+        />
       </div>
 
-      {/* Menu lateral direito — mochila / síntese / ficha
-          (abaixo do indicador de ciclo de dia) */}
+      {/* Menu lateral direito — mochila / síntese / partituras / arma / skills / ficha */}
+      <D id="btn_inv" className={`${actionBtn} absolute w-11 h-11 border-amber-400/50 bg-slate-950/80 text-amber-300`} title="Mochila" onAction={onToggleInventory} style={{ right: 'max(14px, env(safe-area-inset-right))', top: 'calc(118px + env(safe-area-inset-top))' }}>
+        <Backpack className="w-5 h-5" />
+      </D>
+      <D id="btn_synth" className={`${actionBtn} absolute w-11 h-11 border-fuchsia-400/50 bg-slate-950/80 text-fuchsia-300`} title="Síntese de notas" onAction={onToggleSynth} style={{ right: 'max(14px, env(safe-area-inset-right))', top: 'calc(172px + env(safe-area-inset-top))' }}>
+        <Music4 className="w-5 h-5" />
+      </D>
+      <D id="btn_partitura" className={`${actionBtn} absolute w-11 h-11 border-amber-400/50 bg-slate-950/80 text-amber-300`} title="Síntese de Partituras" onAction={onTogglePartitura} style={{ right: 'max(14px, env(safe-area-inset-right))', top: 'calc(226px + env(safe-area-inset-top))' }}>
+        <ScrollText className="w-5 h-5" />
+      </D>
+      <D id="btn_weapon" className={`${actionBtn} absolute w-11 h-11 border-blue-400/50 bg-slate-950/80 text-blue-300`} title="Arma" onAction={onToggleWeapon} style={{ right: 'max(14px, env(safe-area-inset-right))', top: 'calc(280px + env(safe-area-inset-top))' }}>
+        <Swords className="w-5 h-5" />
+      </D>
+      <D id="btn_skills" className={`${actionBtn} absolute w-11 h-11 border-indigo-400/50 bg-slate-950/80 text-indigo-300`} title="Skills" onAction={onToggleSkills} style={{ right: 'max(14px, env(safe-area-inset-right))', top: 'calc(334px + env(safe-area-inset-top))' }}>
+        <Zap className="w-5 h-5" />
+      </D>
+      <D id="btn_sheet" className={`${actionBtn} absolute w-11 h-11 border-sky-400/50 bg-slate-950/80 text-sky-300`} title="Ficha" onAction={onToggleSheet} style={{ right: 'max(14px, env(safe-area-inset-right))', top: 'calc(388px + env(safe-area-inset-top))' }}>
+        <User className="w-5 h-5" />
+      </D>
+
+      {/* Poção */}
+      <D id="btn_potion" className={`${actionBtn} absolute w-12 h-12 border-lime-400/60 bg-lime-950/85 text-lime-200`} title="Usar item de cura" onAction={() => engineRef.current?.useHealingItem()} style={{ right: 'calc(78px + env(safe-area-inset-right))', bottom: 'calc(196px + env(safe-area-inset-bottom))' }}>
+        <FlaskConical className="w-5 h-5" />
+      </D>
+
+      {/* Ataque básico — centro do "anel" */}
+      <D id="btn_attack" className={`${actionBtn} absolute w-[64px] h-[64px] border-rose-400/70 bg-rose-900/90 text-rose-100`} title="Ataque básico (espada)" onAction={() => engineRef.current?.triggerAction('attack')} style={{ right: 'calc(66px + env(safe-area-inset-right))', bottom: 'calc(52px + env(safe-area-inset-bottom))' }}>
+        <Swords className="w-7 h-7" />
+      </D>
+
+      {/* Skills ao redor */}
+      <D id="btn_spin" className={`${actionBtn} absolute w-[46px] h-[46px] border-indigo-400/50 bg-indigo-950/80 text-indigo-300`} title="Amplificação" onAction={() => engineRef.current?.triggerAction('spin')} style={{ right: 'calc(76px + env(safe-area-inset-right))', bottom: 'calc(126px + env(safe-area-inset-bottom))' }}>
+        <RefreshCw className="w-5 h-5" />
+      </D>
+      <D id="btn_cast" className={`${actionBtn} absolute w-[46px] h-[46px] border-cyan-400/50 bg-cyan-950/80 text-cyan-300`} title="Pulso Harmônico" onAction={() => engineRef.current?.triggerAction('cast')} style={{ right: 'calc(6px + env(safe-area-inset-right))', bottom: 'calc(52px + env(safe-area-inset-bottom))' }}>
+        <Sparkles className="w-5 h-5" />
+      </D>
+      <D id="btn_resonance" className={`${actionBtn} absolute w-[46px] h-[46px] border-blue-400/50 bg-blue-950/80 text-blue-300`} title="Ressonância" onAction={() => engineRef.current?.activateResonance()} style={{ right: 'calc(146px + env(safe-area-inset-right))', bottom: 'calc(52px + env(safe-area-inset-bottom))' }}>
+        <Zap className="w-5 h-5" />
+      </D>
       <div
-        className="absolute flex flex-col gap-2 relative"
-        style={{
-          right: 'max(14px, env(safe-area-inset-right))',
-          top: 'calc(118px + env(safe-area-inset-top))',
-          transform: `translate(${layout.side.dx}px, ${layout.side.dy}px) scale(${layout.side.scale})`,
-          transformOrigin: 'top right',
-        }}
+        className={`absolute w-[46px] h-[46px] rounded-full border border-slate-600/50 bg-slate-900/75 text-slate-600 flex items-center justify-center pointer-events-none ${hudEdit ? 'outline outline-2 outline-dashed outline-amber-400/50 outline-offset-2' : ''}`}
+        style={{ right: 'calc(76px + env(safe-area-inset-right))', bottom: 'calc(-4px + env(safe-area-inset-bottom))', transform: `translate(${getPos('btn_locked').dx}px, ${getPos('btn_locked').dy}px)` }}
+        title="Habilidade em breve"
       >
-        <button
-          type="button"
-          onPointerDown={(e) => {
-            e.preventDefault();
-            if (!hudEdit) onToggleInventory();
-          }}
-          className={`${actionBtn} w-11 h-11 border-amber-400/50 bg-slate-950/80 text-amber-300`}
-          title="Mochila"
-        >
-          <Backpack className="w-5 h-5" />
-        </button>
-        <button
-          type="button"
-          onPointerDown={(e) => {
-            e.preventDefault();
-            if (!hudEdit) onToggleSynth();
-          }}
-          className={`${actionBtn} w-11 h-11 border-fuchsia-400/50 bg-slate-950/80 text-fuchsia-300`}
-          title="Síntese de notas"
-        >
-          <Music4 className="w-5 h-5" />
-        </button>
-        <button
-          type="button"
-          onPointerDown={(e) => {
-            e.preventDefault();
-            if (!hudEdit) onTogglePartitura();
-          }}
-          className={`${actionBtn} w-11 h-11 border-amber-400/50 bg-slate-950/80 text-amber-300`}
-          title="Síntese de Partituras"
-        >
-          <ScrollText className="w-5 h-5" />
-        </button>
-        <button
-          type="button"
-          onPointerDown={(e) => {
-            e.preventDefault();
-            if (!hudEdit) onToggleWeapon();
-          }}
-          className={`${actionBtn} w-11 h-11 border-blue-400/50 bg-slate-950/80 text-blue-300`}
-          title="Arma"
-        >
-          <Swords className="w-5 h-5" />
-        </button>
-        <button
-          type="button"
-          onPointerDown={(e) => {
-            e.preventDefault();
-            if (!hudEdit) onToggleSkills();
-          }}
-          className={`${actionBtn} w-11 h-11 border-indigo-400/50 bg-slate-950/80 text-indigo-300`}
-          title="Skills"
-        >
-          <Zap className="w-5 h-5" />
-        </button>
-        <button
-          type="button"
-          onPointerDown={(e) => {
-            e.preventDefault();
-            if (!hudEdit) onToggleSheet();
-          }}
-          className={`${actionBtn} w-11 h-11 border-sky-400/50 bg-slate-950/80 text-sky-300`}
-          title="Ficha"
-        >
-          <User className="w-5 h-5" />
-        </button>
-        <EditFrame block="side" label="Menu" />
+        <Lock className="w-4 h-4" />
       </div>
 
-      {/* Botões de ação — layout padrão de jogo: ataque no centro, 4 skills ao
-          redor (N/S/L/O), poção acima. Coletar à esquerda do conjunto. */}
-      {(() => {
-        const RING = 66; // raio do anel de skills
-        const CENTER = 116; // metade do container
-        const box = CENTER * 2;
-        const pos = (ang: number) => ({
-          left: CENTER + Math.cos(ang) * RING,
-          top: CENTER - Math.sin(ang) * RING,
-        });
-        const skillBtn =
-          actionBtn + ' w-[46px] h-[46px] -translate-x-1/2 -translate-y-1/2';
-        return (
-          <div
-            className="absolute"
-            style={{
-              right: 'max(6px, env(safe-area-inset-right))',
-              bottom: 'calc(10px + env(safe-area-inset-bottom))',
-              width: box,
-              height: box,
-              transform: `translate(${layout.actions.dx}px, ${layout.actions.dy}px) scale(${layout.actions.scale})`,
-              transformOrigin: 'bottom right',
-            }}
-          >
-            {/* Poção — acima do anel */}
-            <button
-              type="button"
-              onPointerDown={(e) => {
-                e.preventDefault();
-                if (!hudEdit) engineRef.current?.useHealingItem();
-              }}
-              className={`${actionBtn} absolute w-12 h-12 -translate-x-1/2 -translate-y-1/2 border-lime-400/60 bg-lime-950/85 text-lime-200`}
-              style={{ left: CENTER, top: CENTER - RING - 40 }}
-              title="Usar item de cura"
-            >
-              <FlaskConical className="w-5 h-5" />
-            </button>
-
-            {/* Ataque básico — centro */}
-            <button
-              type="button"
-              onPointerDown={fireAction('attack')}
-              className={`${actionBtn} absolute w-[64px] h-[64px] -translate-x-1/2 -translate-y-1/2 border-rose-400/70 bg-rose-900/90 text-rose-100`}
-              style={{ left: CENTER, top: CENTER }}
-              title="Ataque básico (espada)"
-            >
-              <Swords className="w-7 h-7" />
-            </button>
-
-            {/* Skill Norte — Amplificação */}
-            <button
-              type="button"
-              onPointerDown={fireAction('spin')}
-              className={`${skillBtn} absolute border-indigo-400/50 bg-indigo-950/80 text-indigo-300`}
-              style={pos(Math.PI / 2)}
-              title="Amplificação"
-            >
-              <RefreshCw className="w-5 h-5" />
-            </button>
-            {/* Skill Leste — Pulso Harmônico */}
-            <button
-              type="button"
-              onPointerDown={fireAction('cast')}
-              className={`${skillBtn} absolute border-cyan-400/50 bg-cyan-950/80 text-cyan-300`}
-              style={pos(0)}
-              title="Pulso Harmônico"
-            >
-              <Sparkles className="w-5 h-5" />
-            </button>
-            {/* Skill Oeste — Ressonância */}
-            <button
-              type="button"
-              onPointerDown={(e) => {
-                e.preventDefault();
-                if (!hudEdit) engineRef.current?.activateResonance();
-              }}
-              className={`${skillBtn} absolute border-blue-400/50 bg-blue-950/80 text-blue-300`}
-              style={pos(Math.PI)}
-              title="Ressonância"
-            >
-              <Zap className="w-5 h-5" />
-            </button>
-            {/* Skill Sul — bloqueada */}
-            <button
-              type="button"
-              disabled
-              className={`${skillBtn} absolute border-slate-600/50 bg-slate-900/75 text-slate-600`}
-              style={pos(-Math.PI / 2)}
-              title="Habilidade em breve"
-            >
-              <Lock className="w-4 h-4" />
-            </button>
-
-            {/* Coletar — à esquerda do conjunto */}
-            <button
-              type="button"
-              onPointerDown={(e) => {
-                e.preventDefault();
-                if (!hudEdit) onHarvest();
-              }}
-              className={`${actionBtn} absolute w-[58px] h-[58px] flex-col gap-0.5 -translate-y-1/2 border-emerald-400/60 bg-emerald-900/90 text-emerald-100`}
-              style={{ left: -66, top: CENTER }}
-              title="Coletar recurso mais próximo"
-            >
-              <Hand className="w-5 h-5" />
-              <span className="text-[9px] font-bold">Coletar</span>
-            </button>
-
-            <EditFrame block="actions" label="Ações" />
-          </div>
-        );
-      })()}
+      {/* Coletar */}
+      <D id="btn_harvest" className={`${actionBtn} absolute w-[58px] h-[58px] flex-col gap-0.5 border-emerald-400/60 bg-emerald-900/90 text-emerald-100`} title="Coletar recurso mais próximo" onAction={onHarvest} style={{ right: 'calc(222px + env(safe-area-inset-right))', bottom: 'calc(52px + env(safe-area-inset-bottom))' }}>
+        <Hand className="w-5 h-5" />
+        <span className="text-[9px] font-bold">Coletar</span>
+      </D>
     </div>
   );
 };

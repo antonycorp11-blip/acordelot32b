@@ -25,7 +25,7 @@ import {
   X,
 } from 'lucide-react';
 import type { PlayerStats } from '../game/engine';
-import { GameEngine, InteractionState, SelectedPropInfo, TimeOfDay, CHARACTER_ROSTER } from '../game/engine';
+import { GameEngine, InteractionState, SelectedPropInfo, TimeOfDay, CHARACTER_ROSTER, CHARACTER_PORTRAITS } from '../game/engine';
 import { TouchControls } from './TouchControls';
 import { Inventory } from './Inventory';
 import { PlayerHud } from './PlayerHud';
@@ -1117,8 +1117,6 @@ export const GameCanvas: React.FC = () => {
           questObjective={engineRef.current?.activeQuestObjective ?? null}
           onOpenQuests={() => setShowQuests(true)}
           portraitSrc={engineRef.current?.activeCharacterPortrait}
-          activeCharacter={engineRef.current?.activeCharacter}
-          onSwitchCharacter={(ck) => engineRef.current?.switchCharacter(ck)}
         />
       )}
 
@@ -1185,6 +1183,25 @@ export const GameCanvas: React.FC = () => {
           >
             <ListChecks className="w-5 h-5" />
           </button>
+          {/* Troca de personagem estilo Genshin — desktop */}
+          <div className="flex items-center gap-1 bg-slate-950/60 rounded-full p-1 backdrop-blur-md border border-slate-700/60">
+            {CHARACTER_ROSTER.map((ck) => {
+              const active = engineRef.current?.activeCharacter === ck;
+              return (
+                <button
+                  key={ck}
+                  type="button"
+                  onClick={() => engineRef.current?.switchCharacter(ck)}
+                  className={`cursor-pointer w-10 h-10 rounded-full overflow-hidden border-2 shadow-xl transition-all active:scale-95 ${
+                    active ? 'border-fuchsia-400 ring-2 ring-fuchsia-300/60' : 'border-slate-700 opacity-60 hover:opacity-100'
+                  }`}
+                  title={`Trocar para ${ck === 'akles' ? 'Akles' : ck === 'wins' ? 'Wins' : 'Huans'} (V)`}
+                >
+                  <img src={CHARACTER_PORTRAITS[ck]} alt={ck} className="w-full h-full object-cover object-top" />
+                </button>
+              );
+            })}
+          </div>
           <button
             type="button"
             onClick={() => setShowSynth((v) => !v)}

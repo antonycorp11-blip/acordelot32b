@@ -16,7 +16,8 @@ import {
   Library,
   ListChecks,
 } from 'lucide-react';
-import type { GameEngine } from '../game/engine';
+import type { GameEngine, PlayerCharacterKey } from '../game/engine';
+import { CHARACTER_ROSTER, CHARACTER_PORTRAITS } from '../game/engine';
 
 interface TouchControlsProps {
   engineRef: React.MutableRefObject<GameEngine | null>;
@@ -197,12 +198,14 @@ export const TouchControls: React.FC<TouchControlsProps> = ({
   // Botão central: vira "Coletar" quando dá (perto de um recurso, fora de
   // luta) e volta a ser "Atacar" sozinho assim que entra em combate.
   const [collectMode, setCollectMode] = useState(false);
+  const [activeChar, setActiveChar] = useState<PlayerCharacterKey>('akles');
   useEffect(() => {
     const iv = setInterval(() => {
       const eng = engineRef.current;
       if (!eng) return;
       const busy = ['chop', 'mine', 'attack', 'spin', 'cast'].includes(eng.player.actionState as string);
       setCollectMode(!busy && !eng.inCombat && !!eng.findNearestHarvestable('any'));
+      setActiveChar(eng.activeCharacter);
     }, 180);
     return () => clearInterval(iv);
   }, [engineRef]);
@@ -356,6 +359,26 @@ export const TouchControls: React.FC<TouchControlsProps> = ({
       >
         {collectMode ? <Hand className="w-7 h-7" /> : <Swords className="w-7 h-7" />}
       </D>
+
+      {/* Troca de personagem estilo Genshin — colada bem em cima do anel de
+          skills (nunca em coluna que pode passar da altura da tela). */}
+      {CHARACTER_ROSTER.map((ck, i) => {
+        const active = activeChar === ck;
+        return (
+          <D
+            key={ck}
+            id={`btn_char_${ck}`}
+            className={`${actionBtn} absolute w-8 h-8 overflow-hidden p-0 ${
+              active ? 'border-2 border-fuchsia-400 ring-2 ring-fuchsia-300/60' : 'border-2 border-slate-700 opacity-60'
+            }`}
+            title={`Trocar para ${ck === 'akles' ? 'Akles' : ck === 'wins' ? 'Wins' : 'Huans'} (V)`}
+            onAction={() => engineRef.current?.switchCharacter(ck)}
+            style={{ right: `calc(${118 + i * 36}px + env(safe-area-inset-right))`, bottom: 'calc(200px + env(safe-area-inset-bottom))' }}
+          >
+            <img src={CHARACTER_PORTRAITS[ck]} alt={ck} className="w-full h-full object-cover object-top" />
+          </D>
+        );
+      })}
 
       {/* Skills ao redor */}
       <D id="btn_spin" className={`${actionBtn} absolute w-[46px] h-[46px] border-indigo-400/50 bg-indigo-950/80 text-indigo-300`} title="Amplificação" onAction={() => engineRef.current?.triggerAction('spin')} style={{ right: 'calc(76px + env(safe-area-inset-right))', bottom: 'calc(126px + env(safe-area-inset-bottom))' }}>

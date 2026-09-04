@@ -1,7 +1,6 @@
 import React from 'react';
 import { Target } from 'lucide-react';
-import type { PlayerStats, PlayerCharacterKey } from '../game/engine';
-import { CHARACTER_ROSTER, CHARACTER_PORTRAITS } from '../game/engine';
+import type { PlayerStats } from '../game/engine';
 
 interface PlayerHudProps {
   stats: PlayerStats;
@@ -9,20 +8,10 @@ interface PlayerHudProps {
   questObjective?: { title: string; text: string; ready: boolean } | null;
   onOpenQuests?: () => void;
   portraitSrc?: string;
-  activeCharacter?: PlayerCharacterKey;
-  onSwitchCharacter?: (key: PlayerCharacterKey) => void;
 }
 
 /** Canto superior esquerdo: retrato + barra de vida + barra de XP + objetivo da missão ativa. */
-export const PlayerHud: React.FC<PlayerHudProps> = ({
-  stats,
-  onOpenSheet,
-  questObjective,
-  onOpenQuests,
-  portraitSrc,
-  activeCharacter,
-  onSwitchCharacter,
-}) => {
+export const PlayerHud: React.FC<PlayerHudProps> = ({ stats, onOpenSheet, questObjective, onOpenQuests, portraitSrc }) => {
   const hpPct = Math.max(0, Math.min(100, (stats.hp / stats.maxHp) * 100));
   const xpPct = Math.max(0, Math.min(100, (stats.xp / stats.xpNext) * 100));
 
@@ -50,25 +39,6 @@ export const PlayerHud: React.FC<PlayerHudProps> = ({
           Lv {stats.level}
         </span>
       </button>
-
-      {/* Troca de personagem estilo Genshin — sempre visível, colada no
-          retrato (não enterrada em menu/coluna de botões que pode passar
-          da altura da tela em paisagem no celular). */}
-      {activeCharacter && onSwitchCharacter && (
-        <div className="flex flex-col gap-1 shrink-0">
-          {CHARACTER_ROSTER.filter((ck) => ck !== activeCharacter).map((ck) => (
-            <button
-              key={ck}
-              type="button"
-              onClick={() => onSwitchCharacter(ck)}
-              className="w-7 h-7 rounded-full overflow-hidden border-2 border-slate-700 opacity-80 hover:opacity-100 active:scale-90 shadow-lg transition-all"
-              title={`Trocar para ${ck === 'akles' ? 'Akles' : ck === 'wins' ? 'Wins' : 'Huans'} (V)`}
-            >
-              <img src={CHARACTER_PORTRAITS[ck]} alt={ck} className="w-full h-full object-cover object-top" />
-            </button>
-          ))}
-        </div>
-      )}
 
       {/* Barras */}
       <div className="w-32 sm:w-48">

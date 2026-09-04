@@ -61,11 +61,11 @@ interface AklesAnimMeta {
 // cw/ch = tamanho da célula na sheet (alta resolução; desenhado com dispScale).
 // idle/walk/run: folhas grandes novas (10 col x 4 lin, 145x271) — arte detalhada,
 // capa/cabelo ao vento. As folhas de combate seguem as antigas.
-const HERO_DISP = 0.33;
+const HERO_DISP = 0.24;
 const AKLES_ANIM: Record<'idle' | 'walk' | 'run' | AklesAction, AklesAnimMeta> = {
-  idle: { sheet: 'aklesIdle', cw: 156, ch: 300, cols: 10, fps: 7, loop: true, disp: HERO_DISP, feetFrac: 1 },
-  walk: { sheet: 'aklesWalk', cw: 156, ch: 300, cols: 10, fps: 12, loop: true, disp: HERO_DISP, feetFrac: 1 },
-  run: { sheet: 'aklesRun', cw: 156, ch: 300, cols: 10, fps: 16, loop: true, disp: HERO_DISP, feetFrac: 1 },
+  idle: { sheet: 'aklesIdle', cw: 156, ch: 340, cols: 10, fps: 7, loop: true, disp: HERO_DISP, feetFrac: 1 },
+  walk: { sheet: 'aklesWalk', cw: 156, ch: 340, cols: 10, fps: 12, loop: true, disp: HERO_DISP, feetFrac: 1 },
+  run: { sheet: 'aklesRun', cw: 156, ch: 340, cols: 10, fps: 16, loop: true, disp: HERO_DISP, feetFrac: 1 },
   chop: { sheet: 'aklesSlash', cw: 192, ch: 192, cols: 6, fps: 13, loop: false, disp: 0.44 },
   mine: { sheet: 'aklesThrust', cw: 192, ch: 192, cols: 6, fps: 13, loop: false, disp: 0.44 },
   attack: { sheet: 'aklesSlash', cw: 192, ch: 192, cols: 6, fps: 15, loop: false, disp: 0.44 },
@@ -899,6 +899,19 @@ export const EDITABLE_PROP_METAS: Record<
   dark_thorn: { category: 'bush', name: 'Espinheiro', baseW: 30, baseH: 24, sortYOffset: 22, canDelete: true, canDuplicate: true },
   dark_bigrock: { category: 'rock', name: 'Rochedo Sombrio', baseW: 60, baseH: 46, colOffXRatio: 0.12, colOffYRatio: 0.4, colWRatio: 0.76, colHRatio: 0.5, sortYOffset: 42, canDelete: true, canDuplicate: true },
   dark_icecrystal: { category: 'rock', name: 'Cristal Gélido', baseW: 52, baseH: 58, colOffXRatio: 0.2, colOffYRatio: 0.6, colWRatio: 0.6, colHRatio: 0.34, sortYOffset: 54, canDelete: true, canDuplicate: true },
+
+  // 10. MURALHAS MUSICAIS (para construir os muros da cidade)
+  wallMusical1: { category: 'building', name: 'Muralha com Torreão', baseW: 117, baseH: 108, colOffXRatio: 0.04, colOffYRatio: 0.42, colWRatio: 0.92, colHRatio: 0.5, sortYOffset: 104, canDelete: true, canDuplicate: true },
+  wallMusical2: { category: 'building', name: 'Muralha Longa', baseW: 117, baseH: 86, colOffXRatio: 0.02, colOffYRatio: 0.4, colWRatio: 0.96, colHRatio: 0.55, sortYOffset: 82, canDelete: true, canDuplicate: true },
+  wallMusical3: { category: 'building', name: 'Muralha Baixa', baseW: 117, baseH: 50, colOffXRatio: 0.02, colOffYRatio: 0.3, colWRatio: 0.96, colHRatio: 0.65, sortYOffset: 46, canDelete: true, canDuplicate: true },
+  wallMusical4: { category: 'building', name: 'Torre de Vigia', baseW: 39, baseH: 156, colOffXRatio: 0.1, colOffYRatio: 0.82, colWRatio: 0.8, colHRatio: 0.16, sortYOffset: 150, canDelete: true, canDuplicate: true },
+  wallMusical5: { category: 'building', name: 'Muralha com Pilar', baseW: 117, baseH: 101, colOffXRatio: 0.04, colOffYRatio: 0.4, colWRatio: 0.92, colHRatio: 0.5, sortYOffset: 97, canDelete: true, canDuplicate: true },
+  wallMusical6: { category: 'building', name: 'Muralha com Esquina', baseW: 117, baseH: 107, colOffXRatio: 0.04, colOffYRatio: 0.42, colWRatio: 0.92, colHRatio: 0.5, sortYOffset: 103, canDelete: true, canDuplicate: true },
+  wallMusical7: { category: 'building', name: 'Portal com Estandarte', baseW: 104, baseH: 117, colOffXRatio: 0.06, colOffYRatio: 0.75, colWRatio: 0.88, colHRatio: 0.2, sortYOffset: 112, canDelete: true, canDuplicate: true },
+  wallMusical8: { category: 'building', name: 'Muralha Curta', baseW: 117, baseH: 56, colOffXRatio: 0.02, colOffYRatio: 0.35, colWRatio: 0.96, colHRatio: 0.58, sortYOffset: 52, canDelete: true, canDuplicate: true },
+  // sem colisor: é um portão — o vão central deve ficar andável (as muralhas
+  // vizinhas é que bloqueiam)
+  wallGate: { category: 'building', name: 'Portão da Cidade', baseW: 152, baseH: 168, sortYOffset: 162, canDelete: true, canDuplicate: true },
 };
 
 export class GameEngine {
@@ -1115,7 +1128,8 @@ export class GameEngine {
   }
 
   get canLevelUp() {
-    return this.stats.xp >= this.stats.xpNext || this.partituraXpAvailable > 0;
+    // subir de nível SÓ com partituras (kills dão claves, não XP direto)
+    return this.partituraXpAvailable > 0;
   }
 
   // Botão "Subir de Nível" da ficha: usa o XP + as partituras do inventário.
@@ -2387,26 +2401,24 @@ export class GameEngine {
     );
   }
 
-  // "Subir de Nível" na ficha: gasta partituras do inventário para encher o XP
-  // e sobe quantos níveis der. Retorna quantos níveis subiu.
+  // "Subir de Nível" na ficha: SÓ sobe consumindo partituras do inventário —
+  // nunca de graça, mesmo que XP acumulado (trilho de coleta) já esteja cheio.
   levelUpWithPartituras(): number {
     let levels = 0;
-    // usa da menor pra maior, só o necessário
     let guard = 0;
     while (guard++ < 200) {
       const s = this.stats;
-      if (s.xp >= s.xpNext) {
-        this.applyLevelUp();
-        levels++;
-        continue;
-      }
-      // precisa de mais XP — consome a menor partitura disponível
+      // consome a menor partitura disponível
       const tier = PARTITURA_TIERS.find((t) => (this.inventory[PARTITURA_DEFS[t].key] || 0) > 0);
       if (!tier) break;
       const d = PARTITURA_DEFS[tier];
       this.inventory[d.key] -= 1;
       if (this.inventory[d.key] <= 0) delete this.inventory[d.key];
       s.xp += d.xp;
+      if (s.xp >= s.xpNext) {
+        this.applyLevelUp();
+        levels++;
+      }
     }
     this.onInventoryChange?.({ ...this.inventory });
     this.onStatsChange?.({ ...this.stats });
@@ -2583,20 +2595,19 @@ export class GameEngine {
       const lvlBonus = Math.floor((e.level - 1) / 2);
       const claves = def.claveMin + lvlBonus + Math.floor(Math.random() * (def.claveMax - def.claveMin + 1));
       const frags = def.fragMin + Math.floor(Math.random() * (def.fragMax - def.fragMin + 1));
-      if (claves > 0) this.addCoins(claves);
+      // dropa no CHÃO — não vai direto pro inventário (igual madeira/pedra)
+      if (claves > 0) this.spawnDropScattered(e.x + 8, e.y, 'clave', claves);
       if (!e.hostile && e.note !== undefined) {
         // Eco dissipado: fragmentos DA SUA nota + poeira de eco
-        this.addFragment(e.note, frags);
-        if (Math.random() < 0.5) this.addToInventory('eco_dust', 1 + Math.floor(Math.random() * 2));
-        this.onHarvestPopup?.(`+${frags} frag ${NOTE_NAMES[e.note]}`, e.x, e.y - 12);
+        this.spawnDropScattered(e.x + 8, e.y, 'frag_' + NOTE_KEY[e.note], frags, e.note);
+        if (Math.random() < 0.5) this.spawnDrop(e.x + 8, e.y, 'eco_dust', 1 + Math.floor(Math.random() * 2));
       } else {
-        for (let i = 0; i < frags; i++) this.addFragment(Math.floor(Math.random() * 12));
-        const bits = [];
-        if (claves > 0) bits.push(`+${claves} clave`);
-        if (frags > 0) bits.push(`+${frags} frag`);
-        this.onHarvestPopup?.(bits.join('  ') || `${def.name} derrotado`, e.x, e.y - 12);
+        for (let i = 0; i < frags; i++) {
+          const n = Math.floor(Math.random() * 12);
+          this.spawnDrop(e.x + 8, e.y, 'frag_' + NOTE_KEY[n], 1, n);
+        }
       }
-      this.gainXp(Math.round(def.xp * (1 + (e.level - 1) * 0.35)));
+      // sem XP direto de kill — o XP vem das partituras (compostas de claves)
       e.respawnAt = this.timeElapsed + def.respawnSecs;
     } else {
       e.state = 'hurt';
@@ -3043,6 +3054,140 @@ export class GameEngine {
     } catch {}
   }
 
+  // ---- Drops no chão (claves, fragmentos, madeira, pedra...) — como o resto
+  // dos jogos: o item cai no chão e o jogador anda por cima pra coletar. ----
+  groundDrops: Array<{
+    id: string;
+    x: number;
+    y: number;
+    vx: number;
+    vy: number;
+    item: string;
+    qty: number;
+    note?: number; // p/ drops de fragmento (índice da nota)
+    bob: number;
+    born: number;
+  }> = [];
+  private dropSeq = 0;
+
+  spawnDrop(x: number, y: number, item: string, qty: number, note?: number) {
+    if (qty <= 0) return;
+    const ang = Math.random() * Math.PI * 2;
+    const spd = 40 + Math.random() * 70;
+    this.groundDrops.push({
+      id: `drop_${this.dropSeq++}`,
+      x,
+      y,
+      vx: Math.cos(ang) * spd,
+      vy: Math.sin(ang) * spd * 0.6 - 20,
+      item,
+      qty,
+      note,
+      bob: Math.random() * 6.28,
+      born: this.timeElapsed,
+    });
+  }
+
+  // divide uma quantidade em 1-3 pilhas espalhadas (visual mais rico)
+  private spawnDropScattered(x: number, y: number, item: string, qty: number, note?: number) {
+    if (qty <= 0) return;
+    const piles = qty > 4 ? 2 + Math.floor(Math.random() * 2) : 1;
+    let left = qty;
+    for (let i = 0; i < piles; i++) {
+      const take = i === piles - 1 ? left : Math.max(1, Math.round(qty / piles));
+      this.spawnDrop(x, y, item, Math.min(left, take), note);
+      left -= take;
+      if (left <= 0) break;
+    }
+  }
+
+  private collectDrop(item: string, qty: number, note: number | undefined, x: number, y: number) {
+    if (item === 'clave') this.addCoins(qty);
+    else if (item.startsWith('frag_') && note !== undefined) this.addFragment(note, qty);
+    else this.addToInventory(item, qty);
+    for (let i = 0; i < 4; i++) this.addMiningSpark(x, y - 4);
+  }
+
+  private updateGroundDrops(dt: number) {
+    if (!this.groundDrops.length) return;
+    const px = this.player.x + 12;
+    const py = this.player.y + 24;
+    for (const d of this.groundDrops) {
+      d.bob += dt * 4;
+      const age = this.timeElapsed - d.born;
+      // atrito nos primeiros instantes (o "salto" ao cair)
+      if (age < 0.4) {
+        d.x += d.vx * dt;
+        d.y += d.vy * dt;
+        d.vx *= 1 - Math.min(1, dt * 6);
+        d.vy *= 1 - Math.min(1, dt * 6);
+      }
+      // ímã: perto do jogador, puxa
+      const dist = Math.hypot(px - d.x, py - d.y);
+      if (age > 0.15 && dist < 62) {
+        const pull = dist < 16 ? 900 : 320;
+        const nx = (px - d.x) / (dist || 1);
+        const ny = (py - d.y) / (dist || 1);
+        d.x += nx * pull * dt;
+        d.y += ny * pull * dt;
+      }
+    }
+    // coleta
+    this.groundDrops = this.groundDrops.filter((d) => {
+      const dist = Math.hypot(px - d.x, py - d.y);
+      if (dist < 15) {
+        this.collectDrop(d.item, d.qty, d.note, d.x, d.y);
+        return false;
+      }
+      return true;
+    });
+  }
+
+  private renderGroundDrops(ctx: CanvasRenderingContext2D, camX: number, camY: number) {
+    for (const d of this.groundDrops) {
+      const sx = d.x - camX;
+      const sy = d.y - camY;
+      if (sx < -30 || sx > this.viewportW + 30 || sy < -30 || sy > this.viewportH + 30) continue;
+      const bobY = Math.sin(d.bob) * 2;
+      const meta = ITEM_META[d.item];
+      ctx.save();
+      ctx.fillStyle = 'rgba(0,0,0,0.3)';
+      ctx.beginPath();
+      ctx.ellipse(sx, sy + 7, 6, 2.5, 0, 0, Math.PI * 2);
+      ctx.fill();
+      const img = this.assets && meta?.img ? this.dropImgCache(meta.img) : null;
+      if (img && img.complete && img.naturalWidth) {
+        ctx.drawImage(img, sx - 8, sy - 8 + bobY, 16, 16);
+      } else {
+        ctx.fillStyle = d.item === 'clave' ? '#fbbf24' : d.item.startsWith('frag_') ? '#a855f7' : '#94a3b8';
+        ctx.beginPath();
+        ctx.arc(sx, sy + bobY, 5, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      if (d.qty > 1) {
+        ctx.font = 'bold 8px monospace';
+        ctx.textAlign = 'center';
+        ctx.fillStyle = '#fff';
+        ctx.strokeStyle = 'rgba(0,0,0,0.8)';
+        ctx.lineWidth = 2;
+        ctx.strokeText(String(d.qty), sx + 7, sy + 10 + bobY);
+        ctx.fillText(String(d.qty), sx + 7, sy + 10 + bobY);
+      }
+      ctx.restore();
+    }
+  }
+
+  private dropImgCacheMap: Record<string, HTMLImageElement> = {};
+  private dropImgCache(src: string): HTMLImageElement {
+    let img = this.dropImgCacheMap[src];
+    if (!img) {
+      img = new Image();
+      img.src = src;
+      this.dropImgCacheMap[src] = img;
+    }
+    return img;
+  }
+
   private applyHarvestHit() {
     const kind: 'tree' | 'rock' = this.player.actionState === 'mine' ? 'rock' : 'tree';
     const node = this.findNearestHarvestable(kind);
@@ -3063,13 +3208,13 @@ export class GameEngine {
       this.addMiningSpark(ix + 4, iy - 4);
     }
 
-    // ganho parcial por golpe
-    let gained = this.addToInventory(h.drop, 1);
+    // golpe: derruba 1 unidade no chão (não vai direto pro inventário)
+    this.spawnDropScattered(ix, iy, h.drop, 1);
     this.gainXp(3);
 
     if (h.hp <= 0) {
       const bonus = h.dropMin + Math.floor(Math.random() * (h.dropMax - h.dropMin + 1));
-      gained += this.addToInventory(h.drop, bonus);
+      this.spawnDropScattered(ix, iy, h.drop, bonus);
       this.gainXp(h.kind === 'rock' ? 14 : 9);
       h.downUntil = this.timeElapsed + h.respawnSecs;
       h.hp = 0;
@@ -3079,9 +3224,6 @@ export class GameEngine {
         if (h.kind === 'tree') this.addForestLeaf(ix + (Math.random() - 0.5) * 40, iy - Math.random() * 20);
         else this.addFootstepDust(ix + (Math.random() - 0.5) * 30, node.y + node.h - 6);
       }
-    }
-    if (gained > 0) {
-      this.onHarvestPopup?.(`+${gained} ${ITEM_META[h.drop]?.name ?? h.drop}`, ix, node.y);
     }
   }
 
@@ -3311,6 +3453,7 @@ export class GameEngine {
     this.updateHarvestables(dt);
     this.updateWeatherAndWind(dt);
     this.updateDamageTexts(dt);
+    this.updateGroundDrops(dt);
 
     if (Math.random() < 0.18) {
       this.addBlossomPetal(
@@ -3758,6 +3901,9 @@ export class GameEngine {
       ctx.fillRect(-4, -4, 3, 3);
       ctx.restore();
     }
+
+    // 3.42 Drops no chão (claves, fragmentos, madeira, pedra...)
+    this.renderGroundDrops(ctx, camX, camY);
 
     // 3.45 Canhão de Luz — feixe grosso e brilhante do Akles
     for (const b of this.lightBeams) {
@@ -4520,6 +4666,26 @@ export class GameEngine {
       ctx.drawImage(this.assets.darkIcecrystal, px, py, prop.w, prop.h);
     } else if (prop.type === 'dark_thorn' && this.assets?.darkThorn) {
       ctx.drawImage(this.assets.darkThorn, px, py, prop.w, prop.h);
+    }
+    // 8. Muralhas musicais
+    else if (prop.type === 'wallMusical1' && this.assets?.wallMusical1) {
+      ctx.drawImage(this.assets.wallMusical1, px, py, prop.w, prop.h);
+    } else if (prop.type === 'wallMusical2' && this.assets?.wallMusical2) {
+      ctx.drawImage(this.assets.wallMusical2, px, py, prop.w, prop.h);
+    } else if (prop.type === 'wallMusical3' && this.assets?.wallMusical3) {
+      ctx.drawImage(this.assets.wallMusical3, px, py, prop.w, prop.h);
+    } else if (prop.type === 'wallMusical4' && this.assets?.wallMusical4) {
+      ctx.drawImage(this.assets.wallMusical4, px, py, prop.w, prop.h);
+    } else if (prop.type === 'wallMusical5' && this.assets?.wallMusical5) {
+      ctx.drawImage(this.assets.wallMusical5, px, py, prop.w, prop.h);
+    } else if (prop.type === 'wallMusical6' && this.assets?.wallMusical6) {
+      ctx.drawImage(this.assets.wallMusical6, px, py, prop.w, prop.h);
+    } else if (prop.type === 'wallMusical7' && this.assets?.wallMusical7) {
+      ctx.drawImage(this.assets.wallMusical7, px, py, prop.w, prop.h);
+    } else if (prop.type === 'wallMusical8' && this.assets?.wallMusical8) {
+      ctx.drawImage(this.assets.wallMusical8, px, py, prop.w, prop.h);
+    } else if (prop.type === 'wallGate' && this.assets?.wallGate) {
+      ctx.drawImage(this.assets.wallGate, px, py, prop.w, prop.h);
     }
 
     // Brilho + partículas nos nós de coleta (cristais, madeira, minério, ouro)

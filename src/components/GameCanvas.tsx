@@ -39,7 +39,7 @@ import { Backpack, Hand, User, CloudRain, Music4, FlaskConical, ScrollText } fro
 interface PropPaletteItem {
   type: string;
   name: string;
-  category: 'houses_front' | 'houses_angles' | 'rocks' | 'street' | 'trees';
+  category: 'houses_front' | 'houses_angles' | 'rocks' | 'street' | 'trees' | 'walls';
   imgSrc?: string;
   badge?: string;
 }
@@ -386,6 +386,70 @@ const PROP_CATALOG: PropPaletteItem[] = [
     imgSrc: '/assets/props/dark_thorn_p.png',
     badge: 'Sombria',
   },
+  // Muralhas musicais — para construir os muros da cidade
+  {
+    type: 'wallGate',
+    name: 'Portão da Cidade',
+    category: 'walls',
+    imgSrc: '/assets/props/wall_gate.png',
+    badge: 'Muralha',
+  },
+  {
+    type: 'wallMusical4',
+    name: 'Torre de Vigia',
+    category: 'walls',
+    imgSrc: '/assets/props/wall_musical_4.png',
+    badge: 'Muralha',
+  },
+  {
+    type: 'wallMusical7',
+    name: 'Portal com Estandarte',
+    category: 'walls',
+    imgSrc: '/assets/props/wall_musical_7.png',
+    badge: 'Muralha',
+  },
+  {
+    type: 'wallMusical1',
+    name: 'Muralha com Torreão',
+    category: 'walls',
+    imgSrc: '/assets/props/wall_musical_1.png',
+    badge: 'Muralha',
+  },
+  {
+    type: 'wallMusical6',
+    name: 'Muralha com Esquina',
+    category: 'walls',
+    imgSrc: '/assets/props/wall_musical_6.png',
+    badge: 'Muralha',
+  },
+  {
+    type: 'wallMusical5',
+    name: 'Muralha com Pilar',
+    category: 'walls',
+    imgSrc: '/assets/props/wall_musical_5.png',
+    badge: 'Muralha',
+  },
+  {
+    type: 'wallMusical2',
+    name: 'Muralha Longa',
+    category: 'walls',
+    imgSrc: '/assets/props/wall_musical_2.png',
+    badge: 'Muralha',
+  },
+  {
+    type: 'wallMusical3',
+    name: 'Muralha Baixa',
+    category: 'walls',
+    imgSrc: '/assets/props/wall_musical_3.png',
+    badge: 'Muralha',
+  },
+  {
+    type: 'wallMusical8',
+    name: 'Muralha Curta',
+    category: 'walls',
+    imgSrc: '/assets/props/wall_musical_8.png',
+    badge: 'Muralha',
+  },
 ];
 
 export const GameCanvas: React.FC = () => {
@@ -427,7 +491,7 @@ export const GameCanvas: React.FC = () => {
   const [zoomLevel, setZoomLevel] = useState(1.0);
   const [timeOfDay, setTimeOfDay] = useState<TimeOfDay>('day');
   const [activeCategory, setActiveCategory] = useState<
-    'houses_front' | 'houses_angles' | 'rocks' | 'street' | 'trees'
+    'houses_front' | 'houses_angles' | 'rocks' | 'street' | 'trees' | 'walls'
   >('houses_front');
 
   useEffect(() => {
@@ -937,6 +1001,17 @@ export const GameCanvas: React.FC = () => {
                   }`}
                 >
                   🌳 Árvores
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveCategory('walls')}
+                  className={`cursor-pointer px-2.5 py-0.5 rounded-lg text-[11px] font-bold transition-all ${
+                    activeCategory === 'walls'
+                      ? 'bg-indigo-500/30 text-indigo-300 border border-indigo-500/60'
+                      : 'text-slate-400 hover:text-slate-200'
+                  }`}
+                >
+                  🏰 Muralhas
                 </button>
               </div>
 

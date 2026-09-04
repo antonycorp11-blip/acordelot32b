@@ -104,7 +104,7 @@ for (const cfg of SHEETS) {
   // Célula de saída FIXA em todas as folhas. GUTTER transparente entre frames
   // (senão o filtro bilinear "vaza" o frame vizinho — meio de um, meio do outro).
   const CW = 156;
-  const CH = 300;
+  const CH = 340; // folga extra no topo (evita cortar a cabeça em qualquer pose)
   const FOOT_MARGIN = 1; // pés colados no rodapé da célula
   const A = (x, y) => data[(y * width + x) * 4 + 3];
 

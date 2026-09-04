@@ -45,6 +45,21 @@ export interface LoadedAssets {
   toolPickGold: HTMLImageElement;
   toolPickCrystal: HTMLImageElement;
 
+  // Armas (sistema de arma flutuante)
+  weaponAcordelaminaT2: HTMLImageElement;
+  weaponAcordelaminaT2Energized: HTMLImageElement;
+
+  // Muralhas musicais (props de construção)
+  wallMusical1: HTMLImageElement;
+  wallMusical2: HTMLImageElement;
+  wallMusical3: HTMLImageElement;
+  wallMusical4: HTMLImageElement;
+  wallMusical5: HTMLImageElement;
+  wallMusical6: HTMLImageElement;
+  wallMusical7: HTMLImageElement;
+  wallMusical8: HTMLImageElement;
+  wallGate: HTMLImageElement;
+
   // Nós de extração
   spotWood: HTMLImageElement;
   spotMineral: HTMLImageElement;
@@ -178,6 +193,17 @@ const ASSET_PATHS: Record<keyof LoadedAssets, string> = {
   toolPickWood: '/assets/tools/pick_wood.png',
   toolPickGold: '/assets/tools/pick_gold.png',
   toolPickCrystal: '/assets/tools/pick_crystal.png',
+  weaponAcordelaminaT2: '/assets/weapons/acordelamina_t2.png',
+  weaponAcordelaminaT2Energized: '/assets/weapons/acordelamina_t2_energized.png',
+  wallMusical1: '/assets/props/wall_musical_1.png',
+  wallMusical2: '/assets/props/wall_musical_2.png',
+  wallMusical3: '/assets/props/wall_musical_3.png',
+  wallMusical4: '/assets/props/wall_musical_4.png',
+  wallMusical5: '/assets/props/wall_musical_5.png',
+  wallMusical6: '/assets/props/wall_musical_6.png',
+  wallMusical7: '/assets/props/wall_musical_7.png',
+  wallMusical8: '/assets/props/wall_musical_8.png',
+  wallGate: '/assets/props/wall_gate.png',
 
   // Nós de extração (spots)
   spotWood: '/assets/props/wood2_spot.png',

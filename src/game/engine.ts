@@ -54,18 +54,22 @@ interface AklesAnimMeta {
   cols: number;
   fps: number;
   loop: boolean;
+  disp?: number; // escala de exibição própria (senão usa AKLES_DISP_SCALE)
 }
 
-// cw/ch = tamanho da célula na sheet (alta resolução; desenhado com dispScale)
+// cw/ch = tamanho da célula na sheet (alta resolução; desenhado com dispScale).
+// idle/walk/run: folhas grandes novas (10 col x 4 lin, 145x271) — arte detalhada,
+// capa/cabelo ao vento. As folhas de combate seguem as antigas.
+const HERO_DISP = 0.3;
 const AKLES_ANIM: Record<'idle' | 'walk' | 'run' | AklesAction, AklesAnimMeta> = {
-  idle: { sheet: 'aklesIdle', cw: 128, ch: 176, cols: 6, fps: 6, loop: true },
-  walk: { sheet: 'aklesWalk', cw: 128, ch: 160, cols: 8, fps: 11, loop: true },
-  run: { sheet: 'aklesRun', cw: 128, ch: 160, cols: 8, fps: 15, loop: true },
-  chop: { sheet: 'aklesSlash', cw: 192, ch: 192, cols: 6, fps: 13, loop: false },
-  mine: { sheet: 'aklesThrust', cw: 192, ch: 192, cols: 6, fps: 13, loop: false },
-  attack: { sheet: 'aklesSlash', cw: 192, ch: 192, cols: 6, fps: 15, loop: false },
-  spin: { sheet: 'aklesSpin', cw: 192, ch: 192, cols: 6, fps: 13, loop: false },
-  cast: { sheet: 'aklesCast', cw: 256, ch: 192, cols: 6, fps: 11, loop: false },
+  idle: { sheet: 'aklesIdle', cw: 145, ch: 296, cols: 10, fps: 7, loop: true, disp: HERO_DISP },
+  walk: { sheet: 'aklesWalk', cw: 145, ch: 296, cols: 10, fps: 12, loop: true, disp: HERO_DISP },
+  run: { sheet: 'aklesRun', cw: 145, ch: 296, cols: 10, fps: 16, loop: true, disp: HERO_DISP },
+  chop: { sheet: 'aklesSlash', cw: 192, ch: 192, cols: 6, fps: 13, loop: false, disp: 0.44 },
+  mine: { sheet: 'aklesThrust', cw: 192, ch: 192, cols: 6, fps: 13, loop: false, disp: 0.44 },
+  attack: { sheet: 'aklesSlash', cw: 192, ch: 192, cols: 6, fps: 15, loop: false, disp: 0.44 },
+  spin: { sheet: 'aklesSpin', cw: 192, ch: 192, cols: 6, fps: 13, loop: false, disp: 0.44 },
+  cast: { sheet: 'aklesCast', cw: 256, ch: 192, cols: 6, fps: 11, loop: false, disp: 0.44 },
 };
 const AKLES_DISP_SCALE = 0.35;
 
@@ -1086,6 +1090,7 @@ export class GameEngine {
   onMapSaveNotification?: () => void;
 
   isRunning: boolean = false;
+  heroRunning = false; // Akles correndo (sprint) — troca walk->run
   lastTime: number = 0;
   animFrameId: number = 0;
 
@@ -2975,8 +2980,14 @@ export class GameEngine {
       }
 
       const len = Math.hypot(moveX, moveY);
+      // corrida: Shift (teclado) ou analógico quase no talo (celular)
+      const sprintKey =
+        !!(this.keys['ShiftLeft'] || this.keys['ShiftRight'] || this.keys['shift']);
+      const touchMag = Math.hypot(this.touchVector.x, this.touchVector.y);
+      const sprintTouch = touchMag > 0.82;
+      this.heroRunning = len > 0.05 && (sprintKey || sprintTouch);
       // base mais rápida + escala com Agilidade (pontos de habilidade)
-      const speed = 150 + this.stats.agilidade * 7;
+      const speed = (150 + this.stats.agilidade * 7) * (this.heroRunning ? 1.7 : 1);
 
       if (len > 0.05) {
         this.player.isMoving = true;
@@ -2992,7 +3003,7 @@ export class GameEngine {
           this.player.direction = moveY > 0 ? 'down' : 'up';
         }
 
-        this.player.stepTimer += dt * 8;
+        this.player.stepTimer += dt * (this.heroRunning ? 12 : 8);
         this.player.frame = Math.floor(this.player.stepTimer) % 4;
 
         this.footstepTimer += dt;
@@ -3003,6 +3014,7 @@ export class GameEngine {
       } else {
         this.player.isMoving = false;
         this.player.actionState = 'idle';
+        this.heroRunning = false;
         this.player.vx = 0;
         this.player.vy = 0;
         this.player.stepTimer += dt * 3.5;
@@ -4688,13 +4700,13 @@ export class GameEngine {
     const isMoving = char.isMoving;
 
     // ---- Akles: herói cavaleiro animado (sprite sheets processadas) ----
-    const aklesKey: 'idle' | 'walk' | AklesAction =
-      isAction ? (act as AklesAction) : isMoving ? 'walk' : 'idle';
+    const aklesKey: 'idle' | 'walk' | 'run' | AklesAction =
+      isAction ? (act as AklesAction) : isMoving ? (this.heroRunning ? 'run' : 'walk') : 'idle';
     const aMeta = AKLES_ANIM[aklesKey];
     const aSheet = assets?.[aMeta.sheet] as HTMLImageElement | undefined;
 
     if (aSheet && aSheet.complete && aSheet.naturalWidth > 0) {
-      const dispScale = AKLES_DISP_SCALE;
+      const dispScale = aMeta.disp ?? AKLES_DISP_SCALE;
       const dispW = aMeta.cw * dispScale;
       const dispH = aMeta.ch * dispScale;
       const feetY = cy + 30;

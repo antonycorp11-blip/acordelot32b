@@ -748,20 +748,35 @@ export const GameCanvas: React.FC = () => {
 
   const currentCategoryItems = PROP_CATALOG.filter((item) => item.category === activeCategory);
 
-  return (
-    <div className="relative w-full h-full bg-slate-950 flex flex-col items-center justify-center select-none overflow-hidden font-sans">
-      {/* O jogo só funciona em paisagem — em retrato o HUD inteiro fica
-          torto (posições pensadas pra tela larga). Trava até girar. */}
-      {isTouchDevice && isPortrait && (
-        <div className="fixed inset-0 z-[999] flex flex-col items-center justify-center gap-4 bg-slate-950 text-center px-8 pointer-events-auto">
-          <div className="text-6xl animate-bounce" style={{ animationDuration: '1.6s' }}>📱↻</div>
-          <p className="text-lg font-black text-amber-300">Gire o celular</p>
-          <p className="text-sm text-slate-400 max-w-xs">
-            O Acordelot só funciona em modo paisagem (deitado). Vire seu aparelho pra continuar.
-          </p>
-        </div>
-      )}
+  // O jogo só funciona em paisagem. Em celular com a ROTAÇÃO DO SISTEMA
+  // travada (comum em Android — trava ativada não deixa a tela virar mesmo
+  // segurando o aparelho deitado), pedir pra girar não adianta: o viewport
+  // nunca fica largo. Em vez de bloquear, gira o conteúdo INTEIRO por CSS
+  // (truque padrão de "forçar paisagem") — o jogador segura deitado, a UI
+  // gira 90° pra compensar, e visualmente cai tudo no lugar certo pra ele.
+  // Clique-no-canvas (getWorldPosFromEvent) só é usado no editor de mapa
+  // (desktop), nunca no toque — então girar por CSS não quebra input mobile.
+  const needsCssRotate = isTouchDevice && isPortrait;
 
+  return (
+    <div
+      style={
+        needsCssRotate
+          ? {
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              width: '100vh',
+              height: '100vw',
+              transformOrigin: 'top left',
+              transform: 'rotate(90deg) translateY(-100%)',
+              background: '#020617',
+              overflow: 'hidden',
+            }
+          : { position: 'fixed', inset: 0 }
+      }
+    >
+    <div className="relative w-full h-full bg-slate-950 flex flex-col items-center justify-center select-none overflow-hidden font-sans">
       {/* ------------------------------------------------------------- */}
       {/* SLEEK TOP BAR EDITOR (Posicionado no topo, fino e desobstruído) */}
       {/* ------------------------------------------------------------- */}
@@ -1616,6 +1631,7 @@ export const GameCanvas: React.FC = () => {
           </div>
         </div>
       )}
+    </div>
     </div>
   );
 };

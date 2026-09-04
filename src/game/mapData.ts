@@ -133,8 +133,9 @@ export function buildMap(): MapGrid {
   };
 
   // 2. RUAS PRINCIPAIS
-  // Avenida Central Vertical (N-S) — cols 33..38
-  pave(33, 38, 0, MAP_ROWS - 1);
+  // Avenida Central Vertical (N-S) — cols 33..38 (só o bloco norte; a
+  // Floresta Sombria não tem pisos)
+  pave(33, 38, 0, DARK_START - 1);
   // Avenida Central Horizontal (L-O) — rows 24..29
   pave(0, MAP_COLS - 1, 24, 29);
   // Praça da Fonte (cantos chanfrados)
@@ -640,52 +641,16 @@ export function buildMap(): MapGrid {
     return 0;
   };
 
-  // ---- Rede de trilhas de terra batida (caminhos claros) ----
-  // Nenhuma árvore/pedra a <= PATH_CLEAR tiles do centro de uma trilha.
-  const pathCells = new Set<string>();
-  const stampPath = (c: number, r: number, half: number) => {
-    for (let dr = -half; dr <= half; dr++)
-      for (let dc = -half; dc <= half; dc++) {
-        const cc = c + dc;
-        const rr = r + dr;
-        if (cc < 1 || cc >= MAP_COLS - 1 || rr < DARK_START || rr >= MAP_ROWS - 1) continue;
-        pathCells.add(`${cc},${rr}`);
-        if (ground[rr][cc] < 9000 || ground[rr][cc] === TERRAIN_TILES.DARK_SOIL || ground[rr][cc] === TERRAIN_TILES.DARK_STONE || ground[rr][cc] === TERRAIN_TILES.DARK_MOSS)
-          ground[rr][cc] = TERRAIN_TILES.DARK_PATH;
-      }
-  };
-  // 2 trilhas verticais serpenteando de cima a baixo
-  for (let k = 0; k < 2; k++) {
-    let c = 24 + k * 64 + Math.floor(rnd() * 16);
-    for (let r = DARK_START; r < MAP_ROWS - 2; r++) {
-      c += Math.round((rnd() - 0.5) * 2.2);
-      c = Math.max(6, Math.min(MAP_COLS - 6, c));
-      stampPath(c, r, rnd() < 0.25 ? 2 : 1);
-    }
-  }
-  // 2 trilhas horizontais ligando as laterais
-  for (let k = 0; k < 2; k++) {
-    let r = DARK_START + 14 + k * 26 + Math.floor(rnd() * 8);
-    for (let c = 2; c < MAP_COLS - 2; c++) {
-      r += Math.round((rnd() - 0.5) * 2.2);
-      r = Math.max(DARK_START + 3, Math.min(MAP_ROWS - 4, r));
-      stampPath(c, r, rnd() < 0.25 ? 2 : 1);
-    }
-  }
-  const onPath = (c: number, r: number) => pathCells.has(`${c},${r}`);
-
   const MAX_DARK = 4400;
   for (let r = DARK_START + 1; r < MAP_ROWS - 2 && did < MAX_DARK; r++) {
     for (let c = 2; c < MAP_COLS - 2 && did < MAX_DARK; c++) {
-      if (onPath(c, r)) continue; // trilha limpa
       const gl = inGlade(c, r);
       if (gl > 2.5) {
-        ground[r][c] = TERRAIN_TILES.DARK_MOSS;
-        continue; // centro da clareira: vazio
+        continue; // centro da clareira: vazio (sem piso especial)
       }
       const glEdge = gl > 0;
       const n = fnoise(c * 1.3, r * 1.1);
-      // densa, mas transitável (clareiras e trilhas abrem espaço)
+      // densa, mas transitável (as clareiras abrem espaço)
       const density = glEdge ? 0.12 : n > 0.15 ? 0.55 : 0.3;
       const p = rnd();
       if (p > density) {
@@ -716,7 +681,7 @@ export function buildMap(): MapGrid {
   for (let i = 0; i < 140 && did < MAX_DARK; i++) {
     const c = 4 + Math.floor(rnd() * (MAP_COLS - 8));
     const r = DARK_START + 4 + Math.floor(rnd() * (MAP_ROWS - DARK_START - 8));
-    if (inGlade(c, r) > 3 || onPath(c, r)) continue;
+    if (inGlade(c, r) > 3) continue;
     const x = c * TILE_SIZE;
     const y = r * TILE_SIZE;
     const q = rnd();

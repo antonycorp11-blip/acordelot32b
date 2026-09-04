@@ -30,6 +30,7 @@ import { TouchControls } from './TouchControls';
 import { Inventory } from './Inventory';
 import { PlayerHud } from './PlayerHud';
 import { CharacterScreen } from './CharacterScreen';
+import { DayCycleIndicator } from './DayCycleIndicator';
 import { SynthesisScreen } from './SynthesisScreen';
 import { publishMapToCode, getGhToken, setGhToken } from '../game/mapPersist';
 import { Backpack, Hand, User, CloudRain, Music4 } from 'lucide-react';
@@ -1162,11 +1163,21 @@ export const GameCanvas: React.FC = () => {
         </div>
       )}
 
-      {/* Top Right Quick Controls (Quando o editor está fechado) */}
+      {/* Indicador do ciclo de dia/noite (sempre visível, topo direito) */}
       {!isEditMode && (
         <div
+          className="absolute right-4 z-20"
+          style={{ top: 'calc(12px + env(safe-area-inset-top))' }}
+        >
+          <DayCycleIndicator engine={engineRef.current} />
+        </div>
+      )}
+
+      {/* Top Right Quick Controls — SÓ no desktop/Mac (some no celular) */}
+      {!isEditMode && !isTouchDevice && (
+        <div
           className="absolute right-4 z-20 flex items-center gap-2"
-          style={{ top: 'calc(16px + env(safe-area-inset-top))' }}
+          style={{ top: 'calc(112px + env(safe-area-inset-top))' }}
         >
           {/* Chuva */}
           <button

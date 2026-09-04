@@ -865,7 +865,34 @@ export class GameEngine {
   lightCanvas: HTMLCanvasElement;
   lightCtx: CanvasRenderingContext2D;
 
-  timeOfDay: TimeOfDay = 'day';
+  // Ciclo de dia/noite automático. dayClock: 0=meia-noite, 0.25=amanhecer,
+  // 0.5=meio-dia, 0.75=anoitecer. Uma volta completa = DAY_LENGTH segundos.
+  dayClock = 0.33;
+  autoDayCycle = true;
+  static readonly DAY_LENGTH = 600; // 10 min de jogo por dia completo
+  onDayClockChange?: (clock: number) => void;
+
+  get timeOfDay(): TimeOfDay {
+    const n = this.nightAmount;
+    if (n > 0.62) return 'night';
+    if (n > 0.18) return 'sunset';
+    return 'day';
+  }
+  // altura do "sol": -1 meia-noite, +1 meio-dia
+  get sunAltitude() {
+    return -Math.cos(this.dayClock * Math.PI * 2);
+  }
+  // 0 = dia pleno, 1 = noite fechada (transição suave no crepúsculo)
+  get nightAmount() {
+    const a = this.sunAltitude;
+    const t = (0.16 - a) / 0.52;
+    const c = t < 0 ? 0 : t > 1 ? 1 : t;
+    return c * c * (3 - 2 * c);
+  }
+  // true na subida do sol (para tingir o crepúsculo de laranja dos dois lados)
+  get isDawn() {
+    return this.dayClock < 0.5;
+  }
 
   assets: LoadedAssets | null = null;
   assetsLoaded: boolean = false;
@@ -1378,8 +1405,10 @@ export class GameEngine {
     return null;
   }
 
+  // Botão de dev (só desktop): pula o relógio, o ciclo automático segue daí.
   setTimeOfDay(time: TimeOfDay) {
-    this.timeOfDay = time;
+    this.dayClock = time === 'night' ? 0.86 : time === 'sunset' ? 0.76 : 0.34;
+    this.onDayClockChange?.(this.dayClock);
   }
 
   setWeather(w: 'clear' | 'rain') {
@@ -2861,6 +2890,16 @@ export class GameEngine {
     this.timeElapsed += dt;
     if (this.gridDirty) this.rebuildColliderGrid();
 
+    // ciclo de dia/noite automático
+    if (this.autoDayCycle) {
+      const prev = this.dayClock;
+      this.dayClock = (this.dayClock + dt / GameEngine.DAY_LENGTH) % 1;
+      // notifica o HUD ~2x por segundo
+      if (Math.floor(prev * 240) !== Math.floor(this.dayClock * 240)) {
+        this.onDayClockChange?.(this.dayClock);
+      }
+    }
+
     this.shrineTimer += dt;
     if (this.shrineTimer > 0.11) {
       this.shrineTimer = 0;
@@ -3304,28 +3343,9 @@ export class GameEngine {
           const screenY = r * TILE_SIZE - camY;
 
           if (tileId >= 9002 && tileId <= 9005) {
-            // solo da Floresta Sombria — terroso, contraste baixo (nada de xadrez)
-            ctx.fillStyle =
-              tileId === 9004
-                ? '#323c2a' // musgo escuro (clareiras)
-                : tileId === 9005
-                  ? '#5a4632' // trilha de terra batida
-                  : '#3b3226'; // terra escura
+            // solo da Floresta Sombria — terra escura, plana (sem xadrez)
+            ctx.fillStyle = tileId === 9004 ? '#37402d' : '#3b3226';
             ctx.fillRect(screenX, screenY, 32, 32);
-            // ruído por tile (suave, aleatório) — quebra qualquer padrão
-            const nz = (Math.abs(Math.sin(c * 91.7 + r * 47.3)) % 1) - 0.5;
-            ctx.fillStyle = `rgba(0,0,0,${0.05 + nz * 0.045})`;
-            ctx.fillRect(screenX, screenY, 32, 32);
-            if (tileId === 9004) {
-              ctx.fillStyle = 'rgba(70,86,56,0.16)';
-              ctx.fillRect(screenX + ((c * 13) % 22), screenY + ((r * 7) % 20), 6, 5);
-              ctx.fillRect(screenX + ((c * 29) % 24), screenY + ((r * 19) % 22), 4, 3);
-            } else if (tileId === 9005) {
-              ctx.fillStyle = 'rgba(120,95,66,0.35)';
-              ctx.fillRect(screenX + ((c * 11) % 22), screenY + ((r * 7) % 22), 5, 3);
-              ctx.fillStyle = 'rgba(30,22,15,0.3)';
-              ctx.fillRect(screenX + ((c * 17) % 24), screenY + ((r * 13) % 24), 3, 3);
-            }
             continue;
           }
           if (tileId >= 9000) {
@@ -3590,58 +3610,46 @@ export class GameEngine {
   }
 
   renderLightingShader(mainCtx: CanvasRenderingContext2D, camX: number, camY: number) {
-    const tod = this.effTime();
     const dt = this.darkT;
     const dark = this.inDarkForest;
-    if (tod === 'day' && dt < 0.02) {
+    // escuridão contínua: máx entre o relógio e a Floresta Sombria
+    const night = Math.max(this.nightAmount, dt * 0.95);
+    const w = this.viewportW;
+    const h = this.viewportH;
+
+    // crepúsculo: 1 quando o sol está no horizonte
+    const twilight = Math.max(0, 1 - Math.abs(this.sunAltitude) / 0.4);
+
+    if (night < 0.04 && dt < 0.02) {
+      // dia pleno — leve calor + tom de amanhecer/entardecer se houver
+      if (twilight > 0.02) {
+        mainCtx.fillStyle = `rgba(${this.isDawn ? '255,180,120' : '245,150,90'}, ${0.16 * twilight})`;
+        mainCtx.fillRect(0, 0, w, h);
+      }
       mainCtx.fillStyle = 'rgba(255, 245, 200, 0.025)';
-      mainCtx.fillRect(0, 0, this.viewportW, this.viewportH);
+      mainCtx.fillRect(0, 0, w, h);
       return;
     }
-    if (tod === 'day') {
+    if (night < 0.12) {
       // dia no norte, mas o herói entrou na faixa da Floresta Sombria
       this.renderDarkForestVeil(mainCtx, camX, camY, dt);
       return;
     }
 
     const lCtx = this.lightCtx;
-    const w = this.viewportW;
-    const h = this.viewportH;
-
     lCtx.clearRect(0, 0, w, h);
 
-    if (tod === 'sunset') {
-      mainCtx.fillStyle = 'rgba(217, 119, 6, 0.2)';
+    // tom quente de crepúsculo por baixo do véu (some ao virar noite fechada)
+    if (twilight > 0.02 && night < 0.9) {
+      mainCtx.fillStyle = `rgba(${this.isDawn ? '255,170,110' : '235,120,70'}, ${0.22 * twilight * (1 - night)})`;
       mainCtx.fillRect(0, 0, w, h);
-
-      mainCtx.fillStyle = 'rgba(88, 28, 135, 0.08)';
+      mainCtx.fillStyle = `rgba(80, 30, 120, ${0.06 * twilight})`;
       mainCtx.fillRect(0, 0, w, h);
-
-      mainCtx.save();
-      mainCtx.globalCompositeOperation = 'lighter';
-      for (const prop of this.props) {
-        if (prop.type === 'streetLantern') {
-          const lampX = Math.round(prop.x + prop.w * 0.49 - camX);
-          const lampY = Math.round(prop.y + prop.h * 0.24 - camY);
-          if (lampX < -100 || lampX > w + 100 || lampY < -100 || lampY > h + 100) continue;
-
-          const grad = mainCtx.createRadialGradient(lampX, lampY, 2, lampX, lampY, 65);
-          grad.addColorStop(0, 'rgba(254, 240, 138, 0.6)');
-          grad.addColorStop(0.4, 'rgba(245, 158, 11, 0.25)');
-          grad.addColorStop(1, 'rgba(245, 158, 11, 0)');
-          mainCtx.fillStyle = grad;
-          mainCtx.beginPath();
-          mainCtx.arc(lampX, lampY, 65, 0, Math.PI * 2);
-          mainCtx.fill();
-        }
-      }
-      mainCtx.restore();
-      return;
     }
 
-    // ===== NOITE — azulada, com luar. Na Floresta Sombria fecha um pouco mais,
-    // mas NÃO ao ponto de cegar (transição suave via dt). =====
-    const nightA = 0.66 + 0.04 * dt; // antes: 0.70 normal / 0.86 sombria
+    // ===== VÉU noturno — escala suave com `night`. Floresta Sombria fecha um
+    // pouco mais, mas NÃO ao ponto de cegar. =====
+    const nightA = night * (0.68 + 0.05 * dt);
     lCtx.fillStyle = `rgba(9, 12, 24, ${nightA})`;
     lCtx.fillRect(0, 0, w, h);
 
@@ -3770,11 +3778,11 @@ export class GameEngine {
     lCtx.restore();
     mainCtx.drawImage(this.lightCanvas, 0, 0);
 
-    // Banho de luar frio (azul-prateado) por cima
+    // Banho de luar frio (azul-prateado) por cima — escala com a noite
     mainCtx.save();
     const moon = mainCtx.createLinearGradient(0, 0, 0, h);
-    moon.addColorStop(0, 'rgba(130, 160, 225, 0.12)');
-    moon.addColorStop(1, 'rgba(50, 70, 150, 0.05)');
+    moon.addColorStop(0, `rgba(130, 160, 225, ${0.12 * night})`);
+    moon.addColorStop(1, `rgba(50, 70, 150, ${0.05 * night})`);
     mainCtx.fillStyle = moon;
     mainCtx.fillRect(0, 0, w, h);
 
@@ -4495,7 +4503,7 @@ export class GameEngine {
       const row = AKLES_DIR_ROW[npc.direction];
       const col = npc.isMoving
         ? Math.floor(npc.stepTimer * (m.fps / 8)) % m.cols
-        : Math.floor(this.timeElapsed * 2 + npc.x) % 2; // leve balanço parado
+        : 0; // parado = frame neutro (sem "pisar no lugar")
       const dx = Math.round(cx + npc.width / 2 - dispW / 2);
       const dy = Math.round(cy + npc.height - dispH * ((m.ch - 4) / m.ch));
 
@@ -4504,8 +4512,22 @@ export class GameEngine {
       ctx.ellipse(cx + npc.width / 2, cy + npc.height - 2, 11, 4.5, 0, 0, Math.PI * 2);
       ctx.fill();
 
+      // Amostra o frame com um recuo de 1.5px: com imageSmoothing ligado a
+      // interpolação bilinear "puxava" pixels dos frames vizinhos e desenhava
+      // um fantasma do NPC ao lado (parecia dois NPCs ao andar).
+      const inset = 1.5;
       ctx.imageSmoothingEnabled = true;
-      ctx.drawImage(sheet, col * m.cw, row * m.ch, m.cw, m.ch, dx, dy, Math.round(dispW), Math.round(dispH));
+      ctx.drawImage(
+        sheet,
+        col * m.cw + inset,
+        row * m.ch + inset,
+        m.cw - inset * 2,
+        m.ch - inset * 2,
+        dx,
+        dy,
+        Math.round(dispW),
+        Math.round(dispH),
+      );
       ctx.imageSmoothingEnabled = false;
 
       // marcador de conversa quando o herói está perto

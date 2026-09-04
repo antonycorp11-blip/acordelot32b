@@ -23,6 +23,11 @@ export interface LoadedAssets {
   knightIdle: HTMLImageElement;
   knightSlash: HTMLImageElement;
 
+  // Monstros
+  monEcoAzul: HTMLImageElement;
+  monAranha: HTMLImageElement;
+  monNocturno: HTMLImageElement;
+
   // NPCs
   npcCadencia: HTMLImageElement;
   npcTonico: HTMLImageElement;
@@ -114,6 +119,11 @@ const ASSET_PATHS: Record<keyof LoadedAssets, string> = {
   knightWalk: '/assets/characters/knight_walk.png',
   knightIdle: '/assets/characters/knight_idle.png',
   knightSlash: '/assets/characters/knight_slash.png',
+
+  // Monstros
+  monEcoAzul: '/assets/monsters/eco_azul.png',
+  monAranha: '/assets/monsters/aranha.png',
+  monNocturno: '/assets/monsters/nocturno.png',
 
   // NPCs
   npcCadencia: '/assets/characters/npcs/cadencia.png',

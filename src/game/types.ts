@@ -125,6 +125,41 @@ export interface Particle {
   alpha: number;
 }
 
+export interface Enemy {
+  id: string;
+  kind: string;
+  x: number;
+  y: number;
+  homeX: number;
+  homeY: number;
+  hp: number;
+  maxHp: number;
+  facingLeft: boolean;
+  state: 'idle' | 'walk' | 'chase' | 'attack' | 'hurt' | 'dead';
+  frame: number;
+  animTimer: number;
+  stateTimer: number;
+  attackCd: number;
+  hurtFlash: number;
+  knockX: number;
+  knockY: number;
+  wanderTarget: Point | null;
+  wanderTimer: number;
+  respawnAt: number;
+  hitBy: number; // timeElapsed do último golpe (evita multi-hit no mesmo swing)
+}
+
+export interface LightBeam {
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  life: number;
+  maxLife: number;
+  dmg: number;
+  hitIds: string[];
+}
+
 export interface Butterfly {
   x: number;
   y: number;

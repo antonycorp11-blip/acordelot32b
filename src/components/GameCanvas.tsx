@@ -333,6 +333,7 @@ export const GameCanvas: React.FC = () => {
   const [showSynth, setShowSynth] = useState(false);
   const [fragments, setFragments] = useState<number[]>(new Array(12).fill(0));
   const [notesBuilt, setNotesBuilt] = useState<number[]>(new Array(12).fill(0));
+  const [coins, setCoins] = useState(0);
 
   // Map Editor, Time of Day & Zoom State
   const [isEditMode, setIsEditMode] = useState(false);
@@ -381,6 +382,7 @@ export const GameCanvas: React.FC = () => {
       setFragments(f);
       setNotesBuilt(built);
     };
+    engine.onCoinsChange = (n) => setCoins(n);
 
     engine.onHarvestPopup = (text) => {
       setPickupFlash(text);
@@ -972,6 +974,7 @@ export const GameCanvas: React.FC = () => {
         open={showInventory && !isEditMode}
         onClose={() => setShowInventory(false)}
         items={inventory}
+        coins={coins}
       />
 
       <SynthesisScreen

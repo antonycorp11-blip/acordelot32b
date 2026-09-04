@@ -150,8 +150,10 @@ function processSheet(cfg) {
       for (let y = y0; y <= y1; y++) if (A(data, width, x, y) > 24) c++;
       colCounts[x] = c;
     }
-    let cells = segments1D(colCounts, 2, 10);
-    if (cells.length !== cfg.cols) {
+    // NPCs: grade uniforme fixa (as folhas 10x4 são regulares; detecção por
+    // conteúdo junta poses "flutuantes" e gera frames com 2 personagens)
+    let cells;
+    {
       const first = colCounts.findIndex((c) => c > 1);
       let last = width - 1;
       while (last > 0 && colCounts[last] <= 1) last--;
@@ -160,7 +162,6 @@ function processSheet(cfg) {
         Math.round(first + i * span),
         Math.round(first + (i + 1) * span) - 1,
       ]);
-      console.warn(`[${cfg.file}] linha ${srcRi}: ${cfg.cols} col. uniformes (detectou outra qtd)`);
     }
 
     return {

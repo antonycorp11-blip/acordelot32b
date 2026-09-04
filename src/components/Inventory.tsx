@@ -6,12 +6,13 @@ interface InventoryProps {
   open: boolean;
   onClose: () => void;
   items: Record<string, number>;
+  coins: number;
 }
 
-const SLOT_COUNT = 12;
+const SLOT_COUNT = 16;
 
-/** Protótipo de inventário: grade de slots com ícone + quantidade. */
-export const Inventory: React.FC<InventoryProps> = ({ open, onClose, items }) => {
+/** Protótipo de inventário: grade de slots + moeda PvE (claves musicais). */
+export const Inventory: React.FC<InventoryProps> = ({ open, onClose, items, coins }) => {
   if (!open) return null;
 
   const entries = (Object.entries(items) as Array<[string, number]>).filter(([, q]) => q > 0);
@@ -34,13 +35,22 @@ export const Inventory: React.FC<InventoryProps> = ({ open, onClose, items }) =>
       <div className="relative w-full max-w-sm bg-slate-900/95 border border-amber-500/50 rounded-2xl shadow-2xl p-4 animate-in fade-in zoom-in-95 duration-150">
         <div className="flex items-center justify-between mb-2 border-b border-slate-700/70 pb-2">
           <h3 className="text-sm font-bold text-amber-200 tracking-wide">🎒 Mochila</h3>
-          <button
-            type="button"
-            onClick={onClose}
-            className="cursor-pointer text-slate-400 hover:text-white p-1"
-          >
-            <X className="w-4 h-4" />
-          </button>
+          <div className="flex items-center gap-2">
+            <span
+              className="flex items-center gap-1 text-xs font-black px-2 py-0.5 rounded-full bg-amber-500/15 border border-amber-500/40 text-amber-300"
+              title="Claves musicais — moeda de combate"
+            >
+              <img src="/assets/items/clave.png" alt="clave" className="w-4 h-4 object-contain" />
+              {coins}
+            </span>
+            <button
+              type="button"
+              onClick={onClose}
+              className="cursor-pointer text-slate-400 hover:text-white p-1"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
         </div>
 
         {/* Peso transportado */}
@@ -79,9 +89,15 @@ export const Inventory: React.FC<InventoryProps> = ({ open, onClose, items }) =>
             >
               {slot ? (
                 <>
-                  <span className="text-2xl leading-none">
-                    {ITEM_META[slot[0]]?.icon ?? '❓'}
-                  </span>
+                  {ITEM_META[slot[0]]?.img ? (
+                    <img
+                      src={ITEM_META[slot[0]]!.img}
+                      alt=""
+                      className="w-8 h-8 object-contain drop-shadow"
+                    />
+                  ) : (
+                    <span className="text-2xl leading-none">{ITEM_META[slot[0]]?.icon ?? '❓'}</span>
+                  )}
                   <span className="absolute bottom-1 right-1.5 text-[11px] font-bold text-amber-300 tabular-nums">
                     {slot[1]}
                   </span>

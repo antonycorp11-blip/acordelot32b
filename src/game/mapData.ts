@@ -748,5 +748,77 @@ export function buildMap(): MapGrid {
     ],
   });
 
+  // --- 5 andarilhos nas estradas afastadas (mesmos sprites, personas novas) ---
+  addNpc({
+    id: 'npc_fusa',
+    name: 'Fusa, a Andarilha',
+    title: 'Correio das Notas Rápidas',
+    sprite: 'seminima',
+    accent: '#fbbf24',
+    speed: 66,
+    route: [[36, 4], [36, 20], [34, 12], [38, 6]],
+    dialogue: [
+      'Rápido, rápido! Uma fusa vale meio tempo de uma colcheia, sabia?',
+      'Vi Ecos azuis na mata ao norte. Bonitinhos, mas mordem.',
+      'Se cair, a Fonte te traz de volta. Já testei. Várias vezes.',
+    ],
+  });
+  addNpc({
+    id: 'npc_bordao',
+    name: 'Bordão do Sul',
+    title: 'Tocador de Zanfona',
+    sprite: 'tonico',
+    accent: '#84cc16',
+    speed: 30,
+    route: [[36, 104], [36, 88], [34, 96], [38, 100]],
+    dialogue: [
+      'A nota que segura tudo embaixo chamam de bordão. Eu também seguro.',
+      'Ao sul o rio é fundo. Use a ponte, a não ser que saiba respirar água.',
+      'Traga claves e eu afino sua espada com elas — um dia desses.',
+    ],
+  });
+  addNpc({
+    id: 'npc_contralto',
+    name: 'Contralto Leste',
+    title: 'Voz Grave do Bosque',
+    sprite: 'setimo',
+    accent: '#c084fc',
+    speed: 46,
+    route: [[118, 26], [136, 26], [136, 29], [122, 29]],
+    dialogue: [
+      'Contralto: baixo pra mulher, alto pra floresta. Aqui todo mundo canta.',
+      'A Aranha da Pauta tece com fio de nylon dó. Corta feito faca.',
+      'Se ouvir um zumbido em terça menor... corre.',
+    ],
+  });
+  addNpc({
+    id: 'npc_colcheia',
+    name: 'Colcheia',
+    title: 'Menina do Balde Furado',
+    sprite: 'cadencia',
+    accent: '#38bdf8',
+    speed: 40,
+    route: [[6, 26], [22, 26], [14, 28], [10, 25]],
+    dialogue: [
+      'Eu ligo duas colcheias e viro uma semínima. Truque de gente grande.',
+      'A oeste tem uma clareira cheia de fragmentos azuis. E de dentes.',
+      'Você é o Akles de verdade? Achei que fosse mais... alto.',
+    ],
+  });
+  addNpc({
+    id: 'npc_bemol',
+    name: 'Bemol, o Eremita',
+    title: 'Aquele que Desce Meio Tom',
+    sprite: 'diapasao',
+    accent: '#22d3ee',
+    speed: 24,
+    route: [[36, 74], [36, 58], [34, 66], [38, 62]],
+    dialogue: [
+      'Bemol abaixa. Sustenido levanta. A vida toda é essa gangorra.',
+      'Moro entre a vila e o nada. Daqui escuto as doze notas ao mesmo tempo.',
+      'Quando montar a última, volte aqui. Eu conto o final da história.',
+    ],
+  });
+
   return { ground, solidColliders, props, npcs };
 }

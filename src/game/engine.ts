@@ -24,6 +24,8 @@ import {
   Butterfly,
   Rect,
   HarvestState,
+  Enemy,
+  LightBeam,
 } from './types';
 import {
   buildMap,
@@ -73,13 +75,33 @@ export interface ItemMeta {
   icon: string;
   weight: number; // peso por unidade
   heal?: number; // cura de vida (uso futuro)
+  img?: string; // ícone em arquivo (opcional)
 }
+
+// notas cromáticas (Dó..Si) — nomes, cores e chaves de arquivo
+export const NOTE_NAMES = ['Dó', 'Dó♯', 'Ré', 'Ré♯', 'Mi', 'Fá', 'Fá♯', 'Sol', 'Sol♯', 'Lá', 'Lá♯', 'Si'];
+export const NOTE_COLORS = [
+  '#ef4444', '#f97316', '#f59e0b', '#eab308', '#a3e635', '#22c55e',
+  '#14b8a6', '#06b6d4', '#3b82f6', '#6366f1', '#a855f7', '#ec4899',
+];
+export const NOTE_KEY = ['c', 'cs', 'd', 'ds', 'e', 'f', 'fs', 'g', 'gs', 'a', 'as', 'b'];
+const FRAG_FILE = ['C', 'Cs', 'D', 'Ds', 'E', 'F', 'Fs', 'G', 'Gs', 'A', 'As', 'B'];
+export const FRAGMENTS_PER_NOTE = 30;
+
 export const ITEM_META: Record<string, ItemMeta> = {
   wood: { name: 'Madeira', icon: '🪵', weight: 1.0 },
   stone: { name: 'Pedra', icon: '🪨', weight: 1.6 },
   ore: { name: 'Minério', icon: '🪙', weight: 2.2 },
   berry: { name: 'Frutinha', icon: '🍓', weight: 0.2, heal: 8 },
 };
+NOTE_KEY.forEach((k, i) => {
+  ITEM_META['frag_' + k] = {
+    name: 'Fragmento de ' + NOTE_NAMES[i],
+    icon: '◆',
+    weight: 0.08,
+    img: `/assets/items/fragments/${FRAG_FILE[i]}.png`,
+  };
+});
 
 // Peso máximo que o Akles carrega
 export const MAX_CARRY_WEIGHT = 40;
@@ -116,38 +138,6 @@ interface HarvestDef {
   dropMax: number;
   respawnSecs: number;
 }
-// ---- FRAGMENTOS DE NOTAS (joias comutativas — 12 notas cromáticas) ----
-export const NOTE_NAMES = [
-  'Dó',
-  'Dó♯',
-  'Ré',
-  'Ré♯',
-  'Mi',
-  'Fá',
-  'Fá♯',
-  'Sol',
-  'Sol♯',
-  'Lá',
-  'Lá♯',
-  'Si',
-];
-// roda cromática de cores (12 matizes)
-export const NOTE_COLORS = [
-  '#ef4444',
-  '#f97316',
-  '#f59e0b',
-  '#eab308',
-  '#a3e635',
-  '#22c55e',
-  '#14b8a6',
-  '#06b6d4',
-  '#3b82f6',
-  '#6366f1',
-  '#a855f7',
-  '#ec4899',
-];
-export const FRAGMENTS_PER_NOTE = 30;
-
 export interface FragmentPickup {
   id: string;
   x: number;
@@ -178,6 +168,47 @@ export const HARVEST_DEFS: Record<string, HarvestDef> = {
   rockMonolith: { kind: 'rock', maxHp: 4, drop: 'stone', dropMin: 2, dropMax: 4, respawnSecs: 28 },
   rockFlatSlab: { kind: 'rock', maxHp: 2, drop: 'stone', dropMin: 1, dropMax: 2, respawnSecs: 18 },
 };
+
+// ---- MONSTROS (dissonantes) ----
+interface EnemyDef {
+  sheet: keyof LoadedAssets;
+  name: string;
+  cols: number;
+  cw: number;
+  ch: number;
+  disp: number; // escala de exibição
+  hp: number;
+  speed: number;
+  aggro: number;
+  attackRange: number;
+  touchDamage: number;
+  attackCd: number;
+  xp: number;
+  claveMin: number;
+  claveMax: number;
+  fragMin: number;
+  fragMax: number;
+  respawnSecs: number;
+}
+export const ENEMY_DEFS: Record<string, EnemyDef> = {
+  eco_azul: {
+    sheet: 'monEcoAzul', name: 'Eco Azul', cols: 5, cw: 110, ch: 120, disp: 0.44,
+    hp: 12, speed: 46, aggro: 150, attackRange: 26, touchDamage: 6, attackCd: 1.1,
+    xp: 8, claveMin: 0, claveMax: 1, fragMin: 1, fragMax: 2, respawnSecs: 30,
+  },
+  aranha: {
+    sheet: 'monAranha', name: 'Aranha da Pauta', cols: 5, cw: 128, ch: 108, disp: 0.5,
+    hp: 30, speed: 62, aggro: 200, attackRange: 34, touchDamage: 12, attackCd: 1.3,
+    xp: 22, claveMin: 1, claveMax: 2, fragMin: 2, fragMax: 4, respawnSecs: 45,
+  },
+  nocturno: {
+    sheet: 'monNocturno', name: 'Nocturno Alado', cols: 5, cw: 120, ch: 128, disp: 0.52,
+    hp: 46, speed: 78, aggro: 240, attackRange: 30, touchDamage: 16, attackCd: 1.0,
+    xp: 38, claveMin: 2, claveMax: 3, fragMin: 3, fragMax: 5, respawnSecs: 60,
+  },
+};
+// linhas da folha 5x4: 0=idle, 1=walk, 2=hurt/attack, 3=death
+const ENEMY_ROW = { idle: 0, walk: 1, hurt: 2, attack: 2, death: 3, chase: 1 };
 
 export interface InteractionNpc {
   id: string;
@@ -756,6 +787,15 @@ export class GameEngine {
   fragmentPickups: FragmentPickup[] = [];
   onFragmentsChange?: (data: { fragments: number[]; built: number[] }) => void;
 
+  // Combate: monstros, moeda PvE, projéteis
+  enemies: Enemy[] = [];
+  lightBeams: LightBeam[] = [];
+  coins = 0; // claves musicais
+  onCoinsChange?: (n: number) => void;
+  playerHurtFlash = 0;
+  playerInvuln = 0;
+  spawnPoint = { x: 36 * TILE_SIZE, y: 29 * TILE_SIZE };
+
   // Inventário / coleta de recursos
   inventory: Record<string, number> = {};
   onInventoryChange?: (inv: Record<string, number>) => void;
@@ -900,6 +940,7 @@ export class GameEngine {
     this.loadMapFromStorage();
     this.initHarvestables();
     this.initFragments();
+    this.initEnemies();
 
     // Player with 32-bit Knight character
     this.player = {
@@ -1739,6 +1780,7 @@ export class GameEngine {
     this.loadMapFromStorage();
     this.initHarvestables();
     this.initFragments();
+    this.initEnemies();
     this.selectProp(null);
     this.saveMapToStorage();
   }
@@ -1791,18 +1833,25 @@ export class GameEngine {
     return { id, x, y, note, bob: Math.random() * Math.PI * 2, respawnAt: 0 };
   }
 
-  addFragment(note: number) {
-    this.fragments[note] += 1;
+  addFragment(note: number, qty = 1) {
+    this.fragments[note] += qty;
+    this.addToInventory('frag_' + NOTE_KEY[note], qty);
     while (this.fragments[note] >= FRAGMENTS_PER_NOTE) {
       this.fragments[note] -= FRAGMENTS_PER_NOTE;
       this.notesBuilt[note] += 1;
-      this.onHarvestPopup?.(
-        `♪ Nota ${NOTE_NAMES[note]} montada!`,
-        this.player.x,
-        this.player.y - 24
-      );
+      // consome os fragmentos do inventário ao montar a nota
+      const key = 'frag_' + NOTE_KEY[note];
+      this.inventory[key] = Math.max(0, (this.inventory[key] || 0) - FRAGMENTS_PER_NOTE);
+      this.onInventoryChange?.({ ...this.inventory });
+      this.onHarvestPopup?.(`♪ Nota ${NOTE_NAMES[note]} montada!`, this.player.x, this.player.y - 24);
     }
     this.onFragmentsChange?.({ fragments: [...this.fragments], built: [...this.notesBuilt] });
+  }
+
+  addCoins(n: number) {
+    if (n <= 0) return;
+    this.coins += n;
+    this.onCoinsChange?.(this.coins);
   }
 
   updateFragments(dt: number) {
@@ -1821,6 +1870,296 @@ export class GameEngine {
         this.onHarvestPopup?.(`+1 fragmento ${NOTE_NAMES[f.note]}`, f.x, f.y);
         for (let i = 0; i < 8; i++) this.addMiningSpark(f.x, f.y - 6);
         f.respawnAt = this.timeElapsed + 55 + Math.random() * 30;
+      }
+    }
+  }
+
+  // ---- MONSTROS / COMBATE ----
+  initEnemies() {
+    this.enemies = [];
+    const kinds = Object.keys(ENEMY_DEFS);
+    let id = 0;
+    // clusters em áreas de floresta longe da vila
+    const clusters = [
+      [12, 12], [22, 84], [118, 18], [128, 90], [64, 96],
+      [16, 60], [122, 55], [90, 12], [40, 98], [100, 100],
+    ];
+    for (const [cc, rr] of clusters) {
+      const kind = kinds[Math.floor(Math.random() * kinds.length)];
+      const n = 2 + Math.floor(Math.random() * 3);
+      for (let k = 0; k < n; k++) {
+        const c = cc + Math.round((Math.random() - 0.5) * 8);
+        const r = rr + Math.round((Math.random() - 0.5) * 8);
+        const g = this.ground[r]?.[c];
+        if (g === undefined || g >= 9000) continue;
+        const x = c * TILE_SIZE + 8;
+        const y = r * TILE_SIZE + 8;
+        if (this.checkSolidCollision({ x, y, w: 16, h: 12 })) continue;
+        const def = ENEMY_DEFS[kind];
+        this.enemies.push({
+          id: `enemy_${id++}`,
+          kind,
+          x,
+          y,
+          homeX: x,
+          homeY: y,
+          hp: def.hp,
+          maxHp: def.hp,
+          facingLeft: Math.random() < 0.5,
+          state: 'idle',
+          frame: 0,
+          animTimer: Math.random() * 2,
+          stateTimer: 0,
+          attackCd: 0,
+          hurtFlash: 0,
+          knockX: 0,
+          knockY: 0,
+          wanderTarget: null,
+          wanderTimer: Math.random() * 3,
+          respawnAt: 0,
+          hitBy: -1,
+        });
+      }
+    }
+  }
+
+  damagePlayer(n: number) {
+    if (this.playerInvuln > 0) return;
+    const s = this.stats;
+    s.hp = Math.max(0, s.hp - n);
+    this.playerHurtFlash = 0.35;
+    this.playerInvuln = 0.7;
+    this.onStatsChange?.({ ...s });
+    if (s.hp <= 0) {
+      // renasce na vila
+      s.hp = s.maxHp;
+      this.player.x = this.spawnPoint.x;
+      this.player.y = this.spawnPoint.y;
+      this.player.actionState = 'idle';
+      this.playerInvuln = 1.6;
+      this.onStatsChange?.({ ...s });
+      this.onHarvestPopup?.('Você tombou... de volta à Vila', this.spawnPoint.x, this.spawnPoint.y);
+    }
+  }
+
+  damageEnemy(e: Enemy, dmg: number, fromX: number, fromY: number) {
+    if (e.state === 'dead') return;
+    e.hp -= dmg;
+    e.hurtFlash = 0.2;
+    const kd = Math.atan2(e.y - fromY, e.x - fromX);
+    e.knockX = Math.cos(kd) * 90;
+    e.knockY = Math.sin(kd) * 90;
+    for (let i = 0; i < 6; i++) this.addMiningSpark(e.x + 8, e.y);
+    if (e.hp <= 0) {
+      e.state = 'dead';
+      e.frame = 0;
+      e.stateTimer = 0;
+      const def = ENEMY_DEFS[e.kind];
+      const claves = def.claveMin + Math.floor(Math.random() * (def.claveMax - def.claveMin + 1));
+      const frags = def.fragMin + Math.floor(Math.random() * (def.fragMax - def.fragMin + 1));
+      if (claves > 0) this.addCoins(claves);
+      for (let i = 0; i < frags; i++) this.addFragment(Math.floor(Math.random() * 12));
+      this.gainXp(def.xp);
+      const bits = [];
+      if (claves > 0) bits.push(`+${claves} clave`);
+      if (frags > 0) bits.push(`+${frags} frag`);
+      this.onHarvestPopup?.(bits.join('  ') || `${def.name} derrotado`, e.x, e.y - 12);
+      e.respawnAt = this.timeElapsed + def.respawnSecs;
+    } else {
+      e.state = 'hurt';
+      e.stateTimer = 0;
+      e.frame = 0;
+    }
+  }
+
+  // Golpe corpo-a-corpo (chop/attack/spin) — cone à frente do herói
+  applyMeleeHit(dmg: number, reach: number) {
+    const cx = this.player.x + 12;
+    const cy = this.player.y + 18;
+    const dir = this.player.direction;
+    const dvec =
+      dir === 'left' ? [-1, 0] : dir === 'right' ? [1, 0] : dir === 'up' ? [0, -1] : [0, 1];
+    for (const e of this.enemies) {
+      if (e.state === 'dead') continue;
+      if (e.hitBy === this.timeElapsed) continue;
+      const ex = e.x + 8;
+      const ey = e.y;
+      const d = Math.hypot(ex - cx, ey - cy);
+      if (d > reach) continue;
+      const dot = ((ex - cx) * dvec[0] + (ey - cy) * dvec[1]) / (d || 1);
+      if (dot < 0.25 && d > 20) continue; // fora do cone
+      e.hitBy = this.timeElapsed;
+      this.damageEnemy(e, dmg, cx, cy);
+    }
+  }
+
+  fireLightCannon() {
+    const dir = this.player.direction;
+    const dvec =
+      dir === 'left' ? [-1, 0] : dir === 'right' ? [1, 0] : dir === 'up' ? [0, -1] : [0, 1];
+    const dmg = 14 + this.stats.inteligencia * 2.5 + this.stats.level * 2;
+    const speed = 360;
+    this.lightBeams.push({
+      x: this.player.x + 12 + dvec[0] * 16,
+      y: this.player.y + 12 + dvec[1] * 12,
+      vx: dvec[0] * speed,
+      vy: dvec[1] * speed,
+      life: 0,
+      maxLife: 1.3,
+      dmg,
+      hitIds: [],
+    });
+    // flash de disparo (partículas azuis)
+    for (let i = 0; i < 10; i++) {
+      this.particles.push({
+        x: this.player.x + 12 + dvec[0] * 14,
+        y: this.player.y + 12 + dvec[1] * 12,
+        vx: dvec[0] * (40 + Math.random() * 60) + (Math.random() - 0.5) * 30,
+        vy: dvec[1] * (40 + Math.random() * 60) + (Math.random() - 0.5) * 30,
+        life: 0,
+        maxLife: 0.3 + Math.random() * 0.2,
+        size: 2,
+        color: 'rgba(150, 220, 255, ',
+        alpha: 1,
+      });
+    }
+  }
+
+  updateLightBeams(dt: number) {
+    for (let i = this.lightBeams.length - 1; i >= 0; i--) {
+      const b = this.lightBeams[i];
+      b.life += dt;
+      b.x += b.vx * dt;
+      b.y += b.vy * dt;
+      // a luz atravessa a vegetação; só o tempo de vida e os inimigos a param
+      let dead = b.life >= b.maxLife;
+      for (const e of this.enemies) {
+        if (e.state === 'dead' || b.hitIds.includes(e.id)) continue;
+        if (Math.hypot(e.x + 8 - b.x, e.y - b.y) < 24) {
+          b.hitIds.push(e.id);
+          this.damageEnemy(e, b.dmg, b.x - b.vx * 0.1, b.y - b.vy * 0.1);
+        }
+      }
+      if (dead) this.lightBeams.splice(i, 1);
+    }
+  }
+
+  updateEnemies(dt: number) {
+    if (this.playerHurtFlash > 0) this.playerHurtFlash = Math.max(0, this.playerHurtFlash - dt);
+    if (this.playerInvuln > 0) this.playerInvuln = Math.max(0, this.playerInvuln - dt);
+    const px = this.player.x + 12;
+    const py = this.player.y + 18;
+
+    for (const e of this.enemies) {
+      const def = ENEMY_DEFS[e.kind];
+      e.animTimer += dt;
+      if (e.hurtFlash > 0) e.hurtFlash = Math.max(0, e.hurtFlash - dt);
+
+      // knockback residual
+      if (Math.abs(e.knockX) > 1 || Math.abs(e.knockY) > 1) {
+        const nx = e.x + e.knockX * dt;
+        const ny = e.y + e.knockY * dt;
+        if (!this.checkSolidCollision({ x: nx, y: ny, w: 16, h: 12 })) {
+          e.x = nx;
+          e.y = ny;
+        }
+        e.knockX *= 0.86;
+        e.knockY *= 0.86;
+      }
+
+      if (e.state === 'dead') {
+        e.stateTimer += dt;
+        e.frame = Math.min(def.cols - 1, Math.floor(e.stateTimer * 8));
+        if (e.respawnAt > 0 && this.timeElapsed >= e.respawnAt) {
+          e.state = 'idle';
+          e.hp = e.maxHp;
+          e.x = e.homeX;
+          e.y = e.homeY;
+          e.respawnAt = 0;
+          e.frame = 0;
+        }
+        continue;
+      }
+
+      if (e.state === 'hurt') {
+        e.stateTimer += dt;
+        e.frame = Math.min(def.cols - 1, Math.floor(e.stateTimer * 12));
+        if (e.stateTimer > 0.3) e.state = 'chase';
+        continue;
+      }
+
+      const dToPlayer = Math.hypot(px - (e.x + 8), py - e.y);
+
+      if (e.state === 'attack') {
+        e.stateTimer += dt;
+        e.frame = Math.min(def.cols - 1, Math.floor(e.stateTimer * 10));
+        if (e.stateTimer > 0.25 && e.stateTimer - dt <= 0.25) {
+          if (dToPlayer < def.attackRange + 10) this.damagePlayer(def.touchDamage);
+        }
+        if (e.stateTimer > 0.6) {
+          e.state = 'chase';
+          e.attackCd = def.attackCd;
+        }
+        continue;
+      }
+
+      if (e.attackCd > 0) e.attackCd -= dt;
+
+      // aggro
+      if (dToPlayer < def.aggro) {
+        if (dToPlayer <= def.attackRange && e.attackCd <= 0) {
+          e.state = 'attack';
+          e.stateTimer = 0;
+          e.frame = 0;
+          e.facingLeft = px < e.x;
+          continue;
+        }
+        e.state = 'chase';
+        const ang = Math.atan2(py - e.y, px - (e.x + 8));
+        const sx = Math.cos(ang) * def.speed * dt;
+        const sy = Math.sin(ang) * def.speed * dt;
+        if (!this.checkSolidCollision({ x: e.x + sx, y: e.y + sy, w: 16, h: 12 })) {
+          e.x += sx;
+          e.y += sy;
+        } else if (!this.checkSolidCollision({ x: e.x + sx, y: e.y, w: 16, h: 12 })) {
+          e.x += sx;
+        } else if (!this.checkSolidCollision({ x: e.x, y: e.y + sy, w: 16, h: 12 })) {
+          e.y += sy;
+        }
+        e.facingLeft = Math.cos(ang) < 0;
+        e.frame = Math.floor(e.animTimer * 9) % def.cols;
+        // contato direto
+        if (dToPlayer < 22 && e.attackCd <= 0) {
+          this.damagePlayer(Math.round(def.touchDamage * 0.6));
+          e.attackCd = def.attackCd;
+        }
+      } else {
+        // vagueia perto de casa
+        e.wanderTimer -= dt;
+        if (!e.wanderTarget || e.wanderTimer <= 0) {
+          e.wanderTarget = {
+            x: e.homeX + (Math.random() - 0.5) * 140,
+            y: e.homeY + (Math.random() - 0.5) * 140,
+          };
+          e.wanderTimer = 2 + Math.random() * 3;
+        }
+        const wdx = e.wanderTarget.x - e.x;
+        const wdy = e.wanderTarget.y - e.y;
+        const wd = Math.hypot(wdx, wdy);
+        if (wd > 6) {
+          const sx = (wdx / wd) * def.speed * 0.4 * dt;
+          const sy = (wdy / wd) * def.speed * 0.4 * dt;
+          if (!this.checkSolidCollision({ x: e.x + sx, y: e.y + sy, w: 16, h: 12 })) {
+            e.x += sx;
+            e.y += sy;
+          } else e.wanderTarget = null;
+          e.facingLeft = wdx < 0;
+          e.state = 'walk';
+          e.frame = Math.floor(e.animTimer * 6) % def.cols;
+        } else {
+          e.state = 'idle';
+          e.frame = Math.floor(e.animTimer * 4) % def.cols;
+        }
       }
     }
   }
@@ -2061,9 +2400,13 @@ export class GameEngine {
       this.player.frame = Math.min(meta.cols - 1, Math.floor(this.player.actionTimer));
 
       // Golpe conecta no frame de impacto (uma vez por ação)
-      if (!this.actionHitDone && this.player.frame >= 2 && (act === 'chop' || act === 'mine')) {
+      if (!this.actionHitDone && this.player.frame >= 2) {
         this.actionHitDone = true;
-        this.applyHarvestHit();
+        if (act === 'chop' || act === 'mine') this.applyHarvestHit();
+        if (act === 'chop' || act === 'attack')
+          this.applyMeleeHit(8 + this.stats.forca * 1.6 + this.stats.level, 46);
+        if (act === 'spin') this.applyMeleeHit(6 + this.stats.forca * 1.2 + this.stats.level, 64);
+        if (act === 'cast') this.fireLightCannon();
       }
 
       // Partículas de impacto nos frames centrais
@@ -2094,7 +2437,8 @@ export class GameEngine {
       }
 
       const len = Math.hypot(moveX, moveY);
-      const speed = 125;
+      // base mais rápida + escala com Agilidade (pontos de habilidade)
+      const speed = 150 + this.stats.agilidade * 7;
 
       if (len > 0.05) {
         this.player.isMoving = true;
@@ -2132,6 +2476,8 @@ export class GameEngine {
     this.updateCompanion(dt);
     this.updateNpcs(dt);
     this.updateFragments(dt);
+    this.updateEnemies(dt);
+    this.updateLightBeams(dt);
 
     // Quem é o NPC mais próximo do herói?
     const px = this.player.x + 12;
@@ -2478,6 +2824,17 @@ export class GameEngine {
       }
     }
 
+    for (const e of this.enemies) {
+      if (
+        e.x + 40 >= camX &&
+        e.x - 40 <= camX + this.viewportW &&
+        e.y + 40 >= camY &&
+        e.y - 40 <= camY + this.viewportH
+      ) {
+        renderables.push({ sortY: e.y + 6, draw: () => this.drawEnemy(e, camX, camY) });
+      }
+    }
+
     renderables.push({
       sortY: this.companion.y + 36,
       draw: () => this.drawCompanion(camX, camY),
@@ -2568,6 +2925,53 @@ export class GameEngine {
       ctx.restore();
     }
 
+    // 3.45 Canhão de Luz — feixe grosso e brilhante do Akles
+    for (const b of this.lightBeams) {
+      const bx = Math.round(b.x - camX);
+      const by = Math.round(b.y - camY);
+      const ang = Math.atan2(b.vy, b.vx);
+      const fade = Math.min(1, (1 - b.life / b.maxLife) * 1.4);
+      const grow = Math.min(1, b.life * 6); // "cresce" ao sair
+      ctx.save();
+      ctx.translate(bx, by);
+      ctx.rotate(ang);
+      ctx.globalCompositeOperation = 'lighter';
+      // rastro longo
+      const tl = 64 * grow;
+      const g = ctx.createLinearGradient(-tl, 0, 10, 0);
+      g.addColorStop(0, 'rgba(90,170,255,0)');
+      g.addColorStop(0.6, `rgba(150,215,255,${0.4 * fade})`);
+      g.addColorStop(1, `rgba(230,245,255,${0.9 * fade})`);
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.moveTo(-tl, 0);
+      ctx.lineTo(6, -7 * grow);
+      ctx.lineTo(10, 0);
+      ctx.lineTo(6, 7 * grow);
+      ctx.closePath();
+      ctx.fill();
+      // faíscas do rastro
+      ctx.fillStyle = `rgba(255,255,255,${0.5 * fade})`;
+      for (let i = 0; i < 4; i++) {
+        const px = -tl * Math.random();
+        ctx.fillRect(px, (Math.random() - 0.5) * 10 * grow, 2, 2);
+      }
+      // núcleo
+      const gl = ctx.createRadialGradient(0, 0, 1, 0, 0, 20);
+      gl.addColorStop(0, `rgba(255,255,255,${fade})`);
+      gl.addColorStop(0.4, `rgba(160,220,255,${0.75 * fade})`);
+      gl.addColorStop(1, 'rgba(120,190,255,0)');
+      ctx.fillStyle = gl;
+      ctx.beginPath();
+      ctx.arc(0, 0, 20, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = `rgba(255,255,255,${fade})`;
+      ctx.beginPath();
+      ctx.arc(0, 0, 5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+
     // 3.5 Chuva (atrás do shader de luz)
     this.renderRain(ctx);
 
@@ -2599,6 +3003,23 @@ export class GameEngine {
         ctx.fillText(txt, mx, my);
         ctx.restore();
       }
+    }
+
+    // Dano ao herói — vinheta vermelha
+    if (this.playerHurtFlash > 0) {
+      const a = Math.min(0.5, this.playerHurtFlash * 1.4);
+      const vg = ctx.createRadialGradient(
+        this.viewportW / 2,
+        this.viewportH / 2,
+        this.viewportH * 0.3,
+        this.viewportW / 2,
+        this.viewportH / 2,
+        this.viewportH * 0.75
+      );
+      vg.addColorStop(0, 'rgba(220,30,30,0)');
+      vg.addColorStop(1, `rgba(190,20,20,${a})`);
+      ctx.fillStyle = vg;
+      ctx.fillRect(0, 0, this.viewportW, this.viewportH);
     }
 
     // 6. Editor Gizmos
@@ -3066,7 +3487,8 @@ export class GameEngine {
     }
   }
 
-  // "Shader" de água em canvas — mesma paleta teal da Fonte Sagrada
+  // "Shader" de água em canvas — teal da Fonte Sagrada, com profundidade,
+  // rede de cáusticas em 2 camadas e espuma de margem.
   drawWaterTile(
     ctx: CanvasRenderingContext2D,
     x: number,
@@ -3076,50 +3498,114 @@ export class GameEngine {
     shallow: boolean,
     t: number
   ) {
-    // 1. base teal (igual à água da fonte: ~#40a0a0)
-    ctx.fillStyle = shallow ? '#57b7ac' : '#2f8f92';
-    ctx.fillRect(x, y, 32, 32);
-
-    // 2. profundidade — respira devagar
-    const depth = 0.5 + Math.sin(c * 0.5 + r * 0.5 + t * 0.5) * 0.5;
-    ctx.fillStyle = shallow
-      ? `rgba(150, 220, 210, ${0.14 * depth})`
-      : `rgba(12, 54, 66, ${0.30 * depth})`;
-    ctx.fillRect(x, y, 32, 32);
-
-    // 3. cáusticas — arcos claros que ondulam e rolam com o vento
-    const flow = t * (shallow ? 30 : 20) + this.windX * 1.2;
-    ctx.strokeStyle = shallow ? 'rgba(224, 252, 250, 0.30)' : 'rgba(190, 240, 240, 0.22)';
-    ctx.lineWidth = 1;
-    for (let i = 0; i < 3; i++) {
-      const band = (c * 9 + r * 6 + i * 40 + flow) % 60;
-      const off = band < 30 ? band : 60 - band;
-      const wy = y + off - 3;
-      const wob = Math.sin(t * 2 + c * 1.3 + r + i) * 2.2;
-      ctx.beginPath();
-      ctx.moveTo(x - 2, wy + wob);
-      ctx.quadraticCurveTo(x + 16, wy - 2 + wob, x + 34, wy + wob);
-      ctx.stroke();
-    }
-
-    // 4. espuma nas margens
     const g = this.ground;
     const land = (cc: number, rr: number) => {
       const v = g[rr]?.[cc];
       return v !== undefined && v < 9000;
     };
-    const foam = Math.sin(t * 3 + c + r) * 0.35 + 0.65;
-    ctx.fillStyle = `rgba(240, 252, 250, ${0.5 * foam})`;
-    if (land(c, r - 1)) ctx.fillRect(x, y, 32, 2);
-    if (land(c, r + 1)) ctx.fillRect(x, y + 30, 32, 2);
+
+    // 1. base com gradiente de profundidade (mais escuro no meio do rio)
+    const grad = ctx.createLinearGradient(x, y, x, y + 32);
+    if (shallow) {
+      grad.addColorStop(0, '#63bfb2');
+      grad.addColorStop(1, '#3f9f98');
+    } else {
+      grad.addColorStop(0, '#3a9a9a');
+      grad.addColorStop(0.5, '#227a80');
+      grad.addColorStop(1, '#2f8f92');
+    }
+    ctx.fillStyle = grad;
+    ctx.fillRect(x, y, 32, 32);
+
+    // 2. "respiração" lenta de profundidade
+    const breathe = 0.5 + Math.sin(c * 0.4 + r * 0.4 + t * 0.4) * 0.5;
+    ctx.fillStyle = shallow
+      ? `rgba(170, 230, 220, ${0.10 * breathe})`
+      : `rgba(8, 40, 52, ${0.24 * breathe})`;
+    ctx.fillRect(x, y, 32, 32);
+
+    // 3. rede de cáusticas — 2 camadas em velocidades opostas
+    const wind = this.windX * 0.9;
+    for (let layer = 0; layer < 2; layer++) {
+      const dir = layer === 0 ? 1 : -0.6;
+      const flow = t * (shallow ? 34 : 24) * dir + wind * dir;
+      ctx.strokeStyle =
+        layer === 0
+          ? `rgba(224, 252, 250, ${shallow ? 0.26 : 0.2})`
+          : `rgba(255, 255, 255, ${shallow ? 0.14 : 0.1})`;
+      ctx.lineWidth = 1;
+      for (let i = 0; i < 2; i++) {
+        const period = 44 + layer * 12;
+        const band = (c * (8 + layer * 3) + r * (5 + layer * 4) + i * 22 + flow) % period;
+        const off = band < period / 2 ? band : period - band;
+        const wy = y + off * (32 / (period / 2)) - 4;
+        const wob = Math.sin(t * 2.2 + c + r + i + layer) * 2.4;
+        ctx.beginPath();
+        ctx.moveTo(x - 3, wy + wob);
+        ctx.bezierCurveTo(x + 8, wy - 3 + wob, x + 24, wy + 3 + wob, x + 35, wy + wob);
+        ctx.stroke();
+      }
+    }
+
+    // 4. espuma viva nas margens
+    const foam = Math.sin(t * 3 + c + r) * 0.3 + 0.7;
+    ctx.fillStyle = `rgba(240, 252, 250, ${0.55 * foam})`;
+    if (land(c, r - 1)) ctx.fillRect(x, y, 32, 2 + (foam > 0.9 ? 1 : 0));
+    if (land(c, r + 1)) ctx.fillRect(x, y + 30 - (foam > 0.9 ? 1 : 0), 32, 2 + (foam > 0.9 ? 1 : 0));
     if (land(c - 1, r)) ctx.fillRect(x, y, 2, 32);
     if (land(c + 1, r)) ctx.fillRect(x + 30, y, 2, 32);
 
-    // 5. lampejo especular
+    // 5. lampejo especular pontual
     const spec = Math.sin(c * 1.7 + r * 1.1 + t * 2.1);
-    if (spec > 0.88) {
-      ctx.fillStyle = `rgba(255,255,255,${(spec - 0.88) * 3.5})`;
+    if (spec > 0.9) {
+      ctx.fillStyle = `rgba(255,255,255,${(spec - 0.9) * 4})`;
       ctx.fillRect(x + ((c * 11) % 22) + 4, y + ((r * 7) % 20) + 4, 2, 2);
+    }
+  }
+
+  drawEnemy(e: Enemy, camX: number, camY: number) {
+    const ctx = this.ctx;
+    const def = ENEMY_DEFS[e.kind];
+    const sheet = this.assets?.[def.sheet] as HTMLImageElement | undefined;
+    if (!sheet || !sheet.complete || !sheet.naturalWidth) return;
+    const cx = Math.round(e.x - camX);
+    const cy = Math.round(e.y - camY);
+    const dispW = def.cw * def.disp;
+    const dispH = def.ch * def.disp;
+    const row = (ENEMY_ROW as Record<string, number>)[e.state] ?? 0;
+    const col = Math.min(def.cols - 1, Math.max(0, e.frame));
+
+    if (e.state !== 'dead') {
+      ctx.fillStyle = 'rgba(0,0,0,0.28)';
+      ctx.beginPath();
+      ctx.ellipse(cx + 8, cy + 3, 12, 5, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    const dx = Math.round(cx + 8 - dispW / 2);
+    const dy = Math.round(cy - dispH * ((def.ch - 3) / def.ch) + 6);
+    ctx.save();
+    ctx.imageSmoothingEnabled = true;
+    if (e.hurtFlash > 0) ctx.filter = 'brightness(2.4) saturate(0.4)';
+    if (e.state === 'dead') ctx.globalAlpha = Math.max(0, 1 - e.stateTimer / 0.8);
+    if (e.facingLeft) {
+      ctx.translate(dx + dispW, dy);
+      ctx.scale(-1, 1);
+      ctx.drawImage(sheet, col * def.cw, row * def.ch, def.cw, def.ch, 0, 0, dispW, dispH);
+    } else {
+      ctx.drawImage(sheet, col * def.cw, row * def.ch, def.cw, def.ch, dx, dy, dispW, dispH);
+    }
+    ctx.restore();
+
+    // barra de vida
+    if (e.hp < e.maxHp && e.state !== 'dead') {
+      const bw = 26;
+      const bx = cx + 8 - bw / 2;
+      const by = dy - 4;
+      ctx.fillStyle = 'rgba(0,0,0,0.6)';
+      ctx.fillRect(bx - 1, by - 1, bw + 2, 4);
+      ctx.fillStyle = '#f43f5e';
+      ctx.fillRect(bx, by, bw * Math.max(0, e.hp / e.maxHp), 2);
     }
   }
 

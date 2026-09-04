@@ -33,7 +33,7 @@ import { CharacterScreen } from './CharacterScreen';
 import { DayCycleIndicator } from './DayCycleIndicator';
 import { SynthesisScreen } from './SynthesisScreen';
 import { publishMapToCode, getGhToken, setGhToken } from '../game/mapPersist';
-import { Backpack, Hand, User, CloudRain, Music4 } from 'lucide-react';
+import { Backpack, Hand, User, CloudRain, Music4, FlaskConical } from 'lucide-react';
 
 interface PropPaletteItem {
   type: string;
@@ -1054,6 +1054,14 @@ export const GameCanvas: React.FC = () => {
             title="Abrir mochila (I)"
           >
             <Backpack className="w-5 h-5" />
+          </button>
+          <button
+            type="button"
+            onClick={() => engineRef.current?.useHealingItem()}
+            className="cursor-pointer w-12 h-12 rounded-full bg-lime-950/85 hover:bg-lime-900 text-lime-300 border border-lime-500/50 hover:border-lime-400/80 shadow-xl flex items-center justify-center backdrop-blur-md transition-all active:scale-95"
+            title="Usar item de cura (Q)"
+          >
+            <FlaskConical className="w-5 h-5" />
           </button>
           <button
             type="button"

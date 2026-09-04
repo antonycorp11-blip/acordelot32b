@@ -61,7 +61,7 @@ interface AklesAnimMeta {
 // cw/ch = tamanho da célula na sheet (alta resolução; desenhado com dispScale).
 // idle/walk/run: folhas grandes novas (10 col x 4 lin, 145x271) — arte detalhada,
 // capa/cabelo ao vento. As folhas de combate seguem as antigas.
-const HERO_DISP = 0.37;
+const HERO_DISP = 0.33;
 const AKLES_ANIM: Record<'idle' | 'walk' | 'run' | AklesAction, AklesAnimMeta> = {
   idle: { sheet: 'aklesIdle', cw: 156, ch: 300, cols: 10, fps: 7, loop: true, disp: HERO_DISP, feetFrac: 1 },
   walk: { sheet: 'aklesWalk', cw: 156, ch: 300, cols: 10, fps: 12, loop: true, disp: HERO_DISP, feetFrac: 1 },
@@ -1386,6 +1386,10 @@ export class GameEngine {
     }
     if (!this.isEditMode && e.code === 'KeyL') {
       this.triggerAction('cast');
+      return;
+    }
+    if (!this.isEditMode && e.code === 'KeyQ') {
+      this.useHealingItem();
       return;
     }
 
@@ -2797,6 +2801,42 @@ export class GameEngine {
     this.inventory[item] = (this.inventory[item] || 0) + add;
     this.onInventoryChange?.({ ...this.inventory });
     return add;
+  }
+
+  // Botão de poção: usa automaticamente o item de cura mais "econômico" que
+  // ainda ajude (frutinha etc.). Retorna true se curou.
+  useHealingItem(): boolean {
+    const s = this.stats;
+    if (s.hp >= s.maxHp) {
+      this.addDamageText(this.player.x + 12, this.player.y - 8, 'vida cheia', '#94a3b8');
+      return false;
+    }
+    const missing = s.maxHp - s.hp;
+    let bestKey: string | null = null;
+    let bestHeal = Infinity;
+    let anyKey: string | null = null;
+    let anyHeal = 0;
+    for (const [k, qty] of Object.entries(this.inventory)) {
+      if (qty <= 0) continue;
+      const heal = ITEM_META[k]?.heal;
+      if (!heal || heal <= 0) continue;
+      if (heal > anyHeal) { anyHeal = heal; anyKey = k; }
+      if (heal >= missing && heal < bestHeal) { bestHeal = heal; bestKey = k; }
+    }
+    const key = bestKey ?? anyKey;
+    if (!key) {
+      this.addDamageText(this.player.x + 12, this.player.y - 8, 'sem cura', '#f59e0b');
+      return false;
+    }
+    const heal = ITEM_META[key]!.heal!;
+    this.inventory[key] -= 1;
+    if (this.inventory[key] <= 0) delete this.inventory[key];
+    s.hp = Math.min(s.maxHp, s.hp + heal);
+    this.onInventoryChange?.({ ...this.inventory });
+    this.onStatsChange?.({ ...s });
+    this.addDamageText(this.player.x + 12, this.player.y - 10, `+${heal}`, '#4ade80');
+    for (let i = 0; i < 10; i++) this.addMiningSpark(this.player.x + 12, this.player.y + 6);
+    return true;
   }
 
   private harvestReach() {

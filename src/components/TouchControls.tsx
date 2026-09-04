@@ -1,5 +1,15 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Swords, RefreshCw, Sparkles, Hand, Backpack, Music4, User } from 'lucide-react';
+import {
+  Swords,
+  RefreshCw,
+  Sparkles,
+  Hand,
+  Backpack,
+  Music4,
+  User,
+  FlaskConical,
+  Lock,
+} from 'lucide-react';
 import type { GameEngine, AklesAction } from '../game/engine';
 
 interface TouchControlsProps {
@@ -124,12 +134,13 @@ export const TouchControls: React.FC<TouchControlsProps> = ({
         />
       </div>
 
-      {/* Menu lateral direito — mochila / síntese / ficha */}
+      {/* Menu lateral direito — mochila / síntese / ficha
+          (abaixo do indicador de ciclo de dia) */}
       <div
         className="absolute flex flex-col gap-2"
         style={{
-          right: 'max(18px, env(safe-area-inset-right))',
-          top: 'calc(64px + env(safe-area-inset-top))',
+          right: 'max(14px, env(safe-area-inset-right))',
+          top: 'calc(118px + env(safe-area-inset-top))',
         }}
       >
         <button
@@ -167,53 +178,111 @@ export const TouchControls: React.FC<TouchControlsProps> = ({
         </button>
       </div>
 
-      {/* Botões de ação — canto inferior direito */}
-      <div
-        className="absolute flex flex-col items-end gap-2.5"
-        style={{
-          right: 'max(18px, env(safe-area-inset-right))',
-          bottom: 'calc(20px + env(safe-area-inset-bottom))',
-        }}
-      >
-        <div className="flex items-end gap-2.5">
-          <button
-            type="button"
-            onPointerDown={fireAction('cast')}
-            className={`${actionBtn} w-11 h-11 border-cyan-400/50 bg-cyan-950/70 text-cyan-300`}
-            title="Magia"
+      {/* Botões de ação — layout padrão de jogo: ataque no centro, 4 skills ao
+          redor (N/S/L/O), poção acima. Coletar à esquerda do conjunto. */}
+      {(() => {
+        const RING = 66; // raio do anel de skills
+        const CENTER = 116; // metade do container
+        const box = CENTER * 2;
+        const pos = (ang: number) => ({
+          left: CENTER + Math.cos(ang) * RING,
+          top: CENTER - Math.sin(ang) * RING,
+        });
+        const skillBtn =
+          actionBtn + ' w-[46px] h-[46px] -translate-x-1/2 -translate-y-1/2';
+        return (
+          <div
+            className="absolute"
+            style={{
+              right: 'max(6px, env(safe-area-inset-right))',
+              bottom: 'calc(10px + env(safe-area-inset-bottom))',
+              width: box,
+              height: box,
+            }}
           >
-            <Sparkles className="w-5 h-5" />
-          </button>
-          <button
-            type="button"
-            onPointerDown={fireAction('spin')}
-            className={`${actionBtn} w-11 h-11 border-indigo-400/50 bg-indigo-950/70 text-indigo-300`}
-            title="Golpe giratório"
-          >
-            <RefreshCw className="w-5 h-5" />
-          </button>
-          <button
-            type="button"
-            onPointerDown={fireAction('attack')}
-            className={`${actionBtn} w-12 h-12 border-rose-400/60 bg-rose-950/80 text-rose-200`}
-            title="Atacar com a espada"
-          >
-            <Swords className="w-5 h-5" />
-          </button>
-        </div>
-        <button
-          type="button"
-          onPointerDown={(e) => {
-            e.preventDefault();
-            onHarvest();
-          }}
-          className={`${actionBtn} w-[70px] h-[70px] flex-col gap-0.5 border-emerald-400/60 bg-emerald-900/85 text-emerald-100`}
-          title="Coletar recurso mais próximo"
-        >
-          <Hand className="w-6 h-6" />
-          <span className="text-[10px] font-bold">Coletar</span>
-        </button>
-      </div>
+            {/* Poção — acima do anel */}
+            <button
+              type="button"
+              onPointerDown={(e) => {
+                e.preventDefault();
+                engineRef.current?.useHealingItem();
+              }}
+              className={`${actionBtn} absolute w-12 h-12 -translate-x-1/2 -translate-y-1/2 border-lime-400/60 bg-lime-950/85 text-lime-200`}
+              style={{ left: CENTER, top: CENTER - RING - 40 }}
+              title="Usar item de cura"
+            >
+              <FlaskConical className="w-5 h-5" />
+            </button>
+
+            {/* Ataque básico — centro */}
+            <button
+              type="button"
+              onPointerDown={fireAction('attack')}
+              className={`${actionBtn} absolute w-[64px] h-[64px] -translate-x-1/2 -translate-y-1/2 border-rose-400/70 bg-rose-900/90 text-rose-100`}
+              style={{ left: CENTER, top: CENTER }}
+              title="Ataque básico (espada)"
+            >
+              <Swords className="w-7 h-7" />
+            </button>
+
+            {/* Skill Norte — giratório */}
+            <button
+              type="button"
+              onPointerDown={fireAction('spin')}
+              className={`${skillBtn} absolute border-indigo-400/50 bg-indigo-950/80 text-indigo-300`}
+              style={pos(Math.PI / 2)}
+              title="Golpe giratório"
+            >
+              <RefreshCw className="w-5 h-5" />
+            </button>
+            {/* Skill Leste — canhão de luz */}
+            <button
+              type="button"
+              onPointerDown={fireAction('cast')}
+              className={`${skillBtn} absolute border-cyan-400/50 bg-cyan-950/80 text-cyan-300`}
+              style={pos(0)}
+              title="Canhão de Luz"
+            >
+              <Sparkles className="w-5 h-5" />
+            </button>
+            {/* Skill Sul — bloqueada */}
+            <button
+              type="button"
+              disabled
+              className={`${skillBtn} absolute border-slate-600/50 bg-slate-900/75 text-slate-600`}
+              style={pos(-Math.PI / 2)}
+              title="Habilidade em breve"
+            >
+              <Lock className="w-4 h-4" />
+            </button>
+            {/* Skill Oeste — bloqueada */}
+            <button
+              type="button"
+              disabled
+              className={`${skillBtn} absolute border-slate-600/50 bg-slate-900/75 text-slate-600`}
+              style={pos(Math.PI)}
+              title="Habilidade em breve"
+            >
+              <Lock className="w-4 h-4" />
+            </button>
+
+            {/* Coletar — à esquerda do conjunto */}
+            <button
+              type="button"
+              onPointerDown={(e) => {
+                e.preventDefault();
+                onHarvest();
+              }}
+              className={`${actionBtn} absolute w-[58px] h-[58px] flex-col gap-0.5 -translate-y-1/2 border-emerald-400/60 bg-emerald-900/90 text-emerald-100`}
+              style={{ left: -66, top: CENTER }}
+              title="Coletar recurso mais próximo"
+            >
+              <Hand className="w-5 h-5" />
+              <span className="text-[9px] font-bold">Coletar</span>
+            </button>
+          </div>
+        );
+      })()}
     </div>
   );
 };

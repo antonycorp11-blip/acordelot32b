@@ -182,6 +182,48 @@ const PROP_CATALOG: PropPaletteItem[] = [
 
   // 3. Pedreiras e Rochas
   {
+    type: 'spot_wood',
+    name: 'Toco Melódico (spot)',
+    category: 'rocks',
+    imgSrc: '/assets/props/wood2_spot.png',
+    badge: 'Coletável',
+  },
+  {
+    type: 'spot_mineral',
+    name: 'Veio Ressonante (spot)',
+    category: 'rocks',
+    imgSrc: '/assets/props/mineral_spot.png',
+    badge: 'Coletável',
+  },
+  {
+    type: 'spot_gold',
+    name: 'Filão Dourado (spot)',
+    category: 'rocks',
+    imgSrc: '/assets/props/gold_spot.png',
+    badge: 'Coletável',
+  },
+  {
+    type: 'spot_crystal_blue',
+    name: 'Cristal de Eco Azul (spot)',
+    category: 'rocks',
+    imgSrc: '/assets/props/crystal_blue_spot.png',
+    badge: 'Coletável',
+  },
+  {
+    type: 'spot_crystal_red',
+    name: 'Cristal Dissonante (spot)',
+    category: 'rocks',
+    imgSrc: '/assets/props/crystal_red_spot.png',
+    badge: 'Coletável',
+  },
+  {
+    type: 'spot_eco_essence',
+    name: 'Nascente de Eco (spot)',
+    category: 'rocks',
+    imgSrc: '/assets/props/eco_essence_spot.png',
+    badge: 'Coletável',
+  },
+  {
     type: 'stoneQuarry',
     name: 'Pedreira de Mineração',
     category: 'rocks',

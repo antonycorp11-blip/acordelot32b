@@ -24,9 +24,31 @@ export interface LoadedAssets {
   knightSlash: HTMLImageElement;
 
   // Monstros
-  monEcoAzul: HTMLImageElement;
   monAranha: HTMLImageElement;
   monNocturno: HTMLImageElement;
+  monMaestro: HTMLImageElement;
+
+  // Nós de extração
+  spotWood: HTMLImageElement;
+  spotMineral: HTMLImageElement;
+  spotGold: HTMLImageElement;
+  spotCrystalBlue: HTMLImageElement;
+  spotCrystalRed: HTMLImageElement;
+  spotEcoEssence: HTMLImageElement;
+
+  // Ecos musicais
+  ecoDo: HTMLImageElement;
+  ecoDoS: HTMLImageElement;
+  ecoRe: HTMLImageElement;
+  ecoReS: HTMLImageElement;
+  ecoMi: HTMLImageElement;
+  ecoFa: HTMLImageElement;
+  ecoFaS: HTMLImageElement;
+  ecoSol: HTMLImageElement;
+  ecoSolS: HTMLImageElement;
+  ecoLa: HTMLImageElement;
+  ecoLaS: HTMLImageElement;
+  ecoSi: HTMLImageElement;
 
   // NPCs
   npcCadencia: HTMLImageElement;
@@ -121,9 +143,31 @@ const ASSET_PATHS: Record<keyof LoadedAssets, string> = {
   knightSlash: '/assets/characters/knight_slash.png',
 
   // Monstros
-  monEcoAzul: '/assets/monsters/eco_azul.png',
   monAranha: '/assets/monsters/aranha.png',
   monNocturno: '/assets/monsters/nocturno.png',
+  monMaestro: '/assets/monsters/maestro.png',
+
+  // Nós de extração (spots)
+  spotWood: '/assets/props/wood2_spot.png',
+  spotMineral: '/assets/props/mineral_spot.png',
+  spotGold: '/assets/props/gold_spot.png',
+  spotCrystalBlue: '/assets/props/crystal_blue_spot.png',
+  spotCrystalRed: '/assets/props/crystal_red_spot.png',
+  spotEcoEssence: '/assets/props/eco_essence_spot.png',
+
+  // Ecos musicais (12 notas)
+  ecoDo: '/assets/ecos/do.png',
+  ecoDoS: '/assets/ecos/do_s.png',
+  ecoRe: '/assets/ecos/re.png',
+  ecoReS: '/assets/ecos/re_s.png',
+  ecoMi: '/assets/ecos/mi.png',
+  ecoFa: '/assets/ecos/fa.png',
+  ecoFaS: '/assets/ecos/fa_s.png',
+  ecoSol: '/assets/ecos/sol.png',
+  ecoSolS: '/assets/ecos/sol_s.png',
+  ecoLa: '/assets/ecos/la.png',
+  ecoLaS: '/assets/ecos/la_s.png',
+  ecoSi: '/assets/ecos/si.png',
 
   // NPCs
   npcCadencia: '/assets/characters/npcs/cadencia.png',

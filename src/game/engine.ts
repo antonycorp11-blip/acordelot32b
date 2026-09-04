@@ -76,6 +76,7 @@ export interface ItemMeta {
   weight: number; // peso por unidade
   heal?: number; // cura de vida (uso futuro)
   img?: string; // ícone em arquivo (opcional)
+  desc?: string; // descrição (tooltip)
 }
 
 // notas cromáticas (Dó..Si) — nomes, cores e chaves de arquivo
@@ -89,17 +90,58 @@ const FRAG_FILE = ['C', 'Cs', 'D', 'Ds', 'E', 'F', 'Fs', 'G', 'Gs', 'A', 'As', '
 export const FRAGMENTS_PER_NOTE = 30;
 
 export const ITEM_META: Record<string, ItemMeta> = {
-  wood: { name: 'Madeira', icon: '🪵', weight: 1.0 },
-  stone: { name: 'Pedra', icon: '🪨', weight: 1.6 },
-  ore: { name: 'Minério', icon: '🪙', weight: 2.2 },
-  berry: { name: 'Frutinha', icon: '🍓', weight: 0.2, heal: 8 },
+  wood: { name: 'Madeira', icon: '🪵', weight: 1.0, desc: 'Madeira bruta cortada de árvores.' },
+  stone: { name: 'Pedra', icon: '🪨', weight: 1.6, desc: 'Rocha bruta extraída de pedreiras.' },
+  ore: { name: 'Minério', icon: '🪙', weight: 2.2, desc: 'Minério bruto com veios ressonantes.' },
+  berry: { name: 'Frutinha', icon: '🍓', weight: 0.2, heal: 8, desc: 'Colhida de arbustos. Restaura um pouco de vida.' },
+  clave: {
+    name: 'Clave Musical',
+    icon: '🎼',
+    weight: 0,
+    img: '/assets/items/clave.png',
+    desc: 'Moeda de combate. Cai dos monstros dissonantes.',
+  },
+  eco_dust: {
+    name: 'Poeira de Eco',
+    icon: '✨',
+    weight: 0.05,
+    img: '/assets/items/props/eco_essence_raw.png',
+    desc: 'Resíduo cintilante de um Eco dissipado. Usada para invocar novos Ecos.',
+  },
 };
+// pares bruto/refinado dos nós de extração
+const REFINE_PAIRS: Array<[string, string, string, number, string, string]> = [
+  ['wood2', 'Tora Melódica', 'Prancha Afinada', 0.8, 'Madeira nobre que ressoa ao toque.', 'Madeira polida e afinada, pronta para luteria.'],
+  ['mineral', 'Minério Ressonante', 'Lingote Ressonante', 1.8, 'Rocha com veios que vibram numa nota.', 'Lingote fundido com timbre puro.'],
+  ['gold', 'Ouro Bruto', 'Barra de Ouro', 2.5, 'Pepitas e moedas antigas.', 'Barra refinada — reserva de valor da Vila.'],
+  ['crystal_blue', 'Cristal de Eco Bruto', 'Cristal de Eco Lapidado', 0.6, 'Fragmento cristalino carregado de eco.', 'Cristal lapidado que amplifica melodias.'],
+  ['crystal_red', 'Cristal Dissonante Bruto', 'Relíquia Dissonante', 0.7, 'Cristal instável de energia dissonante.', 'Relíquia contida — poder canalizado.'],
+  ['eco_essence', 'Poeira de Eco', 'Essência de Eco', 0.1, 'Pó luminoso de um Eco.', 'Essência destilada, guardada em frasco.'],
+];
+for (const [key, rn, refn, w, rd, refd] of REFINE_PAIRS) {
+  if (!ITEM_META[key + '_raw'])
+    ITEM_META[key + '_raw'] = {
+      name: rn,
+      icon: '◈',
+      weight: w,
+      img: `/assets/items/props/${key}_raw.png`,
+      desc: rd,
+    };
+  ITEM_META[key + '_refined'] = {
+    name: refn,
+    icon: '◆',
+    weight: w * 0.9,
+    img: `/assets/items/props/${key}_refined.png`,
+    desc: refd,
+  };
+}
 NOTE_KEY.forEach((k, i) => {
   ITEM_META['frag_' + k] = {
     name: 'Fragmento de ' + NOTE_NAMES[i],
     icon: '◆',
     weight: 0.08,
     img: `/assets/items/fragments/${FRAG_FILE[i]}.png`,
+    desc: `Joia comutativa da nota ${NOTE_NAMES[i]}. ${FRAGMENTS_PER_NOTE} montam uma nota inteira na Síntese.`,
   };
 });
 
@@ -167,16 +209,24 @@ export const HARVEST_DEFS: Record<string, HarvestDef> = {
   rockPair: { kind: 'rock', maxHp: 3, drop: 'stone', dropMin: 2, dropMax: 3, respawnSecs: 24 },
   rockMonolith: { kind: 'rock', maxHp: 4, drop: 'stone', dropMin: 2, dropMax: 4, respawnSecs: 28 },
   rockFlatSlab: { kind: 'rock', maxHp: 2, drop: 'stone', dropMin: 1, dropMax: 2, respawnSecs: 18 },
+  spot_wood: { kind: 'tree', maxHp: 4, drop: 'wood2_raw', dropMin: 2, dropMax: 4, respawnSecs: 40 },
+  spot_mineral: { kind: 'rock', maxHp: 6, drop: 'mineral_raw', dropMin: 2, dropMax: 4, respawnSecs: 45 },
+  spot_gold: { kind: 'rock', maxHp: 7, drop: 'gold_raw', dropMin: 1, dropMax: 3, respawnSecs: 55 },
+  spot_crystal_blue: { kind: 'rock', maxHp: 6, drop: 'crystal_blue_raw', dropMin: 1, dropMax: 3, respawnSecs: 50 },
+  spot_crystal_red: { kind: 'rock', maxHp: 8, drop: 'crystal_red_raw', dropMin: 1, dropMax: 2, respawnSecs: 60 },
+  spot_eco_essence: { kind: 'rock', maxHp: 5, drop: 'eco_dust', dropMin: 2, dropMax: 4, respawnSecs: 40 },
 };
 
-// ---- MONSTROS (dissonantes) ----
+// ---- MONSTROS DISSONANTES + ECOS MUSICAIS ----
 interface EnemyDef {
   sheet: keyof LoadedAssets;
   name: string;
+  hostile: boolean;
+  note?: number; // ecos: nota que dropam
   cols: number;
   cw: number;
   ch: number;
-  disp: number; // escala de exibição
+  disp: number;
   hp: number;
   speed: number;
   aggro: number;
@@ -191,22 +241,54 @@ interface EnemyDef {
   respawnSecs: number;
 }
 export const ENEMY_DEFS: Record<string, EnemyDef> = {
-  eco_azul: {
-    sheet: 'monEcoAzul', name: 'Eco Azul', cols: 5, cw: 110, ch: 120, disp: 0.44,
-    hp: 12, speed: 46, aggro: 150, attackRange: 26, touchDamage: 6, attackCd: 1.1,
-    xp: 8, claveMin: 0, claveMax: 1, fragMin: 1, fragMax: 2, respawnSecs: 30,
-  },
   aranha: {
-    sheet: 'monAranha', name: 'Aranha da Pauta', cols: 5, cw: 128, ch: 108, disp: 0.5,
+    sheet: 'monAranha', name: 'Aranha da Pauta', hostile: true, cols: 5, cw: 128, ch: 108, disp: 0.5,
     hp: 30, speed: 62, aggro: 200, attackRange: 34, touchDamage: 12, attackCd: 1.3,
     xp: 22, claveMin: 1, claveMax: 2, fragMin: 2, fragMax: 4, respawnSecs: 45,
   },
   nocturno: {
-    sheet: 'monNocturno', name: 'Nocturno Alado', cols: 5, cw: 120, ch: 128, disp: 0.52,
+    sheet: 'monNocturno', name: 'Nocturno Alado', hostile: true, cols: 5, cw: 120, ch: 128, disp: 0.52,
     hp: 46, speed: 78, aggro: 240, attackRange: 30, touchDamage: 16, attackCd: 1.0,
     xp: 38, claveMin: 2, claveMax: 3, fragMin: 3, fragMax: 5, respawnSecs: 60,
   },
+  maestro: {
+    sheet: 'monMaestro', name: 'Maestro Esqueleto', hostile: true, cols: 5, cw: 118, ch: 132, disp: 0.56,
+    hp: 70, speed: 54, aggro: 260, attackRange: 40, touchDamage: 22, attackCd: 1.4,
+    xp: 60, claveMin: 3, claveMax: 5, fragMin: 4, fragMax: 7, respawnSecs: 80,
+  },
 };
+
+// Ecos: 12 notas cromáticas. Não são hostis — vagueiam no nordeste do mapa
+// e ao serem "dissipados" soltam fragmentos da sua nota + poeira de eco.
+const ECO_SHEETS: (keyof LoadedAssets)[] = [
+  'ecoDo', 'ecoDoS', 'ecoRe', 'ecoReS', 'ecoMi', 'ecoFa',
+  'ecoFaS', 'ecoSol', 'ecoSolS', 'ecoLa', 'ecoLaS', 'ecoSi',
+];
+for (let i = 0; i < 12; i++) {
+  ENEMY_DEFS['eco_' + NOTE_KEY[i]] = {
+    sheet: ECO_SHEETS[i],
+    name: 'Eco de ' + NOTE_NAMES[i],
+    hostile: false,
+    note: i,
+    cols: 5,
+    cw: 96,
+    ch: 108,
+    disp: 0.44,
+    hp: 6,
+    speed: 34,
+    aggro: 0,
+    attackRange: 0,
+    touchDamage: 0,
+    attackCd: 0,
+    xp: 5,
+    claveMin: 0,
+    claveMax: 0,
+    fragMin: 2,
+    fragMax: 4,
+    respawnSecs: 35,
+  };
+}
+
 // linhas da folha 5x4: 0=idle, 1=walk, 2=hurt/attack, 3=death
 const ENEMY_ROW = { idle: 0, walk: 1, hurt: 2, attack: 2, death: 3, chase: 1 };
 
@@ -743,6 +825,14 @@ export const EDITABLE_PROP_METAS: Record<
     canDelete: true,
     canDuplicate: true,
   },
+
+  // 8. NÓS DE EXTRAÇÃO (spots — coletáveis, movíveis no editor)
+  spot_wood: { category: 'rock', name: 'Toco Melódico (Madeira)', baseW: 60, baseH: 52, colOffXRatio: 0.18, colOffYRatio: 0.5, colWRatio: 0.64, colHRatio: 0.4, sortYOffset: 48, canDelete: true, canDuplicate: true },
+  spot_mineral: { category: 'rock', name: 'Veio Ressonante (Minério)', baseW: 62, baseH: 52, colOffXRatio: 0.18, colOffYRatio: 0.5, colWRatio: 0.64, colHRatio: 0.4, sortYOffset: 48, canDelete: true, canDuplicate: true },
+  spot_gold: { category: 'rock', name: 'Filão Dourado', baseW: 60, baseH: 44, colOffXRatio: 0.18, colOffYRatio: 0.4, colWRatio: 0.64, colHRatio: 0.5, sortYOffset: 40, canDelete: true, canDuplicate: true },
+  spot_crystal_blue: { category: 'rock', name: 'Cristal de Eco Azul', baseW: 56, baseH: 60, colOffXRatio: 0.22, colOffYRatio: 0.62, colWRatio: 0.56, colHRatio: 0.32, sortYOffset: 56, canDelete: true, canDuplicate: true },
+  spot_crystal_red: { category: 'rock', name: 'Cristal Dissonante', baseW: 56, baseH: 60, colOffXRatio: 0.22, colOffYRatio: 0.62, colWRatio: 0.56, colHRatio: 0.32, sortYOffset: 56, canDelete: true, canDuplicate: true },
+  spot_eco_essence: { category: 'rock', name: 'Nascente de Eco', baseW: 62, baseH: 46, colOffXRatio: 0.15, colOffYRatio: 0.45, colWRatio: 0.7, colHRatio: 0.45, sortYOffset: 42, canDelete: true, canDuplicate: true },
 };
 
 export class GameEngine {
@@ -1693,6 +1783,7 @@ export class GameEngine {
     };
 
     this.syncPropAutoCollider(newProp);
+    this.attachHarvestData(newProp);
     this.props.push(newProp);
     this.selectProp(newId);
     this.saveMapToStorage();
@@ -1730,6 +1821,7 @@ export class GameEngine {
     };
 
     this.syncPropAutoCollider(newProp);
+    this.attachHarvestData(newProp);
     this.props.push(newProp);
     this.selectProp(newId);
     this.saveMapToStorage();
@@ -1917,23 +2009,25 @@ export class GameEngine {
   }
 
   // ---- COLETA DE RECURSOS ----
+  attachHarvestData(p: WorldProp) {
+    const def = HARVEST_DEFS[p.type];
+    if (!def) return;
+    p.harvest = {
+      kind: def.kind,
+      hp: def.maxHp,
+      maxHp: def.maxHp,
+      drop: def.drop,
+      dropMin: def.dropMin,
+      dropMax: def.dropMax,
+      respawnSecs: def.respawnSecs,
+      downUntil: 0,
+      hitFlash: 0,
+      shake: 0,
+    };
+  }
+
   initHarvestables() {
-    for (const p of this.props) {
-      const def = HARVEST_DEFS[p.type];
-      if (!def) continue;
-      p.harvest = {
-        kind: def.kind,
-        hp: def.maxHp,
-        maxHp: def.maxHp,
-        drop: def.drop,
-        dropMin: def.dropMin,
-        dropMax: def.dropMax,
-        respawnSecs: def.respawnSecs,
-        downUntil: 0,
-        hitFlash: 0,
-        shake: 0,
-      };
-    }
+    for (const p of this.props) this.attachHarvestData(p);
   }
 
   // ---- FRAGMENTOS DE NOTAS ----
@@ -1982,6 +2076,9 @@ export class GameEngine {
   addCoins(n: number) {
     if (n <= 0) return;
     this.coins += n;
+    // claves aparecem também como item no inventário (peso 0)
+    this.inventory['clave'] = (this.inventory['clave'] || 0) + n;
+    this.onInventoryChange?.({ ...this.inventory });
     this.onCoinsChange?.(this.coins);
   }
 
@@ -2006,50 +2103,68 @@ export class GameEngine {
   }
 
   // ---- MONSTROS / COMBATE ----
+  private spawnEnemy(kind: string, c: number, r: number, id: number): boolean {
+    const g = this.ground[r]?.[c];
+    if (g === undefined || g >= 9000) return false;
+    const x = c * TILE_SIZE + 8;
+    const y = r * TILE_SIZE + 8;
+    if (this.checkSolidCollision({ x, y, w: 16, h: 12 })) return false;
+    const def = ENEMY_DEFS[kind];
+    this.enemies.push({
+      id: `enemy_${id}`,
+      kind,
+      hostile: def.hostile,
+      note: def.note,
+      x,
+      y,
+      homeX: x,
+      homeY: y,
+      hp: def.hp,
+      maxHp: def.hp,
+      facingLeft: Math.random() < 0.5,
+      state: 'idle',
+      frame: 0,
+      animTimer: Math.random() * 2,
+      stateTimer: 0,
+      attackCd: 0,
+      hurtFlash: 0,
+      knockX: 0,
+      knockY: 0,
+      wanderTarget: null,
+      wanderTimer: Math.random() * 3,
+      respawnAt: 0,
+      hitBy: -1,
+    });
+    return true;
+  }
+
   initEnemies() {
     this.enemies = [];
-    const kinds = Object.keys(ENEMY_DEFS);
     let id = 0;
-    // clusters em áreas de floresta longe da vila
+    // Monstros hostis em clusters de floresta longe da vila
+    const hostiles = ['aranha', 'nocturno', 'maestro'];
     const clusters = [
-      [12, 12], [22, 84], [118, 18], [128, 90], [64, 96],
-      [16, 60], [122, 55], [90, 12], [40, 98], [100, 100],
+      [12, 14], [22, 88], [10, 62], [40, 100], [64, 98],
+      [128, 96], [124, 60], [90, 100],
     ];
     for (const [cc, rr] of clusters) {
-      const kind = kinds[Math.floor(Math.random() * kinds.length)];
+      const kind = hostiles[Math.floor(Math.random() * hostiles.length)];
       const n = 2 + Math.floor(Math.random() * 3);
       for (let k = 0; k < n; k++) {
-        const c = cc + Math.round((Math.random() - 0.5) * 8);
-        const r = rr + Math.round((Math.random() - 0.5) * 8);
-        const g = this.ground[r]?.[c];
-        if (g === undefined || g >= 9000) continue;
-        const x = c * TILE_SIZE + 8;
-        const y = r * TILE_SIZE + 8;
-        if (this.checkSolidCollision({ x, y, w: 16, h: 12 })) continue;
-        const def = ENEMY_DEFS[kind];
-        this.enemies.push({
-          id: `enemy_${id++}`,
+        this.spawnEnemy(
           kind,
-          x,
-          y,
-          homeX: x,
-          homeY: y,
-          hp: def.hp,
-          maxHp: def.hp,
-          facingLeft: Math.random() < 0.5,
-          state: 'idle',
-          frame: 0,
-          animTimer: Math.random() * 2,
-          stateTimer: 0,
-          attackCd: 0,
-          hurtFlash: 0,
-          knockX: 0,
-          knockY: 0,
-          wanderTarget: null,
-          wanderTimer: Math.random() * 3,
-          respawnAt: 0,
-          hitBy: -1,
-        });
+          cc + Math.round((Math.random() - 0.5) * 8),
+          rr + Math.round((Math.random() - 0.5) * 8),
+          id++
+        );
+      }
+    }
+    // 12 Ecos no NORDESTE (parte superior direita do mapa)
+    for (let i = 0; i < 12; i++) {
+      for (let tries = 0; tries < 20; tries++) {
+        const c = 92 + Math.floor(Math.random() * 46);
+        const r = 4 + Math.floor(Math.random() * 34);
+        if (this.spawnEnemy('eco_' + NOTE_KEY[i], c, r, id++)) break;
       }
     }
   }
@@ -2089,12 +2204,19 @@ export class GameEngine {
       const claves = def.claveMin + Math.floor(Math.random() * (def.claveMax - def.claveMin + 1));
       const frags = def.fragMin + Math.floor(Math.random() * (def.fragMax - def.fragMin + 1));
       if (claves > 0) this.addCoins(claves);
-      for (let i = 0; i < frags; i++) this.addFragment(Math.floor(Math.random() * 12));
+      if (!e.hostile && e.note !== undefined) {
+        // Eco dissipado: fragmentos DA SUA nota + poeira de eco
+        this.addFragment(e.note, frags);
+        if (Math.random() < 0.5) this.addToInventory('eco_dust', 1 + Math.floor(Math.random() * 2));
+        this.onHarvestPopup?.(`+${frags} frag ${NOTE_NAMES[e.note]}`, e.x, e.y - 12);
+      } else {
+        for (let i = 0; i < frags; i++) this.addFragment(Math.floor(Math.random() * 12));
+        const bits = [];
+        if (claves > 0) bits.push(`+${claves} clave`);
+        if (frags > 0) bits.push(`+${frags} frag`);
+        this.onHarvestPopup?.(bits.join('  ') || `${def.name} derrotado`, e.x, e.y - 12);
+      }
       this.gainXp(def.xp);
-      const bits = [];
-      if (claves > 0) bits.push(`+${claves} clave`);
-      if (frags > 0) bits.push(`+${frags} frag`);
-      this.onHarvestPopup?.(bits.join('  ') || `${def.name} derrotado`, e.x, e.y - 12);
       e.respawnAt = this.timeElapsed + def.respawnSecs;
     } else {
       e.state = 'hurt';
@@ -2236,8 +2358,8 @@ export class GameEngine {
 
       if (e.attackCd > 0) e.attackCd -= dt;
 
-      // aggro
-      if (dToPlayer < def.aggro) {
+      // aggro (só monstros hostis perseguem/atacam)
+      if (def.hostile && dToPlayer < def.aggro) {
         if (dToPlayer <= def.attackRange && e.attackCd <= 0) {
           e.state = 'attack';
           e.stateTimer = 0;
@@ -3619,6 +3741,20 @@ export class GameEngine {
       ctx.drawImage(this.assets.rockMonolith, px, py, prop.w, prop.h);
     } else if (prop.type === 'rockFlatSlab' && this.assets?.rockFlatSlab) {
       ctx.drawImage(this.assets.rockFlatSlab, px, py, prop.w, prop.h);
+    }
+    // 6. Nós de extração (spots)
+    else if (prop.type === 'spot_wood' && this.assets?.spotWood) {
+      ctx.drawImage(this.assets.spotWood, px, py, prop.w, prop.h);
+    } else if (prop.type === 'spot_mineral' && this.assets?.spotMineral) {
+      ctx.drawImage(this.assets.spotMineral, px, py, prop.w, prop.h);
+    } else if (prop.type === 'spot_gold' && this.assets?.spotGold) {
+      ctx.drawImage(this.assets.spotGold, px, py, prop.w, prop.h);
+    } else if (prop.type === 'spot_crystal_blue' && this.assets?.spotCrystalBlue) {
+      ctx.drawImage(this.assets.spotCrystalBlue, px, py, prop.w, prop.h);
+    } else if (prop.type === 'spot_crystal_red' && this.assets?.spotCrystalRed) {
+      ctx.drawImage(this.assets.spotCrystalRed, px, py, prop.w, prop.h);
+    } else if (prop.type === 'spot_eco_essence' && this.assets?.spotEcoEssence) {
+      ctx.drawImage(this.assets.spotEcoEssence, px, py, prop.w, prop.h);
     }
 
     // Flash branco ao levar golpe + barra de vida do recurso

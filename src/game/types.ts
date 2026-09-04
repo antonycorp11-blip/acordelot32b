@@ -128,6 +128,8 @@ export interface Particle {
 export interface Enemy {
   id: string;
   kind: string;
+  hostile: boolean;
+  note?: number;
   x: number;
   y: number;
   homeX: number;

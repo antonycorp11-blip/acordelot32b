@@ -47,10 +47,10 @@ export const WEAPON_DEFS: Record<string, WeaponDef> = {
     atkPerLevel: 3,
     maxLevel: 10,
     visual: {
-      restOffset: { x: -16, y: -8 },
-      scale: 0.15,
+      restOffset: { x: -10, y: -14 },
+      scale: 0.095,
       restRotationDeg: -35,
-      floatAmplitude: 3,
+      floatAmplitude: 2,
       floatSpeed: 1.7,
       attackSpeed: 1,
       returnSpeed: 7,

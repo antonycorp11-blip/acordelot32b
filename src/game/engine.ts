@@ -4143,9 +4143,11 @@ export class GameEngine {
         draw: () => this.drawHarvestTool(camX, camY),
       });
     } else {
-      // arma flutuante (não durante coleta — a ferramenta assume o lugar)
+      // arma flutuante (não durante coleta — a ferramenta assume o lugar).
+      // Em repouso fica ATRÁS do Akles (sortY menor); golpeando, na FRENTE.
+      const swinging = this.player.actionState === 'attack' || this.player.actionState === 'spin';
       renderables.push({
-        sortY: this.player.y + 31,
+        sortY: this.player.y + (swinging ? 40 : 8),
         draw: () => this.drawWeapon(camX, camY),
       });
     }
@@ -5351,6 +5353,8 @@ export class GameEngine {
     let reach: number;
     let scaleMul: number;
     let spinDeg = 0;
+    let wx: number;
+    let wy: number;
 
     if (act === 'attack') {
       const meta = AKLES_ANIM.attack;
@@ -5360,6 +5364,9 @@ export class GameEngine {
       reach = f.reach;
       scaleMul = f.scaleMul;
       spinDeg = f.spinDeg || 0;
+      const rad = (angleDeg * Math.PI) / 180;
+      wx = Math.round(px + Math.cos(rad) * reach - camX);
+      wy = Math.round(py + Math.sin(rad) * reach * 0.55 - camY);
     } else if (act === 'spin') {
       const meta = AKLES_ANIM.spin;
       const p = Math.min(1, (this.player.actionTimer || 0) / meta.cols);
@@ -5367,19 +5374,22 @@ export class GameEngine {
       angleDeg = f.angleDeg;
       reach = f.reach;
       scaleMul = f.scaleMul;
+      const rad = (angleDeg * Math.PI) / 180;
+      wx = Math.round(px + Math.cos(rad) * reach - camX);
+      wy = Math.round(py + Math.sin(rad) * reach * 0.55 - camY);
     } else {
-      // repouso: flutua ao lado/atrás do personagem com leve oscilação
-      angleDeg = baseAngle + 150;
-      reach = 15 + Math.sin(this.timeElapsed * v.floatSpeed) * v.floatAmplitude;
+      // repouso: SEMPRE nas costas do Akles — offset fixo, não gira com a
+      // direção que ele encara (nem de frente ela aparece na mão).
+      angleDeg = 250;
       scaleMul = 1;
+      const bob = Math.sin(this.timeElapsed * v.floatSpeed) * v.floatAmplitude;
+      wx = Math.round(px + v.restOffset.x - camX);
+      wy = Math.round(py + v.restOffset.y + bob - camY);
     }
-
-    const rad = (angleDeg * Math.PI) / 180;
-    const wx = Math.round(px + Math.cos(rad) * reach - camX);
-    const wy = Math.round(py + Math.sin(rad) * reach * 0.55 - camY);
 
     const dispH = (img.naturalHeight || 300) * v.scale * scaleMul;
     const dispW = (img.naturalWidth || 100) * v.scale * scaleMul;
+    const rad = (angleDeg * Math.PI) / 180;
 
     ctx.save();
     ctx.translate(wx, wy);
@@ -5511,16 +5521,18 @@ export class GameEngine {
     const row = dirRowMap[char.direction];
 
     const act = char.actionState;
-    // Coleta (chop/mine): Akles fica parado — quem se mexe é a ferramenta.
-    const toolHarvest = act === 'chop' || act === 'mine';
-    const isAction =
-      !toolHarvest &&
-      (act === 'attack' || act === 'spin' || act === 'cast');
     const isMoving = char.isMoving;
+    // Akles NUNCA usa as sheets de combate (chop/attack/spin/cast) — sem
+    // espada na mão, sem pose de ataque. Só a arma flutuante se move; o
+    // corpo dele fica em idle/walk/run o tempo todo.
+    const isAction = false;
 
     // ---- Akles: herói cavaleiro animado (sprite sheets processadas) ----
-    const aklesKey: 'idle' | 'walk' | 'run' | AklesAction =
-      isAction ? (act as AklesAction) : isMoving ? (this.heroRunning ? 'run' : 'walk') : 'idle';
+    const aklesKey: 'idle' | 'walk' | 'run' | AklesAction = isMoving
+      ? this.heroRunning
+        ? 'run'
+        : 'walk'
+      : 'idle';
     const aMeta = AKLES_ANIM[aklesKey];
     const aSheet = assets?.[aMeta.sheet] as HTMLImageElement | undefined;
 

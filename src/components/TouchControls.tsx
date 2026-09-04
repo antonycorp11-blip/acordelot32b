@@ -25,6 +25,7 @@ interface TouchControlsProps {
   onToggleSynth: () => void;
   onTogglePartitura: () => void;
   onToggleWeapon: () => void;
+  onToggleSkills: () => void;
   onToggleSheet: () => void;
 }
 
@@ -76,6 +77,7 @@ export const TouchControls: React.FC<TouchControlsProps> = ({
   onToggleSynth,
   onTogglePartitura,
   onToggleWeapon,
+  onToggleSkills,
   onToggleSheet,
 }) => {
   const baseRef = useRef<HTMLDivElement | null>(null);
@@ -320,7 +322,7 @@ export const TouchControls: React.FC<TouchControlsProps> = ({
       {/* Menu lateral direito — mochila / síntese / ficha
           (abaixo do indicador de ciclo de dia) */}
       <div
-        className="absolute flex flex-col gap-2"
+        className="absolute flex flex-col gap-2 relative"
         style={{
           right: 'max(14px, env(safe-area-inset-right))',
           top: 'calc(118px + env(safe-area-inset-top))',
@@ -376,6 +378,17 @@ export const TouchControls: React.FC<TouchControlsProps> = ({
           type="button"
           onPointerDown={(e) => {
             e.preventDefault();
+            if (!hudEdit) onToggleSkills();
+          }}
+          className={`${actionBtn} w-11 h-11 border-indigo-400/50 bg-slate-950/80 text-indigo-300`}
+          title="Skills"
+        >
+          <Zap className="w-5 h-5" />
+        </button>
+        <button
+          type="button"
+          onPointerDown={(e) => {
+            e.preventDefault();
             if (!hudEdit) onToggleSheet();
           }}
           className={`${actionBtn} w-11 h-11 border-sky-400/50 bg-slate-950/80 text-sky-300`}
@@ -383,9 +396,7 @@ export const TouchControls: React.FC<TouchControlsProps> = ({
         >
           <User className="w-5 h-5" />
         </button>
-        <div className="relative">
-          <EditFrame block="side" label="Menu" />
-        </div>
+        <EditFrame block="side" label="Menu" />
       </div>
 
       {/* Botões de ação — layout padrão de jogo: ataque no centro, 4 skills ao

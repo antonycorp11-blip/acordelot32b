@@ -36,7 +36,7 @@ export const PASSIVE_DEFS: Record<string, PassiveDef> = {
   pulsoAcelerado: {
     key: 'pulsoAcelerado',
     name: 'Pulso Acelerado',
-    group: 'basico',
+    group: 'ressonancia',
     desc: 'Enquanto Ressonância está ativa, aumenta a velocidade dos ataques básicos',
     values: [0.04, 0.07, 0.1, 0.13, 0.16],
     level5Bonus: 'Ataques básicos reduzem levemente o cooldown da Ressonância.',

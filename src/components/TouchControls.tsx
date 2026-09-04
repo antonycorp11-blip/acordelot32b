@@ -6,25 +6,22 @@ import {
   Hand,
   Backpack,
   Music4,
-  User,
   FlaskConical,
+  Beaker,
   Lock,
   ScrollText,
   Zap,
   Settings,
   Check,
 } from 'lucide-react';
-import type { GameEngine, AklesAction } from '../game/engine';
+import type { GameEngine } from '../game/engine';
 
 interface TouchControlsProps {
   engineRef: React.MutableRefObject<GameEngine | null>;
-  onHarvest: () => void;
   onToggleInventory: () => void;
   onToggleSynth: () => void;
   onTogglePartitura: () => void;
   onToggleWeapon: () => void;
-  onToggleSkills: () => void;
-  onToggleSheet: () => void;
 }
 
 const JOYSTICK_SIZE = 132;
@@ -67,13 +64,10 @@ function getOrientation(): Orientation {
  */
 export const TouchControls: React.FC<TouchControlsProps> = ({
   engineRef,
-  onHarvest,
   onToggleInventory,
   onToggleSynth,
   onTogglePartitura,
   onToggleWeapon,
-  onToggleSkills,
-  onToggleSheet,
 }) => {
   const baseRef = useRef<HTMLDivElement | null>(null);
   const originRef = useRef<{ x: number; y: number } | null>(null);
@@ -194,11 +188,18 @@ export const TouchControls: React.FC<TouchControlsProps> = ({
     };
   }, [applyVector, reset]);
 
-  const fireAction = (action: AklesAction) => (e: React.PointerEvent) => {
-    if (hudEdit) return;
-    e.preventDefault();
-    engineRef.current?.triggerAction(action);
-  };
+  // Botão central: vira "Coletar" quando dá (perto de um recurso, fora de
+  // luta) e volta a ser "Atacar" sozinho assim que entra em combate.
+  const [collectMode, setCollectMode] = useState(false);
+  useEffect(() => {
+    const iv = setInterval(() => {
+      const eng = engineRef.current;
+      if (!eng) return;
+      const busy = ['chop', 'mine', 'attack', 'spin', 'cast'].includes(eng.player.actionState as string);
+      setCollectMode(!busy && !eng.inCombat && !!eng.findNearestHarvestable('any'));
+    }, 180);
+    return () => clearInterval(iv);
+  }, [engineRef]);
 
   const actionBtn =
     'pointer-events-auto flex items-center justify-center rounded-full border backdrop-blur-md shadow-xl active:scale-90 transition-transform select-none touch-none';
@@ -307,7 +308,8 @@ export const TouchControls: React.FC<TouchControlsProps> = ({
         />
       </div>
 
-      {/* Menu lateral direito — mochila / síntese / partituras / arma / skills / ficha */}
+      {/* Menu lateral direito — mochila / síntese / partituras / arma
+          (ficha não precisa de botão — abre pela miniatura do retrato) */}
       <D id="btn_inv" className={`${actionBtn} absolute w-11 h-11 border-amber-400/50 bg-slate-950/80 text-amber-300`} title="Mochila" onAction={onToggleInventory} style={{ right: 'max(14px, env(safe-area-inset-right))', top: 'calc(118px + env(safe-area-inset-top))' }}>
         <Backpack className="w-5 h-5" />
       </D>
@@ -320,18 +322,26 @@ export const TouchControls: React.FC<TouchControlsProps> = ({
       <D id="btn_weapon" className={`${actionBtn} absolute w-11 h-11 border-blue-400/50 bg-slate-950/80 text-blue-300`} title="Arma" onAction={onToggleWeapon} style={{ right: 'max(14px, env(safe-area-inset-right))', top: 'calc(280px + env(safe-area-inset-top))' }}>
         <Swords className="w-5 h-5" />
       </D>
-      <D id="btn_sheet" className={`${actionBtn} absolute w-11 h-11 border-sky-400/50 bg-slate-950/80 text-sky-300`} title="Ficha (Ferramentas/Equipamentos/Skills ficam nas abas)" onAction={onToggleSheet} style={{ right: 'max(14px, env(safe-area-inset-right))', top: 'calc(334px + env(safe-area-inset-top))' }}>
-        <User className="w-5 h-5" />
-      </D>
 
-      {/* Poção */}
+      {/* Poções: cura + buff temporário */}
       <D id="btn_potion" className={`${actionBtn} absolute w-12 h-12 border-lime-400/60 bg-lime-950/85 text-lime-200`} title="Usar item de cura" onAction={() => engineRef.current?.useHealingItem()} style={{ right: 'calc(78px + env(safe-area-inset-right))', bottom: 'calc(196px + env(safe-area-inset-bottom))' }}>
         <FlaskConical className="w-5 h-5" />
       </D>
+      <D id="btn_buff" className={`${actionBtn} absolute w-12 h-12 border-fuchsia-400/60 bg-fuchsia-950/85 text-fuchsia-200`} title="Usar item de buff" onAction={() => engineRef.current?.useBuffItem()} style={{ right: 'calc(28px + env(safe-area-inset-right))', bottom: 'calc(196px + env(safe-area-inset-bottom))' }}>
+        <Beaker className="w-5 h-5" />
+      </D>
 
-      {/* Ataque básico — centro do "anel" */}
-      <D id="btn_attack" className={`${actionBtn} absolute w-[64px] h-[64px] border-rose-400/70 bg-rose-900/90 text-rose-100`} title="Ataque básico (espada)" onAction={() => engineRef.current?.triggerAction('attack')} style={{ right: 'calc(66px + env(safe-area-inset-right))', bottom: 'calc(52px + env(safe-area-inset-bottom))' }}>
-        <Swords className="w-7 h-7" />
+      {/* Ataque básico — vira "Coletar" sozinho perto de um recurso, fora de luta */}
+      <D
+        id="btn_attack"
+        className={`${actionBtn} absolute w-[64px] h-[64px] ${
+          collectMode ? 'border-emerald-400/70 bg-emerald-900/90 text-emerald-100' : 'border-rose-400/70 bg-rose-900/90 text-rose-100'
+        }`}
+        title={collectMode ? 'Coletar recurso mais próximo' : 'Ataque básico (espada)'}
+        onAction={() => engineRef.current?.primaryAction()}
+        style={{ right: 'calc(66px + env(safe-area-inset-right))', bottom: 'calc(52px + env(safe-area-inset-bottom))' }}
+      >
+        {collectMode ? <Hand className="w-7 h-7" /> : <Swords className="w-7 h-7" />}
       </D>
 
       {/* Skills ao redor */}
@@ -352,11 +362,6 @@ export const TouchControls: React.FC<TouchControlsProps> = ({
         <Lock className="w-4 h-4" />
       </div>
 
-      {/* Coletar */}
-      <D id="btn_harvest" className={`${actionBtn} absolute w-[58px] h-[58px] flex-col gap-0.5 border-emerald-400/60 bg-emerald-900/90 text-emerald-100`} title="Coletar recurso mais próximo" onAction={onHarvest} style={{ right: 'calc(222px + env(safe-area-inset-right))', bottom: 'calc(52px + env(safe-area-inset-bottom))' }}>
-        <Hand className="w-5 h-5" />
-        <span className="text-[9px] font-bold">Coletar</span>
-      </D>
     </div>
   );
 };

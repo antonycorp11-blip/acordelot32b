@@ -99,6 +99,7 @@ export interface ItemMeta {
   weight: number; // peso por unidade
   heal?: number; // cura de vida
   xp?: number; // XP concedido ao usar (partituras)
+  buff?: { label: string; duration: number }; // item de buff temporário (uso futuro)
   img?: string; // ícone em arquivo (opcional)
   desc?: string; // descrição (tooltip)
 }
@@ -2733,8 +2734,16 @@ export class GameEngine {
     }
   }
 
+  // Timestamp do último golpe (dado ou sofrido) — botão de ataque/coleta
+  // inteligente usa isso pra saber se "está em luta" agora.
+  lastCombatAt = -999;
+  get inCombat() {
+    return this.timeElapsed - this.lastCombatAt < 4.5;
+  }
+
   damagePlayer(n: number) {
     if (this.playerInvuln > 0) return;
+    this.lastCombatAt = this.timeElapsed;
     const s = this.stats;
     n = Math.max(1, Math.round(n));
     s.hp = Math.max(0, s.hp - n);
@@ -2764,6 +2773,7 @@ export class GameEngine {
     opts: { crit?: boolean; isPulse?: boolean } = {},
   ) {
     if (e.state === 'dead') return;
+    this.lastCombatAt = this.timeElapsed;
     // Impacto Harmônico (Amplificação) — inimigo "com a DEF reduzida"
     if (e.harmonicDebuffT && e.harmonicDebuffT > 0) dmg *= 1 + (e.harmonicDebuffPct || 0);
     // Reverberação (Pulso Harmônico) — marca consumida pelo próximo golpe básico
@@ -3336,6 +3346,26 @@ export class GameEngine {
     return true;
   }
 
+  // Botão de poção 2 — itens de buff temporário (nenhum item ainda existe;
+  // fica pronto pra quando tiver, mesmo padrão da poção de cura).
+  activeBuffs: Array<{ label: string; until: number }> = [];
+  useBuffItem(): boolean {
+    for (const [k, qty] of Object.entries(this.inventory)) {
+      if (qty <= 0) continue;
+      const buff = ITEM_META[k]?.buff;
+      if (!buff) continue;
+      this.inventory[k] -= 1;
+      if (this.inventory[k] <= 0) delete this.inventory[k];
+      this.activeBuffs.push({ label: buff.label, until: this.timeElapsed + buff.duration });
+      this.onInventoryChange?.({ ...this.inventory });
+      this.addDamageText(this.player.x + 12, this.player.y - 10, buff.label, '#f472b6');
+      for (let i = 0; i < 10; i++) this.addMiningSpark(this.player.x + 12, this.player.y + 6);
+      return true;
+    }
+    this.addDamageText(this.player.x + 12, this.player.y - 8, 'sem buff', '#94a3b8');
+    return false;
+  }
+
   private harvestReach() {
     return 62;
   }
@@ -3376,6 +3406,18 @@ export class GameEngine {
     }
     // nada por perto: ainda faz o gesto pra dar feedback
     this.triggerAction('chop');
+  }
+
+  // Botão único (HUD): Coletar quando dá, Atacar quando não dá — nunca os
+  // dois juntos. Se o jogador acabou de dar/levar dano, fica travado em
+  // ataque mesmo perto de um recurso (não pode "fugir" pra coleta em luta).
+  primaryAction() {
+    if (['chop', 'mine', 'attack', 'spin', 'cast'].includes(this.player.actionState as string)) return;
+    if (!this.inCombat && this.findNearestHarvestable('any')) {
+      this.harvestAction();
+      return;
+    }
+    this.triggerAction('attack');
   }
 
   // Durante 'chop'/'mine' a ferramenta (não o Akles) faz o movimento.
@@ -4198,9 +4240,11 @@ export class GameEngine {
       });
     } else {
       // arma flutuante (não durante coleta — a ferramenta assume o lugar).
-      // Sempre na FRENTE — precisa dar pra ver bem qual arma está equipada.
+      // Em repouso fica ATRÁS do Akles (não tampa ele); golpeando, na FRENTE
+      // pra dar pra ver o combo.
+      const swinging = this.player.actionState === 'attack' || this.player.actionState === 'spin';
       renderables.push({
-        sortY: this.player.y + 40,
+        sortY: this.player.y + (swinging ? 40 : 6),
         draw: () => this.drawWeapon(camX, camY),
       });
     }

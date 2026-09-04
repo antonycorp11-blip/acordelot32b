@@ -1100,19 +1100,10 @@ export const GameCanvas: React.FC = () => {
       {isTouchDevice && !isEditMode && (
         <TouchControls
           engineRef={engineRef}
-          onHarvest={() => engineRef.current?.harvestAction()}
           onToggleInventory={() => setShowInventory((v) => !v)}
           onToggleSynth={() => setShowSynth((v) => !v)}
           onTogglePartitura={() => setShowPartitura((v) => !v)}
           onToggleWeapon={() => setShowWeapon((v) => !v)}
-          onToggleSkills={() => {
-            setSheetInitialTab('skills');
-            setShowSheet(true);
-          }}
-          onToggleSheet={() => {
-            setSheetInitialTab('ficha');
-            setShowSheet((v) => !v);
-          }}
         />
       )}
 

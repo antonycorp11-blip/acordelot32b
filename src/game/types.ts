@@ -156,6 +156,11 @@ export interface Enemy {
   wanderTimer: number;
   respawnAt: number;
   hitBy: number; // timeElapsed do último golpe (evita multi-hit no mesmo swing)
+  // Passivas de Akles: Impacto Harmônico (Amplificação) e Reverberação (Pulso)
+  harmonicDebuffT?: number; // segundos restantes do debuff de "DEF" (mais dano recebido)
+  harmonicDebuffPct?: number;
+  reverbMarkHits?: number; // quantos dos próximos ataques básicos ganham bônus
+  reverbMarkPct?: number;
 }
 
 export interface LightBeam {

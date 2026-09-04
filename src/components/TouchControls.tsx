@@ -10,6 +10,7 @@ import {
   FlaskConical,
   Lock,
   ScrollText,
+  Zap,
 } from 'lucide-react';
 import type { GameEngine, AklesAction } from '../game/engine';
 
@@ -19,6 +20,7 @@ interface TouchControlsProps {
   onToggleInventory: () => void;
   onToggleSynth: () => void;
   onTogglePartitura: () => void;
+  onToggleWeapon: () => void;
   onToggleSheet: () => void;
 }
 
@@ -36,6 +38,7 @@ export const TouchControls: React.FC<TouchControlsProps> = ({
   onToggleInventory,
   onToggleSynth,
   onTogglePartitura,
+  onToggleWeapon,
   onToggleSheet,
 }) => {
   const baseRef = useRef<HTMLDivElement | null>(null);
@@ -183,6 +186,17 @@ export const TouchControls: React.FC<TouchControlsProps> = ({
           type="button"
           onPointerDown={(e) => {
             e.preventDefault();
+            onToggleWeapon();
+          }}
+          className={`${actionBtn} w-11 h-11 border-blue-400/50 bg-slate-950/80 text-blue-300`}
+          title="Arma"
+        >
+          <Swords className="w-5 h-5" />
+        </button>
+        <button
+          type="button"
+          onPointerDown={(e) => {
+            e.preventDefault();
             onToggleSheet();
           }}
           className={`${actionBtn} w-11 h-11 border-sky-400/50 bg-slate-950/80 text-sky-300`}
@@ -239,25 +253,38 @@ export const TouchControls: React.FC<TouchControlsProps> = ({
               <Swords className="w-7 h-7" />
             </button>
 
-            {/* Skill Norte — giratório */}
+            {/* Skill Norte — Amplificação */}
             <button
               type="button"
               onPointerDown={fireAction('spin')}
               className={`${skillBtn} absolute border-indigo-400/50 bg-indigo-950/80 text-indigo-300`}
               style={pos(Math.PI / 2)}
-              title="Golpe giratório"
+              title="Amplificação"
             >
               <RefreshCw className="w-5 h-5" />
             </button>
-            {/* Skill Leste — canhão de luz */}
+            {/* Skill Leste — Pulso Harmônico */}
             <button
               type="button"
               onPointerDown={fireAction('cast')}
               className={`${skillBtn} absolute border-cyan-400/50 bg-cyan-950/80 text-cyan-300`}
               style={pos(0)}
-              title="Canhão de Luz"
+              title="Pulso Harmônico"
             >
               <Sparkles className="w-5 h-5" />
+            </button>
+            {/* Skill Oeste — Ressonância */}
+            <button
+              type="button"
+              onPointerDown={(e) => {
+                e.preventDefault();
+                engineRef.current?.activateResonance();
+              }}
+              className={`${skillBtn} absolute border-blue-400/50 bg-blue-950/80 text-blue-300`}
+              style={pos(Math.PI)}
+              title="Ressonância"
+            >
+              <Zap className="w-5 h-5" />
             </button>
             {/* Skill Sul — bloqueada */}
             <button
@@ -265,16 +292,6 @@ export const TouchControls: React.FC<TouchControlsProps> = ({
               disabled
               className={`${skillBtn} absolute border-slate-600/50 bg-slate-900/75 text-slate-600`}
               style={pos(-Math.PI / 2)}
-              title="Habilidade em breve"
-            >
-              <Lock className="w-4 h-4" />
-            </button>
-            {/* Skill Oeste — bloqueada */}
-            <button
-              type="button"
-              disabled
-              className={`${skillBtn} absolute border-slate-600/50 bg-slate-900/75 text-slate-600`}
-              style={pos(Math.PI)}
               title="Habilidade em breve"
             >
               <Lock className="w-4 h-4" />

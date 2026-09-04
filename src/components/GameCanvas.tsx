@@ -33,8 +33,9 @@ import { CharacterScreen } from './CharacterScreen';
 import { DayCycleIndicator } from './DayCycleIndicator';
 import { SynthesisScreen } from './SynthesisScreen';
 import { PartituraScreen } from './PartituraScreen';
+import { WeaponScreen } from './WeaponScreen';
 import { publishMapToCode, getGhToken, setGhToken } from '../game/mapPersist';
-import { Backpack, Hand, User, CloudRain, Music4, FlaskConical, ScrollText } from 'lucide-react';
+import { Backpack, Hand, User, CloudRain, Music4, FlaskConical, ScrollText, Swords } from 'lucide-react';
 
 interface PropPaletteItem {
   type: string;
@@ -475,6 +476,7 @@ export const GameCanvas: React.FC = () => {
   const [isRaining, setIsRaining] = useState(false);
   const [showSynth, setShowSynth] = useState(false);
   const [showPartitura, setShowPartitura] = useState(false);
+  const [showWeapon, setShowWeapon] = useState(false);
   const [fragments, setFragments] = useState<number[]>(new Array(12).fill(0));
   const [notesBuilt, setNotesBuilt] = useState<number[]>(new Array(12).fill(0));
   const [coins, setCoins] = useState(0);
@@ -576,6 +578,7 @@ export const GameCanvas: React.FC = () => {
       if (e.code === 'KeyC') setShowSheet((v) => !v);
       if (e.code === 'KeyN') setShowSynth((v) => !v);
       if (e.code === 'KeyP') setShowPartitura((v) => !v);
+      if (e.code === 'KeyU') setShowWeapon((v) => !v);
     };
     window.addEventListener('keydown', onKey);
 
@@ -1090,6 +1093,7 @@ export const GameCanvas: React.FC = () => {
           onToggleInventory={() => setShowInventory((v) => !v)}
           onToggleSynth={() => setShowSynth((v) => !v)}
           onTogglePartitura={() => setShowPartitura((v) => !v)}
+          onToggleWeapon={() => setShowWeapon((v) => !v)}
           onToggleSheet={() => setShowSheet((v) => !v)}
         />
       )}
@@ -1120,6 +1124,14 @@ export const GameCanvas: React.FC = () => {
             title="Síntese de Partituras (P)"
           >
             <ScrollText className="w-5 h-5" />
+          </button>
+          <button
+            type="button"
+            onClick={() => setShowWeapon((v) => !v)}
+            className="cursor-pointer w-12 h-12 rounded-full bg-slate-950/85 hover:bg-slate-800 text-blue-300 border border-blue-500/40 hover:border-blue-400/80 shadow-xl flex items-center justify-center backdrop-blur-md transition-all active:scale-95"
+            title="Arma (U)"
+          >
+            <Swords className="w-5 h-5" />
           </button>
           <button
             type="button"
@@ -1209,6 +1221,13 @@ export const GameCanvas: React.FC = () => {
         engine={engineRef.current}
         coins={coins}
         fragments={fragments}
+        inventory={inventory}
+      />
+
+      <WeaponScreen
+        open={showWeapon && !isEditMode}
+        onClose={() => setShowWeapon(false)}
+        engine={engineRef.current}
         inventory={inventory}
       />
 

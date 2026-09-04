@@ -41,6 +41,18 @@ import {
 import { loadGameAssets, LoadedAssets } from './assetLoader';
 import { generateCharacterSprites, generateTrees, generateHouses } from './pixelArt';
 import initialCustomMap from './customMapLayout.json';
+import {
+  WEAPON_DEFS,
+  WeaponDef,
+  comboTrajectory,
+  amplifyTrajectory,
+  DIR_ANGLE_DEG,
+} from './weapons';
+import { PASSIVE_DEFS } from './passives';
+export { WEAPON_DEFS } from './weapons';
+export { PASSIVE_DEFS, PASSIVE_ORDER } from './passives';
+export type { WeaponDef, WeaponTier } from './weapons';
+export type { PassiveDef, PassiveGroup } from './passives';
 
 export type TimeOfDay = 'day' | 'sunset' | 'night';
 
@@ -1089,6 +1101,108 @@ export class GameEngine {
   // alvo da coleta atual (para a ferramenta apontar/bater no lugar certo)
   private harvestFxNode: WorldProp | null = null;
 
+  // ---- SISTEMA DE ARMA FLUTUANTE + SKILLS DE AKLES ----
+  // A arma é 100% separada do personagem: nunca fica nas sheets dele. Trocar
+  // de arma não exige trocar animação nenhuma — só o config visual muda.
+  equippedWeaponKey = 'acordelamina_t2';
+  weaponLevel = 1;
+  onWeaponChange?: () => void;
+  get weaponDef(): WeaponDef {
+    return WEAPON_DEFS[this.equippedWeaponKey];
+  }
+  get weaponAtk(): number {
+    const d = this.weaponDef;
+    return d.baseAtk + d.atkPerLevel * (this.weaponLevel - 1);
+  }
+  canUpgradeWeapon(): boolean {
+    const d = this.weaponDef;
+    if (this.weaponLevel >= d.maxLevel) return false;
+    const cost = d.upgradeCost(this.weaponLevel);
+    return Object.entries(cost).every(([k, n]) => (this.inventory[k] || 0) >= n);
+  }
+  upgradeWeapon(): boolean {
+    if (!this.canUpgradeWeapon()) return false;
+    const cost = this.weaponDef.upgradeCost(this.weaponLevel);
+    for (const [k, n] of Object.entries(cost)) {
+      this.inventory[k] = Math.max(0, (this.inventory[k] || 0) - n);
+      if (this.inventory[k] === 0) delete this.inventory[k];
+    }
+    this.weaponLevel++;
+    this.onInventoryChange?.({ ...this.inventory });
+    this.onWeaponChange?.();
+    this.onHarvestPopup?.(
+      `⚔ ${this.weaponDef.name} +${this.weaponLevel}!`,
+      this.player.x,
+      this.player.y - 20,
+    );
+    return true;
+  }
+
+  // Ataque básico — Compasso da Lâmina (combo de 4 golpes, cada um com
+  // trajetória própria feita por código).
+  comboIndex = 0;
+  private lastAttackAt = -999;
+  comboStacks = 0; // Ritmo Crescente (máx. 5)
+  private critCounter = 0;
+
+  // Skill 1 — Ressonância (buff + troca visual da arma p/ energizada)
+  resonanceActive = false;
+  resonanceT = 0;
+  resonanceCdT = 0;
+  static readonly RESONANCE_DURATION = 6;
+  static readonly RESONANCE_COOLDOWN = 14;
+
+  // Skill 2 — Amplificação usa a ação 'spin' (mesma pose, arma escala por código)
+  // Skill 3 — Pulso Harmônico usa a ação 'cast' (já existente)
+  pulseCdT = 0;
+  static readonly PULSE_COOLDOWN = 3.5;
+
+  // Passivas (todas Nível 1 por padrão — sem sistema de pontos ainda)
+  passiveLevels: Record<string, number> = Object.fromEntries(
+    Object.keys(PASSIVE_DEFS).map((k) => [k, 1]),
+  );
+  getPassiveLevel(id: string): number {
+    return this.passiveLevels[id] ?? 0;
+  }
+  passiveValue(id: string): number {
+    const lvl = this.getPassiveLevel(id);
+    const def = PASSIVE_DEFS[id];
+    if (!def || lvl <= 0) return 0;
+    return def.values[Math.min(4, lvl - 1)];
+  }
+  setPassiveLevel(id: string, level: number) {
+    if (!PASSIVE_DEFS[id]) return;
+    this.passiveLevels[id] = Math.max(0, Math.min(5, Math.round(level)));
+  }
+
+  // ---- multiplicadores derivados das passivas ----
+  get basicAtkMul() {
+    return (
+      1 +
+      this.passiveValue('afinacaoPermanente') +
+      this.passiveValue('forcaRessonante') +
+      this.passiveValue('maestriaDaLamina')
+    );
+  }
+  get skillDmgMul() {
+    return 1 + this.passiveValue('canalizacao') + this.passiveValue('ressonanciaInterior');
+  }
+  get critChanceBonus() {
+    return this.passiveValue('ouvidoAbsoluto');
+  }
+  get moveSpeedMul() {
+    return 1 + this.passiveValue('corpoEmCompasso');
+  }
+  get maxHpPassiveMul() {
+    return 1 + this.passiveValue('harmoniaVital') + this.passiveValue('forcaRessonante');
+  }
+  get meleeAreaMul() {
+    return 1 + this.passiveValue('expansao');
+  }
+  get cooldownMul() {
+    return Math.max(0.3, 1 - this.passiveValue('fluxoSonoro'));
+  }
+
   // Ficha do personagem
   stats: PlayerStats = {
     name: 'Akles',
@@ -1110,13 +1224,15 @@ export class GameEngine {
   get combatPower(): number {
     const s = this.stats;
     return Math.round(
-      s.forca * 2.4 +
+      (s.forca * 2.4 +
         s.agilidade * 1.8 +
         s.vitalidade * 2.0 +
         s.inteligencia * 1.5 +
         s.sorte * 1.1 +
         s.level * 6 +
-        s.maxHp * 0.25
+        s.maxHp * 0.25 +
+        this.weaponAtk * 3) *
+        this.basicAtkMul,
     );
   }
 
@@ -1231,6 +1347,10 @@ export class GameEngine {
     this.initFragments();
     this.initEnemies();
     this.loadTools();
+
+    // Passivas permanentes de HP (Harmonia Vital / Força Ressonante)
+    this.stats.maxHp = Math.round(this.stats.maxHp * this.maxHpPassiveMul);
+    this.stats.hp = this.stats.maxHp;
 
     // Player with 32-bit Knight character
     this.player = {
@@ -1436,6 +1556,10 @@ export class GameEngine {
       this.useHealingItem();
       return;
     }
+    if (!this.isEditMode && e.code === 'KeyH') {
+      this.activateResonance(); // Skill 1 — Ressonância
+      return;
+    }
 
     // Editor: apagar seleção (múltipla ou única)
     if (this.isEditMode && (e.code === 'Delete' || e.code === 'Backspace')) {
@@ -1496,6 +1620,12 @@ export class GameEngine {
   triggerAction(action: AklesAction) {
     const busy: Array<CharacterState['actionState']> = ['chop', 'mine', 'attack', 'spin', 'cast'];
     if (busy.includes(this.player.actionState)) return;
+    if (action === 'attack') {
+      // Compasso da Lâmina: encadeia o combo se apertado logo em seguida
+      if (this.timeElapsed - this.lastAttackAt < 1.0) this.comboIndex = (this.comboIndex + 1) % 4;
+      else this.comboIndex = 0;
+      this.lastAttackAt = this.timeElapsed;
+    }
     this.player.actionState = action;
     this.player.actionTimer = 0;
     this.player.frame = 0;
@@ -2577,12 +2707,33 @@ export class GameEngine {
     }
   }
 
-  damageEnemy(e: Enemy, dmg: number, fromX: number, fromY: number) {
+  tempDmgBuffT = 0; // Eco Final nv.5: pequeno bônus de dano temporário pós-kill
+
+  damageEnemy(
+    e: Enemy,
+    dmg: number,
+    fromX: number,
+    fromY: number,
+    opts: { crit?: boolean; isPulse?: boolean } = {},
+  ) {
     if (e.state === 'dead') return;
+    // Impacto Harmônico (Amplificação) — inimigo "com a DEF reduzida"
+    if (e.harmonicDebuffT && e.harmonicDebuffT > 0) dmg *= 1 + (e.harmonicDebuffPct || 0);
+    // Reverberação (Pulso Harmônico) — marca consumida pelo próximo golpe básico
+    if (!opts.isPulse && e.reverbMarkHits && e.reverbMarkHits > 0) {
+      dmg *= 1 + (e.reverbMarkPct || 0);
+      e.reverbMarkHits -= 1;
+    }
     dmg = Math.max(1, Math.round(dmg));
     e.hp -= dmg;
     e.hurtFlash = 0.2;
-    this.addDamageText(e.x + 8, e.y - 12, String(dmg), '#fde047');
+    this.addDamageText(
+      e.x + 8,
+      e.y - 12,
+      (opts.crit ? '✦' : '') + String(dmg),
+      opts.crit ? '#f472b6' : '#fde047',
+      opts.crit,
+    );
     const kd = Math.atan2(e.y - fromY, e.x - fromX);
     e.knockX = Math.cos(kd) * 90;
     e.knockY = Math.sin(kd) * 90;
@@ -2609,20 +2760,36 @@ export class GameEngine {
       }
       // sem XP direto de kill — o XP vem das partituras (compostas de claves)
       e.respawnAt = this.timeElapsed + def.respawnSecs;
+      // Eco Final — Pulso Harmônico derrotando um inimigo recupera cooldown
+      // e (nv.5) concede um pequeno bônus de dano temporário
+      if (opts.isPulse) {
+        const restore = this.passiveValue('ecoFinal');
+        if (restore > 0) this.resonanceCdT = Math.max(0, this.resonanceCdT - GameEngine.RESONANCE_COOLDOWN * restore);
+        if (this.getPassiveLevel('ecoFinal') >= 5) this.tempDmgBuffT = 4;
+      }
     } else {
       e.state = 'hurt';
       e.stateTimer = 0;
       e.frame = 0;
+      // marca de Reverberação (só aplica em golpes do Pulso Harmônico)
+      if (opts.isPulse) {
+        const pct = this.passiveValue('reverberacao');
+        if (pct > 0) {
+          e.reverbMarkPct = pct;
+          e.reverbMarkHits = this.getPassiveLevel('reverberacao') >= 5 ? 2 : 1;
+        }
+      }
     }
   }
 
   // Golpe corpo-a-corpo (chop/attack/spin) — cone à frente do herói
-  applyMeleeHit(dmg: number, reach: number) {
+  applyMeleeHit(dmg: number, reach: number, opts: { crit?: boolean } = {}) {
     const cx = this.player.x + 12;
     const cy = this.player.y + 18;
     const dir = this.player.direction;
     const dvec =
       dir === 'left' ? [-1, 0] : dir === 'right' ? [1, 0] : dir === 'up' ? [0, -1] : [0, 1];
+    reach *= this.meleeAreaMul;
     for (const e of this.enemies) {
       if (e.state === 'dead') continue;
       if (e.hitBy === this.timeElapsed) continue;
@@ -2633,15 +2800,152 @@ export class GameEngine {
       const dot = ((ex - cx) * dvec[0] + (ey - cy) * dvec[1]) / (d || 1);
       if (dot < 0.25 && d > 20) continue; // fora do cone
       e.hitBy = this.timeElapsed;
-      this.damageEnemy(e, dmg, cx, cy);
+      this.damageEnemy(e, dmg, cx, cy, opts);
     }
   }
 
-  fireLightCannon() {
+  // Dano do ataque básico (combo) — soma arma + stats + passivas + Ritmo Crescente
+  basicAttackDamage(): number {
+    const s = this.stats;
+    let d = 8 + s.forca * 1.6 + s.level + this.weaponAtk;
+    d *= this.basicAtkMul;
+    if (this.comboStacks > 0) d *= 1 + this.comboStacks * this.passiveValue('ritmoCrescente');
+    if (this.resonanceActive) d *= 1.35;
+    if (this.tempDmgBuffT > 0) d *= 1.15;
+    return d;
+  }
+
+  private rollCrit(): boolean {
+    this.critCounter++;
+    const lvl = this.getPassiveLevel('notaPerfeita');
+    const need = lvl > 0 ? PASSIVE_DEFS.notaPerfeita.values[lvl - 1] : Infinity;
+    if (this.critCounter >= need) {
+      this.critCounter = 0;
+      return true;
+    }
+    return Math.random() < 0.05 + this.critChanceBonus;
+  }
+
+  private onComboHitLanded() {
+    this.comboStacks = Math.min(5, this.comboStacks + 1);
+    if (this.comboStacks >= 5 && this.getPassiveLevel('ritmoCrescente') >= 5) {
+      this.triggerHarmonicBurst();
+      this.comboStacks = 0;
+    }
+    if (this.resonanceActive && this.getPassiveLevel('pulsoAcelerado') >= 5) {
+      this.resonanceCdT = Math.max(0, this.resonanceCdT - 0.15);
+    }
+  }
+
+  // Ritmo Crescente nv.5: pequena explosão harmônica ao 5º acúmulo
+  private triggerHarmonicBurst() {
+    const cx = this.player.x + 12;
+    const cy = this.player.y + 18;
+    for (const e of this.enemies) {
+      if (e.state === 'dead') continue;
+      if (Math.hypot(e.x + 8 - cx, e.y - cy) < 70) {
+        this.damageEnemy(e, this.basicAttackDamage() * 0.6, cx, cy);
+      }
+    }
+    for (let i = 0; i < 14; i++)
+      this.addMiningSpark(cx + (Math.random() - 0.5) * 50, cy + (Math.random() - 0.5) * 50);
+  }
+
+  private applyImpactoHarmonico(e: Enemy) {
+    const pct = this.passiveValue('impactoHarmonico');
+    if (pct <= 0) return;
+    e.harmonicDebuffPct = pct;
+    e.harmonicDebuffT = this.getPassiveLevel('impactoHarmonico') >= 5 ? 5 : 3;
+  }
+
+  // Skill 2 — Amplificação: a arma cresce muito (visual por código) e golpeia
+  // em área. Dano maior que o básico, atinge vários inimigos.
+  amplifyAttack() {
+    const cx = this.player.x + 12;
+    const cy = this.player.y + 18;
     const dir = this.player.direction;
     const dvec =
       dir === 'left' ? [-1, 0] : dir === 'right' ? [1, 0] : dir === 'up' ? [0, -1] : [0, 1];
-    const dmg = 14 + this.stats.inteligencia * 2.5 + this.stats.level * 2;
+    const reach = 92 * this.meleeAreaMul;
+    const hits: Enemy[] = [];
+    for (const e of this.enemies) {
+      if (e.state === 'dead' || e.hitBy === this.timeElapsed) continue;
+      const ex = e.x + 8;
+      const ey = e.y;
+      const d = Math.hypot(ex - cx, ey - cy);
+      if (d > reach) continue;
+      const dot = ((ex - cx) * dvec[0] + (ey - cy) * dvec[1]) / (d || 1);
+      if (dot < 0.15 && d > 24) continue;
+      hits.push(e);
+    }
+    let dmg =
+      (12 + this.stats.forca * 2.2 + this.stats.level * 1.5 + this.weaponAtk * 1.3) *
+      this.basicAtkMul *
+      this.skillDmgMul;
+    if (hits.length >= 2) dmg *= 1 + this.passiveValue('campoHarmonico');
+    for (const e of hits) {
+      e.hitBy = this.timeElapsed;
+      this.damageEnemy(e, dmg, cx, cy);
+      this.applyImpactoHarmonico(e);
+    }
+    if (hits.length >= 3 && this.getPassiveLevel('campoHarmonico') >= 5) {
+      for (const e of hits) this.damageEnemy(e, dmg * 0.35, cx, cy);
+    }
+    for (let i = 0; i < 10; i++)
+      this.addMiningSpark(cx + dvec[0] * 40 + (Math.random() - 0.5) * 20, cy + dvec[1] * 30);
+  }
+
+  private updateSkillTimers(dt: number) {
+    if (this.resonanceActive) {
+      this.resonanceT -= dt;
+      if (this.resonanceT <= 0) {
+        this.resonanceActive = false;
+        this.resonanceT = 0;
+      }
+    }
+    if (this.resonanceCdT > 0) this.resonanceCdT = Math.max(0, this.resonanceCdT - dt);
+    if (this.pulseCdT > 0) this.pulseCdT = Math.max(0, this.pulseCdT - dt);
+    if (this.tempDmgBuffT > 0) this.tempDmgBuffT = Math.max(0, this.tempDmgBuffT - dt);
+    // combo quebra se ficar muito tempo sem atacar
+    if (this.comboIndex !== 0 || this.comboStacks !== 0) {
+      if (this.timeElapsed - this.lastAttackAt > 1.2) {
+        this.comboIndex = 0;
+        this.comboStacks = 0;
+      }
+    }
+    // decai debuffs/marcas dos inimigos
+    for (const e of this.enemies) {
+      if (e.harmonicDebuffT && e.harmonicDebuffT > 0) {
+        e.harmonicDebuffT -= dt;
+        if (e.harmonicDebuffT <= 0) {
+          e.harmonicDebuffT = 0;
+          e.harmonicDebuffPct = 0;
+        }
+      }
+    }
+  }
+
+  // Skill 1 — Ressonância: buff temporário (energiza a arma + acelera ataques)
+  activateResonance(): boolean {
+    if (this.resonanceCdT > 0 || this.resonanceActive) return false;
+    this.resonanceActive = true;
+    this.resonanceT = GameEngine.RESONANCE_DURATION;
+    this.resonanceCdT = GameEngine.RESONANCE_COOLDOWN * this.cooldownMul;
+    for (let i = 0; i < 12; i++)
+      this.addMiningSpark(
+        this.player.x + 12 + (Math.random() - 0.5) * 22,
+        this.player.y + 4 + (Math.random() - 0.5) * 22,
+      );
+    return true;
+  }
+
+  fireLightCannon() {
+    if (this.pulseCdT > 0) return;
+    this.pulseCdT = GameEngine.PULSE_COOLDOWN * this.cooldownMul;
+    const dir = this.player.direction;
+    const dvec =
+      dir === 'left' ? [-1, 0] : dir === 'right' ? [1, 0] : dir === 'up' ? [0, -1] : [0, 1];
+    const dmg = (14 + this.stats.inteligencia * 2.5 + this.stats.level * 2) * this.skillDmgMul;
     const speed = 360;
     this.lightBeams.push({
       x: this.player.x + 12 + dvec[0] * 16,
@@ -2681,10 +2985,17 @@ export class GameEngine {
         if (e.state === 'dead' || b.hitIds.includes(e.id)) continue;
         if (Math.hypot(e.x + 8 - b.x, e.y - b.y) < 24) {
           b.hitIds.push(e.id);
-          this.damageEnemy(e, b.dmg, b.x - b.vx * 0.1, b.y - b.vy * 0.1);
+          this.damageEnemy(e, b.dmg, b.x - b.vx * 0.1, b.y - b.vy * 0.1, { isPulse: true });
         }
       }
-      if (dead) this.lightBeams.splice(i, 1);
+      if (dead) {
+        // Fluxo Sonoro nv.5: acertar vários inimigos com o Pulso reduz o
+        // próprio cooldown um pouco mais
+        if (b.hitIds.length >= 2 && this.getPassiveLevel('fluxoSonoro') >= 5) {
+          this.pulseCdT = Math.max(0, this.pulseCdT - 0.4);
+        }
+        this.lightBeams.splice(i, 1);
+      }
     }
   }
 
@@ -3314,7 +3625,10 @@ export class GameEngine {
       this.player.isMoving = false;
       this.player.vx = 0;
       this.player.vy = 0;
-      this.player.actionTimer = (this.player.actionTimer || 0) + dt * meta.fps;
+      // Pulso Acelerado: ataques básicos mais rápidos enquanto Ressonância ativa
+      const atkSpeedMul =
+        act === 'attack' && this.resonanceActive ? 1 + this.passiveValue('pulsoAcelerado') : 1;
+      this.player.actionTimer = (this.player.actionTimer || 0) + dt * meta.fps * atkSpeedMul;
       this.player.frame = Math.min(meta.cols - 1, Math.floor(this.player.actionTimer));
 
       // Coleta: Akles NÃO se mexe — só a ferramenta bate. Guarda o alvo p/ a fx.
@@ -3326,10 +3640,16 @@ export class GameEngine {
       if (!this.actionHitDone && this.player.frame >= 2) {
         this.actionHitDone = true;
         if (act === 'chop' || act === 'mine') this.applyHarvestHit();
-        if (act === 'chop' || act === 'attack')
-          this.applyMeleeHit(8 + this.stats.forca * 1.6 + this.stats.level, 46);
-        if (act === 'spin') this.applyMeleeHit(6 + this.stats.forca * 1.2 + this.stats.level, 64);
-        if (act === 'cast') this.fireLightCannon();
+        if (act === 'chop') this.applyMeleeHit(8 + this.stats.forca * 1.6 + this.stats.level, 46);
+        if (act === 'attack') {
+          const crit = this.rollCrit();
+          let dmg = this.basicAttackDamage();
+          if (crit) dmg *= 1.6;
+          this.applyMeleeHit(dmg, 46, { crit });
+          this.onComboHitLanded();
+        }
+        if (act === 'spin') this.amplifyAttack(); // Skill 2 — Amplificação
+        if (act === 'cast') this.fireLightCannon(); // Skill 3 — Pulso Harmônico
       }
 
       // Partículas de impacto nos frames centrais
@@ -3368,7 +3688,8 @@ export class GameEngine {
       const sprintTouch = touchMag > 0.82;
       this.heroRunning = len > 0.05 && (sprintKey || sprintTouch);
       // base mais rápida + escala com Agilidade (pontos de habilidade)
-      const speed = (150 + this.stats.agilidade * 7) * (this.heroRunning ? 1.7 : 1);
+      const speed =
+        (150 + this.stats.agilidade * 7) * (this.heroRunning ? 1.7 : 1) * this.moveSpeedMul;
 
       if (len > 0.05) {
         this.player.isMoving = true;
@@ -3454,6 +3775,7 @@ export class GameEngine {
     this.updateWeatherAndWind(dt);
     this.updateDamageTexts(dt);
     this.updateGroundDrops(dt);
+    this.updateSkillTimers(dt);
 
     if (Math.random() < 0.18) {
       this.addBlossomPetal(
@@ -3819,6 +4141,12 @@ export class GameEngine {
       renderables.push({
         sortY: this.player.y + 31,
         draw: () => this.drawHarvestTool(camX, camY),
+      });
+    } else {
+      // arma flutuante (não durante coleta — a ferramenta assume o lugar)
+      renderables.push({
+        sortY: this.player.y + 31,
+        draw: () => this.drawWeapon(camX, camY),
       });
     }
 
@@ -5000,6 +5328,86 @@ export class GameEngine {
   }
 
   // Ferramenta de coleta ao lado do Akles (ele fica parado, a ferramenta bate).
+  // ---- ARMA FLUTUANTE (sistema global) ----
+  // Nunca faz parte das sheets do Akles. Posição/rotação/escala 100% por
+  // código: repouso flutuando ao lado, combo de 4 golpes, ou Amplificação
+  // (mesmo sprite, escala maior). Troca de arma == troca de config, zero
+  // mudança de animação do personagem.
+  drawWeapon(camX: number, camY: number) {
+    const ctx = this.ctx;
+    const def = this.weaponDef;
+    const energized = this.resonanceActive && def.spriteEnergizedAsset;
+    const assetKey = (energized ? def.spriteEnergizedAsset : def.spriteAsset) as keyof LoadedAssets;
+    const img = this.assets?.[assetKey] as HTMLImageElement | undefined;
+    if (!img || !img.complete || !img.naturalWidth) return;
+
+    const px = this.player.x + 12;
+    const py = this.player.y + 6;
+    const act = this.player.actionState;
+    const baseAngle = DIR_ANGLE_DEG[this.player.direction];
+    const v = def.visual;
+
+    let angleDeg: number;
+    let reach: number;
+    let scaleMul: number;
+    let spinDeg = 0;
+
+    if (act === 'attack') {
+      const meta = AKLES_ANIM.attack;
+      const p = Math.min(1, (this.player.actionTimer || 0) / meta.cols);
+      const f = comboTrajectory(this.comboIndex, p, baseAngle);
+      angleDeg = f.angleDeg;
+      reach = f.reach;
+      scaleMul = f.scaleMul;
+      spinDeg = f.spinDeg || 0;
+    } else if (act === 'spin') {
+      const meta = AKLES_ANIM.spin;
+      const p = Math.min(1, (this.player.actionTimer || 0) / meta.cols);
+      const f = amplifyTrajectory(p, baseAngle);
+      angleDeg = f.angleDeg;
+      reach = f.reach;
+      scaleMul = f.scaleMul;
+    } else {
+      // repouso: flutua ao lado/atrás do personagem com leve oscilação
+      angleDeg = baseAngle + 150;
+      reach = 15 + Math.sin(this.timeElapsed * v.floatSpeed) * v.floatAmplitude;
+      scaleMul = 1;
+    }
+
+    const rad = (angleDeg * Math.PI) / 180;
+    const wx = Math.round(px + Math.cos(rad) * reach - camX);
+    const wy = Math.round(py + Math.sin(rad) * reach * 0.55 - camY);
+
+    const dispH = (img.naturalHeight || 300) * v.scale * scaleMul;
+    const dispW = (img.naturalWidth || 100) * v.scale * scaleMul;
+
+    ctx.save();
+    ctx.translate(wx, wy);
+    ctx.rotate(rad + Math.PI / 2 + (spinDeg * Math.PI) / 180);
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+    // desenha com o cabo (base) próximo ao pivô
+    ctx.drawImage(img, -dispW / 2, -dispH * 0.72, dispW, dispH);
+    ctx.imageSmoothingEnabled = false;
+
+    // Ressonância ativa: notas/partículas azuis ao redor da arma
+    if (this.resonanceActive) {
+      ctx.globalCompositeOperation = 'lighter';
+      for (let i = 0; i < 3; i++) {
+        const ang = this.timeElapsed * 2.4 + (i * Math.PI * 2) / 3;
+        const rr = 14 + Math.sin(this.timeElapsed * 3 + i) * 4;
+        const nx = Math.cos(ang) * rr;
+        const ny = Math.sin(ang) * rr - dispH * 0.35;
+        ctx.fillStyle = 'rgba(120,190,255,0.75)';
+        ctx.beginPath();
+        ctx.arc(nx, ny, 2, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.globalCompositeOperation = 'source-over';
+    }
+    ctx.restore();
+  }
+
   drawHarvestTool(camX: number, camY: number) {
     const ctx = this.ctx;
     const act = this.player.actionState;

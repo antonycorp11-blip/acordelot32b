@@ -129,9 +129,7 @@ function processSheet(cfg) {
     rows = [0, 1, 2, 3].map((r) => [Math.round((r * height) / 4), Math.round(((r + 1) * height) / 4) - 1]);
   }
 
-  // Escala global: altura mediana das linhas -> ~58px de corpo
   const rowH = rows.reduce((s, r) => s + (r[1] - r[0]), 0) / rows.length;
-  const scale = 58 / rowH;
 
   const [cw, ch] = cfg.cell;
   const baseline = ch - 4;
@@ -141,14 +139,15 @@ function processSheet(cfg) {
   const rowMap = cfg.rowMap || [0, 1, 2, 3];
   const mirrorRows = new Set(cfg.mirrorRows || []);
 
-  rowMap.forEach((srcRi, ri) => {
+  // ---- PASSE 1: recorta os bboxes de todos os frames ----
+  const rowData = rowMap.map((srcRi, ri) => {
     const row = rows[srcRi];
-    const mirror = mirrorRows.has(ri);
-    // janela de busca ampliada: pega cabelo/efeitos que ficam abaixo do limiar
     const prevMid = srcRi > 0 ? Math.round((rows[srcRi - 1][1] + row[0]) / 2) : 0;
-    const nextMid = srcRi < rows.length - 1 ? Math.round((row[1] + rows[srcRi + 1][0]) / 2) : height - 1;
+    const nextMid =
+      srcRi < rows.length - 1 ? Math.round((row[1] + rows[srcRi + 1][0]) / 2) : height - 1;
     const y0 = Math.max(prevMid, row[0] - 40);
     const y1 = Math.min(nextMid, row[1] + 20);
+
     const colCounts = new Array(width).fill(0);
     for (let x = 0; x < width; x++) {
       let c = 0;
@@ -156,9 +155,7 @@ function processSheet(cfg) {
       colCounts[x] = c;
     }
     let cells = segments1D(colCounts, 2, 10);
-
     if (cells.length !== cfg.cols) {
-      // fallback: divisão uniforme dentro da extensão de conteúdo
       const first = colCounts.findIndex((c) => c > 1);
       let last = width - 1;
       while (last > 0 && colCounts[last] <= 1) last--;
@@ -170,35 +167,62 @@ function processSheet(cfg) {
       console.warn(`[${cfg.file}] linha ${srcRi}: ${cfg.cols} col. uniformes (detectou outra qtd)`);
     }
 
-    cells.forEach((cell, ci) => {
-      const box = bbox(png, cell[0], cell[1], y0, y1);
+    return {
+      ri,
+      mirror: mirrorRows.has(ri),
+      boxes: cells.map((cell) => bbox(png, cell[0], cell[1], y0, y1)),
+    };
+  });
+
+  // ---- Escala ÚNICA da folha (sem reescala por frame = sem "tranco") ----
+  const bodyScale = 58 / rowH;
+  let maxFh = 1;
+  let maxFw = 1;
+  for (const rd of rowData)
+    for (const b of rd.boxes)
+      if (b) {
+        maxFh = Math.max(maxFh, b.maxY - b.minY + 1);
+        maxFw = Math.max(maxFw, b.maxX - b.minX + 1);
+      }
+  const S = Math.min(bodyScale, (ch - 4) / maxFh, (cw + 6) / maxFw);
+
+  // ---- PASSE 2: rasteriza cada frame com a mesma escala e âncora nos pés ----
+  for (const rd of rowData) {
+    const { ri, mirror } = rd;
+    rd.boxes.forEach((box, ci) => {
       if (!box) return;
       const fw = box.maxX - box.minX + 1;
       const fh = box.maxY - box.minY + 1;
-      let frameScale = scale;
-      // garante que o frame inteiro cabe na célula (nunca corta cabeça/pés)
-      const maxDh = ch - 6;
-      const maxDw = cw + 12;
-      if (fh * frameScale > maxDh) frameScale = maxDh / fh;
-      if (fw * frameScale > maxDw) frameScale = maxDw / fw;
-      const dw = Math.max(1, Math.round(fw * frameScale));
-      const dh = Math.max(1, Math.round(fh * frameScale));
+      const dw = Math.max(1, Math.round(fw * S));
+      const dh = Math.max(1, Math.round(fh * S));
       const destCellX = ci * cw;
       const destCellY = ri * ch;
-      // ancora: centro horizontal da célula, pés no baseline
-      let ox = destCellX + Math.round((cw - dw) / 2);
-      let oy = destCellY + baseline - dh;
-      // clamp dentro da célula (permite estourar só um pouco no topo)
-      ox = Math.max(destCellX - 8, Math.min(destCellX + cw + 8 - dw, ox));
 
-      // nearest-neighbor scale
+      // Âncora horizontal: centróide dos pés (parte de baixo do frame), estável.
+      const footY0 = Math.max(box.minY, box.maxY - Math.round(fh * 0.22));
+      let sumX = 0;
+      let cnt = 0;
+      for (let y = footY0; y <= box.maxY; y++)
+        for (let x = box.minX; x <= box.maxX; x++)
+          if (A(data, width, x, y) > 40) {
+            sumX += x;
+            cnt++;
+          }
+      const footCx = cnt > 0 ? sumX / cnt : (box.minX + box.maxX) / 2;
+      let footCxLocal = (footCx - box.minX) * S;
+      if (mirror) footCxLocal = dw - footCxLocal;
+
+      let ox = Math.round(destCellX + cw / 2 - footCxLocal);
+      const oy = destCellY + baseline - dh;
+      ox = Math.max(destCellX - 10, Math.min(destCellX + cw + 10 - dw, ox));
+
       for (let dy = 0; dy < dh; dy++) {
-        const sy = box.minY + Math.min(fh - 1, Math.floor(dy / frameScale));
+        const sy = box.minY + Math.min(fh - 1, Math.floor(dy / S));
         const ty = oy + dy;
         if (ty < destCellY - 8 || ty >= destCellY + ch) continue;
         for (let dx = 0; dx < dw; dx++) {
           const srcDx = mirror ? dw - 1 - dx : dx;
-          const sx = box.minX + Math.min(fw - 1, Math.floor(srcDx / frameScale));
+          const sx = box.minX + Math.min(fw - 1, Math.floor(srcDx / S));
           const a = A(data, width, sx, sy);
           if (a === 0) continue;
           const tx = ox + dx;
@@ -212,10 +236,10 @@ function processSheet(cfg) {
         }
       }
     });
-  });
+  }
 
   fs.writeFileSync(path.join(OUT, cfg.name + '.png'), PNG.sync.write(out));
-  console.log(`✓ ${cfg.name}.png  (${out.width}x${out.height}, ${cfg.cols}x4, escala ${scale.toFixed(3)})`);
+  console.log(`✓ ${cfg.name}.png  (${out.width}x${out.height}, ${cfg.cols}x4, escala ${S.toFixed(3)})`);
 }
 
 for (const cfg of SHEETS) processSheet(cfg);

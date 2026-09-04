@@ -1,8 +1,15 @@
 /**
- * Map Data & Layout Definition - Ancient Ruins Town Master Plan (72x54)
- * Urban Layout with Stone Streets, Sidewalks, Defined Building Plots,
- * Central Sacred Fountain, Majestic Trees (Grand Oaks, Alpine Pines, Blossom Trees),
- * and Zero Brown Patches/Inconsistencies.
+ * Map Data & Layout — Vila Encantada de Acordelot (72x54, tiles de 32px)
+ *
+ * Planta top-down real:
+ *  - Avenida Central vertical (N-S) e Avenida Central horizontal (L-O) cruzando
+ *    numa Praça da Fonte.
+ *  - Casas alinhadas rente às calçadas, de frente para a rua:
+ *      * lado norte da avenida horizontal -> fachadas frontais
+ *      * lado sul -> vistas traseiras autênticas
+ *      * flancos da avenida vertical -> perspectivas laterais / diagonais
+ *  - Bosques preenchendo os quatro quadrantes + cinturão de floresta na borda.
+ *  - Distrito da pedreira ao nordeste.
  */
 import { Rect, WorldProp, NPC } from './types';
 
@@ -12,26 +19,21 @@ export const TILE_SIZE = 32;
 export const WORLD_WIDTH = MAP_COLS * TILE_SIZE; // 2304px
 export const WORLD_HEIGHT = MAP_ROWS * TILE_SIZE; // 1728px
 
-/**
- * Tile IDs for Terrain2 tileset (36 columns x 14 rows)
- */
+/** Tile IDs do tileset Terrain2 (36 colunas). */
 export const TERRAIN_TILES = {
-  // Pure emerald green grass (no brown shade tiles)
-  GRASS_BASE: 56,        // R1 C20 (100% solid lush emerald grass)
-  GRASS_FLOWER1: 92,     // R2 C20 (subtle wildflower accent)
-  GRASS_FLOWER2: 128,    // R3 C20 (field grass texture)
-
-  // Stone tiles for paved streets, plazas and sidewalks
-  STONE_CENTER: 344,     // R9 C20
-  STONE_CENTER_VAR: 380, // R10 C20
-  STONE_TOP: 308,        // R8 C20
-  STONE_BOTTOM: 416,     // R11 C20
-  STONE_LEFT: 343,       // R9 C19
-  STONE_RIGHT: 345,      // R9 C21
-  STONE_TL: 307,         // R8 C19
-  STONE_TR: 309,         // R8 C21
-  STONE_BL: 415,         // R11 C19
-  STONE_BR: 417,         // R11 C21
+  GRASS_BASE: 56,
+  GRASS_FLOWER1: 92,
+  GRASS_FLOWER2: 128,
+  STONE_CENTER: 344,
+  STONE_CENTER_VAR: 380,
+  STONE_TOP: 308,
+  STONE_BOTTOM: 416,
+  STONE_LEFT: 343,
+  STONE_RIGHT: 345,
+  STONE_TL: 307,
+  STONE_TR: 309,
+  STONE_BL: 415,
+  STONE_BR: 417,
 };
 
 export interface MapGrid {
@@ -41,151 +43,118 @@ export interface MapGrid {
   npcs: NPC[];
 }
 
+/** Dimensões base de cada sprite de construção (batem com EDITABLE_PROP_METAS). */
+const BUILDING_DIMS: Record<string, [number, number, number]> = {
+  // tipo: [largura, altura, sortYOffset]
+  bldgTownHall: [122, 128, 124],
+  bldgBakeryFront: [110, 116, 112],
+  blacksmithFront: [120, 120, 116],
+  residentialFront: [118, 118, 114],
+  apothecaryFront: [120, 118, 114],
+  townHallDiag: [124, 132, 128],
+  bakeryDiag: [118, 122, 118],
+  bldgLodgeEast: [116, 124, 120],
+  lodgeWest: [116, 124, 120],
+  bldgHerbalistWest: [116, 120, 116],
+  herbalistEast: [116, 120, 116],
+  townHallBack: [132, 112, 108],
+  bakeryBack: [114, 116, 112],
+  houseBackCottage: [130, 92, 88],
+  houseBackBlueWoodshed: [108, 124, 120],
+  houseBackTavernMossy: [132, 126, 122],
+  houseBackBlueCellar: [110, 128, 124],
+  townHallSide: [104, 128, 124],
+  bakerySide: [96, 116, 112],
+  stoneQuarry: [140, 140, 136],
+  limestoneBoulders: [88, 86, 82],
+  villageWell: [56, 75, 72],
+  streetLantern: [46, 62, 58],
+  wagonCart: [64, 48, 44],
+  marketStall: [64, 64, 60],
+  hayBaleStack: [48, 36, 32],
+  barrelStack: [40, 36, 32],
+  woodenBench: [32, 24, 22],
+  woodenBenchRustic: [36, 24, 22],
+  bulletinBoard: [30, 34, 30],
+};
+
 export function buildMap(): MapGrid {
   const ground: number[][] = [];
   const solidColliders: Rect[] = [];
   const props: WorldProp[] = [];
   const npcs: NPC[] = [];
 
-  // 1. Initialize Ground with 100% Pure Lush Emerald Grass (Zero Brown Spots)
+  // 1. Grama base com variações suaves
   for (let r = 0; r < MAP_ROWS; r++) {
-    const groundRow: number[] = [];
+    const row: number[] = [];
     for (let c = 0; c < MAP_COLS; c++) {
-      const n1 = Math.sin(c * 0.35 + r * 0.25);
-      const n2 = Math.cos(c * 0.65 - r * 0.55);
-      const noise = (n1 + n2) / 2;
-
-      // Only vibrant green variations and soft wildflower dots
-      if (noise > 0.5) {
-        groundRow.push(TERRAIN_TILES.GRASS_FLOWER1);
-      } else if (noise < -0.5) {
-        groundRow.push(TERRAIN_TILES.GRASS_FLOWER2);
-      } else {
-        groundRow.push(TERRAIN_TILES.GRASS_BASE);
-      }
+      const noise = (Math.sin(c * 0.35 + r * 0.25) + Math.cos(c * 0.65 - r * 0.55)) / 2;
+      if (noise > 0.55) row.push(TERRAIN_TILES.GRASS_FLOWER1);
+      else if (noise < -0.55) row.push(TERRAIN_TILES.GRASS_FLOWER2);
+      else row.push(TERRAIN_TILES.GRASS_BASE);
     }
-    ground.push(groundRow);
+    ground.push(row);
   }
 
-  // 2. URBAN PLAN: STREETS, SQUARES & SIDEWALKS (Planta de Cidade)
+  const paveTile = (c: number, r: number) =>
+    (c + r) % 2 === 0 ? TERRAIN_TILES.STONE_CENTER : TERRAIN_TILES.STONE_CENTER_VAR;
+  const pave = (c0: number, c1: number, r0: number, r1: number) => {
+    for (let r = Math.max(0, r0); r <= Math.min(MAP_ROWS - 1, r1); r++)
+      for (let c = Math.max(0, c0); c <= Math.min(MAP_COLS - 1, c1); c++)
+        ground[r][c] = paveTile(c, r);
+  };
 
-  // A. PRAÇA CENTRAL DA FONTE (Cols 29 to 43, Rows 21 to 33)
-  for (let r = 21; r <= 33; r++) {
-    for (let c = 29; c <= 43; c++) {
-      const dx = (c - 36) / 7.2;
-      const dy = (r - 27) / 5.6;
-      if (dx * dx + dy * dy <= 1.05) {
-        ground[r][c] = (c + r) % 2 === 0 ? TERRAIN_TILES.STONE_CENTER : TERRAIN_TILES.STONE_CENTER_VAR;
-      }
-    }
+  // 2. RUAS PRINCIPAIS
+  // Avenida Central Vertical (N-S) — cols 33..38
+  pave(33, 38, 0, MAP_ROWS - 1);
+  // Avenida Central Horizontal (L-O) — rows 24..29
+  pave(0, MAP_COLS - 1, 24, 29);
+  // Praça da Fonte (cantos chanfrados)
+  pave(26, 45, 20, 33);
+  for (const [cc, rr] of [
+    [26, 20],
+    [45, 20],
+    [26, 33],
+    [45, 33],
+  ] as const) {
+    ground[rr][cc] = TERRAIN_TILES.GRASS_BASE;
   }
+  // Praça do Santuário ao norte
+  pave(31, 40, 3, 8);
 
-  // B. AVENIDA NORTE (Cols 34 to 38, Rows 9 to 21) - 4 tiles de largura
-  for (let r = 9; r <= 21; r++) {
-    for (let c = 34; c <= 38; c++) {
-      ground[r][c] = (r + c) % 2 === 0 ? TERRAIN_TILES.STONE_CENTER : TERRAIN_TILES.STONE_CENTER_VAR;
-    }
-  }
+  // 3. Colisores das bordas do mundo
+  solidColliders.push({ x: 0, y: 0, w: WORLD_WIDTH, h: 24 });
+  solidColliders.push({ x: 0, y: WORLD_HEIGHT - 24, w: WORLD_WIDTH, h: 24 });
+  solidColliders.push({ x: 0, y: 0, w: 24, h: WORLD_HEIGHT });
+  solidColliders.push({ x: WORLD_WIDTH - 24, y: 0, w: 24, h: WORLD_HEIGHT });
 
-  // C. AVENIDA SUL (Cols 34 to 38, Rows 33 to 48) - 4 tiles de largura
-  for (let r = 33; r <= 48; r++) {
-    for (let c = 34; c <= 38; c++) {
-      ground[r][c] = (r + c) % 2 === 0 ? TERRAIN_TILES.STONE_CENTER : TERRAIN_TILES.STONE_CENTER_VAR;
-    }
-  }
+  // 4. HELPERS DE CONSTRUÇÃO
+  // Ancora a base (rodapé) do sprite na linha `baseRow`; `edgeCol`/`side`
+  // encostam o sprite na calçada.
+  const addBuilding = (
+    id: string,
+    type: string,
+    opts: { col?: number; rightCol?: number; leftCol?: number; baseRow: number }
+  ) => {
+    const [w, h, sortOff] = BUILDING_DIMS[type] || [96, 96, 92];
+    let x: number;
+    if (opts.rightCol !== undefined) x = opts.rightCol * TILE_SIZE - w;
+    else if (opts.leftCol !== undefined) x = opts.leftCol * TILE_SIZE;
+    else x = (opts.col ?? 0) * TILE_SIZE;
+    const y = opts.baseRow * TILE_SIZE - h;
+    props.push({ id, type, x, y, w, h, sortY: y + sortOff });
+  };
 
-  // D. RUA OESTE (Rows 26 to 28, Cols 14 to 30) - 3 tiles de largura
-  for (let r = 26; r <= 28; r++) {
-    for (let c = 14; c <= 30; c++) {
-      ground[r][c] = (r + c) % 2 === 0 ? TERRAIN_TILES.STONE_CENTER : TERRAIN_TILES.STONE_CENTER_VAR;
-    }
-  }
+  const addDecor = (id: string, type: string, col: number, baseRow: number) => {
+    const [w, h, sortOff] = BUILDING_DIMS[type] || [32, 32, 28];
+    const x = col * TILE_SIZE;
+    const y = baseRow * TILE_SIZE - h;
+    props.push({ id, type, x, y, w, h, sortY: y + sortOff });
+  };
 
-  // E. RUA LESTE (Rows 26 to 28, Cols 42 to 58) - 3 tiles de largura
-  for (let r = 26; r <= 28; r++) {
-    for (let c = 42; c <= 58; c++) {
-      ground[r][c] = (r + c) % 2 === 0 ? TERRAIN_TILES.STONE_CENTER : TERRAIN_TILES.STONE_CENTER_VAR;
-    }
-  }
-
-  // F. CALÇADAS E RUAS DE CONTORNO DAS QUADRAS / LOTES URBANOS
-  // 1. Quadra Noroeste (Lote 1 & 2 - Espaço para Prefeitura / Grande Mansão)
-  // Rua transversal norte da quadra (Rows 13-14, Cols 17 to 34)
-  for (let r = 13; r <= 14; r++) {
-    for (let c = 17; c <= 34; c++) {
-      ground[r][c] = TERRAIN_TILES.STONE_CENTER_VAR;
-    }
-  }
-  // Rua transversal oeste da quadra (Cols 16-17, Rows 14 to 26)
-  for (let r = 14; r <= 26; r++) {
-    for (let c = 16; c <= 17; c++) {
-      ground[r][c] = TERRAIN_TILES.STONE_CENTER_VAR;
-    }
-  }
-
-  // 2. Quadra Nordeste (Lote 3 & 4 - Espaço para Academia / Biblioteca Mística)
-  // Rua transversal norte da quadra (Rows 13-14, Cols 38 to 55)
-  for (let r = 13; r <= 14; r++) {
-    for (let c = 38; c <= 55; c++) {
-      ground[r][c] = TERRAIN_TILES.STONE_CENTER_VAR;
-    }
-  }
-  // Rua transversal leste da quadra (Cols 54-55, Rows 14 to 26)
-  for (let r = 14; r <= 26; r++) {
-    for (let c = 54; c <= 55; c++) {
-      ground[r][c] = TERRAIN_TILES.STONE_CENTER_VAR;
-    }
-  }
-
-  // 3. Quadra Sudoeste (Lote 5 & 6 - Espaço para Casas Residenciais & Ferraria)
-  // Rua transversal sul da quadra (Rows 39-40, Cols 17 to 34)
-  for (let r = 39; r <= 40; r++) {
-    for (let c = 17; c <= 34; c++) {
-      ground[r][c] = TERRAIN_TILES.STONE_CENTER_VAR;
-    }
-  }
-  // Rua transversal oeste da quadra (Cols 16-17, Rows 28 to 39)
-  for (let r = 28; r <= 39; r++) {
-    for (let c = 16; c <= 17; c++) {
-      ground[r][c] = TERRAIN_TILES.STONE_CENTER_VAR;
-    }
-  }
-
-  // 4. Quadra Sudeste (Lote 7 & 8 - Espaço para Taverna & Mercado dos Viajantes)
-  // Rua transversal sul da quadra (Rows 39-40, Cols 38 to 55)
-  for (let r = 39; r <= 40; r++) {
-    for (let c = 38; c <= 55; c++) {
-      ground[r][c] = TERRAIN_TILES.STONE_CENTER_VAR;
-    }
-  }
-  // Rua transversal leste da quadra (Cols 54-55, Rows 28 to 39)
-  for (let r = 28; r <= 39; r++) {
-    for (let c = 54; c <= 55; c++) {
-      ground[r][c] = TERRAIN_TILES.STONE_CENTER_VAR;
-    }
-  }
-
-  // G. DISTRITO DO TEMPLO / SANTUÁRIO DO NORTE (Cols 30 to 42, Rows 6 to 10)
-  for (let r = 6; r <= 10; r++) {
-    for (let c = 30; c <= 42; c++) {
-      const dx = (c - 36) / 5.5;
-      const dy = (r - 8) / 2.5;
-      if (dx * dx + dy * dy <= 1.0) {
-        ground[r][c] = (c + r) % 2 === 0 ? TERRAIN_TILES.STONE_CENTER : TERRAIN_TILES.STONE_CENTER_VAR;
-      }
-    }
-  }
-
-  // 3. World Bounds Colliders (Bordas Externas)
-  solidColliders.push({ x: 0, y: 0, w: WORLD_WIDTH, h: 32 }); // Top
-  solidColliders.push({ x: 0, y: WORLD_HEIGHT - 32, w: WORLD_WIDTH, h: 32 }); // Bottom
-  solidColliders.push({ x: 0, y: 0, w: 32, h: WORLD_HEIGHT }); // Left
-  solidColliders.push({ x: WORLD_WIDTH - 32, y: 0, w: 32, h: WORLD_HEIGHT }); // Right
-
-  // 4. ESTRUTURAS CENTRAIS
-  // A. A FONTE SAGRADA (O Coração da Cidade na Praça Central) - 160x128px
-  const shrineX = 36 * TILE_SIZE - 80;
-  const shrineY = 27 * TILE_SIZE - 64;
+  // 5. FONTE SAGRADA (coração da praça)
+  const shrineX = 35 * TILE_SIZE + 16 - 80;
+  const shrineY = 26 * TILE_SIZE - 64;
   props.push({
     id: 'shrine_fountain',
     type: 'shrine',
@@ -194,29 +163,15 @@ export function buildMap(): MapGrid {
     w: 160,
     h: 128,
     sortY: shrineY + 116,
-    collider: {
-      x: shrineX + 28,
-      y: shrineY + 56,
-      w: 104,
-      h: 56,
-    },
-    animated: {
-      totalFrames: 8,
-      frameWidth: 160,
-      frameHeight: 128,
-      frameDuration: 120,
-    },
+    // colisor enxuto: deixa faixas de passagem dos dois lados da avenida
+    collider: { x: shrineX + 46, y: shrineY + 66, w: 68, h: 44 },
+    animated: { totalFrames: 8, frameWidth: 160, frameHeight: 128, frameDuration: 120 },
   });
-  solidColliders.push({
-    x: shrineX + 28,
-    y: shrineY + 56,
-    w: 104,
-    h: 56,
-  });
+  solidColliders.push({ x: shrineX + 46, y: shrineY + 66, w: 68, h: 44 });
 
-  // B. CÁLICE DE ESPÍRITOS (No Santuário do Norte) - 64x64px
-  const chaliceX = 36 * TILE_SIZE - 32;
-  const chaliceY = 8 * TILE_SIZE - 32;
+  // Cálice de Espíritos no santuário norte
+  const chaliceX = 35 * TILE_SIZE + 16 - 32;
+  const chaliceY = 5 * TILE_SIZE - 32;
   props.push({
     id: 'chalice_spirits',
     type: 'chalice',
@@ -225,15 +180,10 @@ export function buildMap(): MapGrid {
     w: 64,
     h: 64,
     sortY: chaliceY + 56,
-    animated: {
-      totalFrames: 8,
-      frameWidth: 64,
-      frameHeight: 64,
-      frameDuration: 110,
-    },
+    animated: { totalFrames: 8, frameWidth: 64, frameHeight: 64, frameDuration: 110 },
   });
 
-  // C. PILARES DECORATIVOS NAS RUAS (Atlas Props)
+  // Pilares (atlas) nas entradas
   const addPillar = (id: string, col: number, row: number) => {
     const px = col * TILE_SIZE;
     const py = row * TILE_SIZE;
@@ -250,282 +200,106 @@ export function buildMap(): MapGrid {
     });
     solidColliders.push({ x: px + 8, y: py + 48, w: 16, h: 12 });
   };
+  addPillar('pillar_shrine_w', 31, 3);
+  addPillar('pillar_shrine_e', 40, 3);
+  addPillar('pillar_plaza_nw', 27, 20);
+  addPillar('pillar_plaza_ne', 44, 20);
+  addPillar('pillar_plaza_sw', 27, 33);
+  addPillar('pillar_plaza_se', 44, 33);
 
-  // Pilares do Santuário Norte
-  addPillar('pillar_n1', 32, 6);
-  addPillar('pillar_n2', 40, 6);
+  // 6. CASAS RENTE ÀS RUAS
+  // 6a. Fila NORTE da avenida horizontal — fachadas frontais (base linha 23)
+  addBuilding('b_residential', 'residentialFront', { col: 5, baseRow: 23 });
+  addBuilding('b_blacksmith', 'blacksmithFront', { col: 14, baseRow: 23 });
+  addBuilding('b_town_hall', 'bldgTownHall', { col: 23, baseRow: 23 });
+  addBuilding('b_bakery_front', 'bldgBakeryFront', { col: 41, baseRow: 23 });
+  addBuilding('b_apothecary', 'apothecaryFront', { col: 50, baseRow: 23 });
+  addBuilding('b_bakery_diag', 'bakeryDiag', { col: 59, baseRow: 23 });
 
-  // Pilares de Entrada da Praça Central
-  addPillar('pillar_sq_nw', 31, 22);
-  addPillar('pillar_sq_ne', 41, 22);
-  addPillar('pillar_sq_sw', 31, 32);
-  addPillar('pillar_sq_se', 41, 32);
+  // 6b. Fila SUL da avenida horizontal — vistas traseiras (base linha 35)
+  addBuilding('b_back_woodshed', 'houseBackBlueWoodshed', { col: 6, baseRow: 35 });
+  addBuilding('b_back_cottage', 'houseBackCottage', { col: 15, baseRow: 34 });
+  addBuilding('b_back_townhall', 'townHallBack', { col: 24, baseRow: 34 });
+  addBuilding('b_back_bakery', 'bakeryBack', { col: 41, baseRow: 35 });
+  addBuilding('b_back_cellar', 'houseBackBlueCellar', { col: 50, baseRow: 35 });
+  addBuilding('b_back_tavern', 'houseBackTavernMossy', { col: 58, baseRow: 35 });
 
-  // D. CONSTRUÇÕES EM MÚLTIPLAS PERSPECTIVAS (Sprites em Alta Definição)
-  // 1. Prefeitura / Mansão dos Sábios (VISTA FRONTAL DIRETA - Sul, 122x128 px)
-  const h1X = 20 * TILE_SIZE;
-  const h1Y = 15 * TILE_SIZE;
-  props.push({
-    id: 'bldg_town_hall',
-    type: 'bldgTownHall',
-    x: h1X,
-    y: h1Y,
-    w: 122,
-    h: 128,
-    sortY: h1Y + 124,
-    collider: { x: h1X + 12, y: h1Y + 96, w: 98, h: 28 },
-  });
-  solidColliders.push({ x: h1X + 12, y: h1Y + 96, w: 98, h: 28 });
+  // 6c. Flanco OESTE da avenida vertical (fachadas viradas para leste)
+  addBuilding('b_lodge_west', 'lodgeWest', { rightCol: 33, baseRow: 12 });
+  addBuilding('b_herbalist_west', 'bldgHerbalistWest', { rightCol: 33, baseRow: 20 });
+  addBuilding('b_bakery_side', 'bakerySide', { rightCol: 33, baseRow: 41 });
+  addBuilding('b_townhall_diag', 'townHallDiag', { rightCol: 33, baseRow: 49 });
 
-  // 2. Estalagem & Taverna dos Aventureiros (PERSPECTIVA LESTE - Direita, 116x124 px)
-  const h2X = 43 * TILE_SIZE;
-  const h2Y = 15 * TILE_SIZE;
-  props.push({
-    id: 'bldg_lodge_east',
-    type: 'bldgLodgeEast',
-    x: h2X,
-    y: h2Y,
-    w: 116,
-    h: 124,
-    sortY: h2Y + 120,
-    collider: { x: h2X + 12, y: h2Y + 92, w: 92, h: 28 },
-  });
-  solidColliders.push({ x: h2X + 12, y: h2Y + 92, w: 92, h: 28 });
+  // 6d. Flanco LESTE da avenida vertical (fachadas viradas para oeste)
+  addBuilding('b_herbalist_east', 'herbalistEast', { leftCol: 38, baseRow: 12 });
+  addBuilding('b_townhall_side', 'townHallSide', { leftCol: 38, baseRow: 20 });
+  addBuilding('b_lodge_east', 'bldgLodgeEast', { leftCol: 38, baseRow: 41 });
+  addBuilding('b_herbalist_east2', 'bldgHerbalistWest', { leftCol: 38, baseRow: 49 });
 
-  // 3. Casa do Botânico & Alquimista (PERSPECTIVA OESTE - Esquerda, 116x120 px)
-  const h3X = 19 * TILE_SIZE;
-  const h3Y = 30 * TILE_SIZE;
-  props.push({
-    id: 'bldg_herbalist_west',
-    type: 'bldgHerbalistWest',
-    x: h3X,
-    y: h3Y,
-    w: 116,
-    h: 120,
-    sortY: h3Y + 116,
-    collider: { x: h3X + 12, y: h3Y + 88, w: 92, h: 28 },
-  });
-  solidColliders.push({ x: h3X + 12, y: h3Y + 88, w: 92, h: 28 });
-
-  // 4. Padaria da Vila & Mercado (VISTA FRONTAL DIRETA - Sul, 110x116 px)
-  const h4X = 43 * TILE_SIZE;
-  const h4Y = 30 * TILE_SIZE;
-  props.push({
-    id: 'bldg_bakery_front',
-    type: 'bldgBakeryFront',
-    x: h4X,
-    y: h4Y,
-    w: 110,
-    h: 116,
-    sortY: h4Y + 112,
-    collider: { x: h4X + 10, y: h4Y + 86, w: 90, h: 26 },
-  });
-  solidColliders.push({ x: h4X + 10, y: h4Y + 86, w: 90, h: 26 });
-
-  // E. DISTRITO DA PEDREIRA ANCESTRAL & ROCHEDOS (Nordeste Alto)
-  // 1. A Grande Pedreira de Mineração (140x140 px)
-  const qX = 52 * TILE_SIZE;
-  const qY = 4 * TILE_SIZE;
-  props.push({
-    id: 'bldg_quarry_main',
-    type: 'stoneQuarry',
-    x: qX,
-    y: qY,
-    w: 140,
-    h: 140,
-    sortY: qY + 136,
-  });
-
-  // 2. Grandes Rochedos de Calcário e Pedras
-  props.push({
-    id: 'rock_boulder_1',
-    type: 'limestoneBoulders',
-    x: 60 * TILE_SIZE,
-    y: 9 * TILE_SIZE,
-    w: 88,
-    h: 86,
-    sortY: 9 * TILE_SIZE + 82,
-  });
-
-  props.push({
-    id: 'rock_boulder_2',
-    type: 'limestoneBoulders',
-    x: 47 * TILE_SIZE,
-    y: 6 * TILE_SIZE,
-    w: 88,
-    h: 86,
-    sortY: 6 * TILE_SIZE + 82,
-  });
-
+  // 7. DISTRITO DA PEDREIRA (nordeste)
+  addDecor('quarry_main', 'stoneQuarry', 60, 13);
+  addDecor('boulders_1', 'limestoneBoulders', 54, 9);
+  addDecor('boulders_2', 'limestoneBoulders', 64, 14);
   props.push({
     id: 'rock_cluster_1',
     type: 'rockCluster',
-    x: 49 * TILE_SIZE,
-    y: 10 * TILE_SIZE,
+    x: 57 * TILE_SIZE,
+    y: 11 * TILE_SIZE,
     w: 32,
     h: 26,
-    sortY: 10 * TILE_SIZE + 24,
+    sortY: 11 * TILE_SIZE + 24,
   });
-
   props.push({
     id: 'rock_pair_1',
     type: 'rockPair',
-    x: 58 * TILE_SIZE,
-    y: 5 * TILE_SIZE,
+    x: 66 * TILE_SIZE,
+    y: 8 * TILE_SIZE,
     w: 28,
     h: 22,
-    sortY: 5 * TILE_SIZE + 20,
+    sortY: 8 * TILE_SIZE + 20,
   });
-
   props.push({
     id: 'rock_monolith_1',
     type: 'rockMonolith',
-    x: 64 * TILE_SIZE,
+    x: 52 * TILE_SIZE,
     y: 6 * TILE_SIZE,
     w: 24,
     h: 40,
     sortY: 6 * TILE_SIZE + 38,
   });
-
   props.push({
     id: 'rock_flat_slab_1',
     type: 'rockFlatSlab',
-    x: 54 * TILE_SIZE,
-    y: 11 * TILE_SIZE,
+    x: 62 * TILE_SIZE,
+    y: 6 * TILE_SIZE,
     w: 36,
     h: 18,
-    sortY: 11 * TILE_SIZE + 16,
+    sortY: 6 * TILE_SIZE + 16,
   });
 
-  // F. NOVAS CONSTRUÇÕES DA VILA NOS ÂNGULOS CORRETOS
-  // 1. Poço Sagrado da Vila (Praça Central Noroeste)
-  props.push({
-    id: 'bldg_well_plaza',
-    type: 'villageWell',
-    x: 30 * TILE_SIZE,
-    y: 20 * TILE_SIZE,
-    w: 56,
-    h: 75,
-    sortY: 20 * TILE_SIZE + 72,
-  });
+  // 8. MOBILIÁRIO URBANO NA PRAÇA
+  addDecor('well_plaza', 'villageWell', 29, 32);
+  addDecor('market_stall_1', 'marketStall', 40, 32);
+  addDecor('wagon_cart_1', 'wagonCart', 27, 24);
+  addDecor('hay_bale_1', 'hayBaleStack', 42, 24);
+  addDecor('barrel_stack_1', 'barrelStack', 30, 22);
+  addDecor('bench_plaza_1', 'woodenBench', 32, 33);
+  addDecor('bench_plaza_2', 'woodenBench', 39, 33);
+  addDecor('bulletin_1', 'bulletinBoard', 44, 24);
 
-  // 2. Ferraria da Vila com Forja e Bigorna (Ângulo Frontal)
-  props.push({
-    id: 'bldg_blacksmith_main',
-    type: 'blacksmithFront',
-    x: 12 * TILE_SIZE,
-    y: 15 * TILE_SIZE,
-    w: 120,
-    h: 120,
-    sortY: 15 * TILE_SIZE + 116,
-  });
+  // Lanternas ao longo das ruas
+  const lanternSpots: Array<[number, number]> = [
+    [27, 20], [44, 20], [27, 33], [44, 33],
+    [34, 10], [39, 10], [34, 17], [39, 17],
+    [34, 37], [39, 37], [34, 45], [39, 45],
+    [12, 23], [21, 23], [49, 23], [58, 23],
+    [12, 31], [21, 31], [49, 31], [58, 31],
+  ];
+  lanternSpots.forEach(([c, r], i) => addDecor(`lantern_${i}`, 'streetLantern', c, r));
 
-  // 3. Casa Residencial Enxaimel com Flores (Ângulo Frontal)
-  props.push({
-    id: 'bldg_residential_main',
-    type: 'residentialFront',
-    x: 27 * TILE_SIZE,
-    y: 15 * TILE_SIZE,
-    w: 118,
-    h: 118,
-    sortY: 15 * TILE_SIZE + 114,
-  });
-
-  // 4. Casas de Costas para nós (Rua Sul - Perfeitas para a parte de baixo)
-  props.push({
-    id: 'bldg_townhall_back_1',
-    type: 'townHallBack',
-    x: 24 * TILE_SIZE,
-    y: 35 * TILE_SIZE,
-    w: 122,
-    h: 128,
-    sortY: 35 * TILE_SIZE + 124,
-  });
-
-  props.push({
-    id: 'bldg_bakery_back_1',
-    type: 'bakeryBack',
-    x: 42 * TILE_SIZE,
-    y: 35 * TILE_SIZE,
-    w: 110,
-    h: 116,
-    sortY: 35 * TILE_SIZE + 112,
-  });
-
-  // 5. Casas de Perfil Lateral (Ruas Leste e Oeste)
-  props.push({
-    id: 'bldg_townhall_side_1',
-    type: 'townHallSide',
-    x: 52 * TILE_SIZE,
-    y: 17 * TILE_SIZE,
-    w: 104,
-    h: 128,
-    sortY: 17 * TILE_SIZE + 124,
-  });
-
-  props.push({
-    id: 'bldg_bakery_side_1',
-    type: 'bakerySide',
-    x: 8 * TILE_SIZE,
-    y: 17 * TILE_SIZE,
-    w: 96,
-    h: 116,
-    sortY: 17 * TILE_SIZE + 112,
-  });
-
-  // 6. Postes de Iluminação com Lanternas (Shader de Luz) e Bancos
-  props.push({
-    id: 'lantern_plaza_1',
-    type: 'streetLantern',
-    x: 32 * TILE_SIZE,
-    y: 21 * TILE_SIZE,
-    w: 46,
-    h: 62,
-    sortY: 21 * TILE_SIZE + 58,
-  });
-
-  props.push({
-    id: 'lantern_plaza_2',
-    type: 'streetLantern',
-    x: 43 * TILE_SIZE,
-    y: 21 * TILE_SIZE,
-    w: 46,
-    h: 62,
-    sortY: 21 * TILE_SIZE + 58,
-  });
-
-  props.push({
-    id: 'lantern_south_1',
-    type: 'streetLantern',
-    x: 36 * TILE_SIZE,
-    y: 33 * TILE_SIZE,
-    w: 46,
-    h: 62,
-    sortY: 33 * TILE_SIZE + 58,
-  });
-
-  props.push({
-    id: 'lantern_east_1',
-    type: 'streetLantern',
-    x: 50 * TILE_SIZE,
-    y: 23 * TILE_SIZE,
-    w: 46,
-    h: 62,
-    sortY: 23 * TILE_SIZE + 58,
-  });
-
-  props.push({
-    id: 'bench_plaza_1',
-    type: 'woodenBench',
-    x: 39 * TILE_SIZE,
-    y: 22 * TILE_SIZE,
-    w: 32,
-    h: 24,
-    sortY: 22 * TILE_SIZE + 22,
-  });
-
-  // 5. SISTEMA DE VEGETAÇÃO MAJESTOSA (Novos Modelos de Grande Porte)
-  // Carvalho Real (64x80 px) - Colisão cirúrgica na base do tronco (14x8px)
+  // 9. VEGETAÇÃO
+  // Árvores: o colisor do tronco fica só em prop.collider (a engine já o
+  // considera e o remove quando a árvore é derrubada).
   const addOak = (id: string, x: number, y: number) => {
     props.push({
       id,
@@ -537,10 +311,7 @@ export function buildMap(): MapGrid {
       sortY: y + 74,
       collider: { x: x + 25, y: y + 66, w: 14, h: 8 },
     });
-    solidColliders.push({ x: x + 25, y: y + 66, w: 14, h: 8 });
   };
-
-  // Pinheiro Alpino (40x80 px) - Colisão na base do tronco (12x8px)
   const addPine = (id: string, x: number, y: number) => {
     props.push({
       id,
@@ -552,10 +323,7 @@ export function buildMap(): MapGrid {
       sortY: y + 74,
       collider: { x: x + 14, y: y + 66, w: 12, h: 8 },
     });
-    solidColliders.push({ x: x + 14, y: y + 66, w: 12, h: 8 });
   };
-
-  // Cerejeira Encantada (60x76 px) - Colisão na base do tronco (14x8px)
   const addBlossom = (id: string, x: number, y: number) => {
     props.push({
       id,
@@ -567,114 +335,84 @@ export function buildMap(): MapGrid {
       sortY: y + 72,
       collider: { x: x + 23, y: y + 64, w: 14, h: 8 },
     });
-    solidColliders.push({ x: x + 23, y: y + 64, w: 14, h: 8 });
   };
-
-  // Arbusto com Frutas (28x24 px) - Sem colisão para permitir caminhada suave
   const addBush = (id: string, x: number, y: number) => {
-    props.push({
-      id,
-      type: 'bush',
-      x,
-      y,
-      w: 28,
-      h: 24,
-      sortY: y + 22,
-    });
+    props.push({ id, type: 'bush', x, y, w: 28, h: 24, sortY: y + 22 });
   };
 
-  let treeId = 0;
-
-  // A. BOSQUE NORDESTE E NORTE (Pinheiros Alpinos Majestosos)
-  const alpinePines = [
-    [48, 5], [54, 4], [60, 6], [65, 5],
-    [46, 9], [51, 8], [57, 10], [63, 8], [67, 11],
-    [48, 17], [53, 16], [59, 18], [64, 15],
-  ];
-  for (const [col, row] of alpinePines) {
-    addPine(`pine_${treeId++}`, col * TILE_SIZE, row * TILE_SIZE);
-    addBush(`bush_${treeId++}`, (col + 1) * TILE_SIZE + 4, (row + 1) * TILE_SIZE + 8);
-  }
-
-  // B. BOSQUE NOROESTE (Carvalhos Reais Ancestrais)
-  const royalOaks = [
-    [6, 5], [11, 4], [8, 10], [13, 8],
-    [5, 16], [10, 15], [5, 21], [11, 20],
-  ];
-  for (const [col, row] of royalOaks) {
-    addOak(`oak_${treeId++}`, col * TILE_SIZE, row * TILE_SIZE);
-    addBush(`bush_${treeId++}`, (col + 1) * TILE_SIZE, (row + 1) * TILE_SIZE + 4);
-  }
-
-  // C. ALAMEDA E BOSQUE SUDOESTE (Cerejeiras Místicas Floridas)
-  const blossomGrove = [
-    [6, 33], [11, 32], [5, 38], [10, 39],
-    [7, 44], [12, 43], [6, 48], [11, 47],
-    [21, 43], [27, 44], [31, 43],
-  ];
-  for (const [col, row] of blossomGrove) {
-    addBlossom(`blossom_${treeId++}`, col * TILE_SIZE, row * TILE_SIZE);
-    addBush(`bush_${treeId++}`, (col + 1) * TILE_SIZE, (row + 1) * TILE_SIZE);
-  }
-
-  // D. BOSQUE SUDESTE (Floresta dos Pinheiros e Carvalhos)
-  const seForest = [
-    [58, 32], [63, 33], [57, 37], [64, 38],
-    [58, 43], [63, 44], [57, 48], [64, 47],
-    [41, 43], [46, 44],
-  ];
-  for (const [col, row] of seForest) {
-    if (treeId % 2 === 0) {
-      addPine(`pine_${treeId++}`, col * TILE_SIZE, row * TILE_SIZE);
-    } else {
-      addOak(`oak_${treeId++}`, col * TILE_SIZE, row * TILE_SIZE);
+  let t = 0;
+  const grove = (
+    coords: Array<[number, number]>,
+    kind: 'oak' | 'pine' | 'blossom' | 'mixed'
+  ) => {
+    for (const [c, r] of coords) {
+      const x = c * TILE_SIZE;
+      const y = r * TILE_SIZE;
+      if (kind === 'oak') addOak(`oak_${t++}`, x, y);
+      else if (kind === 'pine') addPine(`pine_${t++}`, x, y);
+      else if (kind === 'blossom') addBlossom(`bls_${t++}`, x, y);
+      else (t % 2 === 0 ? addPine : addOak)(`tr_${t++}`, x, y);
+      addBush(`bush_${t++}`, x + 30, y + 40);
     }
-    addBush(`bush_${treeId++}`, col * TILE_SIZE - 8, row * TILE_SIZE + 10);
+  };
+
+  // Quadrante NOROESTE (acima da fila norte de casas)
+  grove(
+    [
+      [4, 3], [9, 4], [14, 3], [19, 5], [24, 3], [29, 4],
+      [5, 9], [11, 10], [17, 9], [23, 10], [29, 9],
+      [7, 16], [13, 17], [19, 16], [25, 17], [30, 15],
+    ],
+    'oak'
+  );
+  // Quadrante NORDESTE (entre casas leste e pedreira)
+  grove(
+    [
+      [41, 3], [46, 4], [51, 3],
+      [42, 9], [47, 10],
+      [41, 16], [47, 17], [52, 16],
+    ],
+    'pine'
+  );
+  // Quadrante SUDOESTE (abaixo da fila sul)
+  grove(
+    [
+      [4, 38], [9, 39], [14, 38], [19, 40], [24, 38], [29, 39],
+      [5, 44], [11, 45], [17, 44], [23, 45], [29, 44],
+      [6, 49], [13, 50], [20, 49], [27, 50],
+    ],
+    'blossom'
+  );
+  // Quadrante SUDESTE
+  grove(
+    [
+      [41, 38], [46, 39], [51, 38], [56, 40], [61, 38], [65, 39],
+      [42, 44], [48, 45], [54, 44], [60, 45], [65, 44],
+      [43, 49], [50, 50], [57, 49], [64, 50],
+    ],
+    'mixed'
+  );
+
+  // Cinturão de floresta na borda
+  for (let c = 2; c < MAP_COLS - 2; c += 5) {
+    addPine(`bN_${t++}`, c * TILE_SIZE, 1 * TILE_SIZE);
+    addOak(`bS_${t++}`, c * TILE_SIZE, 51 * TILE_SIZE);
+  }
+  for (let r = 4; r < MAP_ROWS - 4; r += 5) {
+    addOak(`bW_${t++}`, 1 * TILE_SIZE, r * TILE_SIZE);
+    addPine(`bE_${t++}`, 69 * TILE_SIZE, r * TILE_SIZE);
   }
 
-  // E. ARBORIZAÇÃO URBANA NAS CALÇADAS E ESQUINAS DA PRAÇA
-  addOak('oak_corner_nw', 28 * TILE_SIZE, 19 * TILE_SIZE);
-  addOak('oak_corner_ne', 43 * TILE_SIZE, 19 * TILE_SIZE);
-  addBlossom('blossom_corner_sw', 28 * TILE_SIZE, 33 * TILE_SIZE);
-  addBlossom('blossom_corner_se', 43 * TILE_SIZE, 33 * TILE_SIZE);
-
-  // Arbustos ornamentais nas esquinas dos lotes
-  const urbanBushes = [
-    [33, 19], [39, 19], [33, 33], [39, 33],
-    [28, 25], [28, 29], [44, 25], [44, 29],
-    [24, 15], [48, 15], [24, 38], [48, 38],
-  ];
-  for (const [c, r] of urbanBushes) {
-    addBush(`urban_bush_${treeId++}`, c * TILE_SIZE + 2, r * TILE_SIZE + 4);
-  }
-
-  // F. CINTURÃO NATURAL DE BORDA (Densa barreira de floresta em toda a volta)
-  // Borda Norte (Linhas 1-2)
-  for (let c = 2; c < MAP_COLS - 2; c += 4) {
-    addPine(`border_n_${treeId++}`, c * TILE_SIZE, 1 * TILE_SIZE);
-  }
-  // Borda Sul (Linhas 50-51)
-  for (let c = 2; c < MAP_COLS - 2; c += 4) {
-    addOak(`border_s_${treeId++}`, c * TILE_SIZE, 50 * TILE_SIZE);
-  }
-  // Borda Oeste (Colunas 1-2)
-  for (let r = 4; r < MAP_ROWS - 4; r += 4) {
-    addOak(`border_w_${treeId++}`, 1 * TILE_SIZE, r * TILE_SIZE);
-  }
-  // Borda Leste (Colunas 68-69)
-  for (let r = 4; r < MAP_ROWS - 4; r += 4) {
-    addPine(`border_e_${treeId++}`, 68 * TILE_SIZE, r * TILE_SIZE);
-  }
-
-  // 6. O MERCADOR DAS RUÍNAS (Gildor)
-  // Posicionado na borda leste da Praça Central, perto da Rua dos Mercadores
+  // 10. MERCADOR GILDOR (lado leste da praça)
+  const mX = 42 * TILE_SIZE;
+  const mY = 27 * TILE_SIZE;
   npcs.push({
     id: 'merchant_ruins',
     name: 'Gildor, o Mercador Místico',
     title: 'Mercador da Vila Encantada',
     spriteType: 'merchant',
-    x: 42 * TILE_SIZE,
-    y: 25 * TILE_SIZE,
+    x: mX,
+    y: mY,
     vx: 0,
     vy: 0,
     direction: 'down',
@@ -683,36 +421,21 @@ export function buildMap(): MapGrid {
     stepTimer: 0,
     width: 64,
     height: 72,
-    homeX: 42 * TILE_SIZE,
-    homeY: 25 * TILE_SIZE,
+    homeX: mX,
+    homeY: mY,
     patrolRadius: 0,
     wanderTimer: 0,
     idleTimer: 0,
     wanderTarget: null,
     speed: 0,
-    collider: {
-      offsetX: 16,
-      offsetY: 44,
-      w: 32,
-      h: 20,
-    },
+    collider: { offsetX: 16, offsetY: 44, w: 32, h: 20 },
     dialogue: [
       'Que a luz da Vila Encantada guie seus passos, viajante.',
-      'Veja como a praça central e as avenidas de pedra ganharam vida ao redor da Fonte Sagrada!',
-      'As quadras demarcadas logo acolherão as primeiras construções dos nossos sábios e artesãos.',
+      'A praça da Fonte é o coração de Acordelot — daqui partem as duas grandes avenidas.',
+      'Passe nas lojas: a ferraria ao norte, a padaria a leste, e a taverna mais ao sul.',
     ],
   });
-  solidColliders.push({
-    x: 42 * TILE_SIZE + 16,
-    y: 25 * TILE_SIZE + 44,
-    w: 32,
-    h: 20,
-  });
+  solidColliders.push({ x: mX + 16, y: mY + 44, w: 32, h: 20 });
 
-  return {
-    ground,
-    solidColliders,
-    props,
-    npcs,
-  };
+  return { ground, solidColliders, props, npcs };
 }

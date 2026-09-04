@@ -1,9 +1,11 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Swords, RefreshCw, Sparkles, Axe, Pickaxe } from 'lucide-react';
+import { Swords, RefreshCw, Sparkles, Hand, Backpack } from 'lucide-react';
 import type { GameEngine, AklesAction } from '../game/engine';
 
 interface TouchControlsProps {
   engineRef: React.MutableRefObject<GameEngine | null>;
+  onHarvest: () => void;
+  onToggleInventory: () => void;
 }
 
 const JOYSTICK_SIZE = 132;
@@ -14,7 +16,11 @@ const MAX_RADIUS = (JOYSTICK_SIZE - KNOB_SIZE) / 2;
  * Controles de toque para celular: joystick analógico virtual (esquerda) e
  * botões de ação de combate (direita). O joystick alimenta engine.setTouchVector().
  */
-export const TouchControls: React.FC<TouchControlsProps> = ({ engineRef }) => {
+export const TouchControls: React.FC<TouchControlsProps> = ({
+  engineRef,
+  onHarvest,
+  onToggleInventory,
+}) => {
   const baseRef = useRef<HTMLDivElement | null>(null);
   const originRef = useRef<{ x: number; y: number } | null>(null);
   const pointerIdRef = useRef<number | null>(null);
@@ -114,6 +120,23 @@ export const TouchControls: React.FC<TouchControlsProps> = ({ engineRef }) => {
         />
       </div>
 
+      {/* Mochila — canto superior direito, abaixo dos controles */}
+      <button
+        type="button"
+        onPointerDown={(e) => {
+          e.preventDefault();
+          onToggleInventory();
+        }}
+        className={`${actionBtn} absolute w-11 h-11 border-amber-400/50 bg-slate-950/80 text-amber-300`}
+        style={{
+          right: 'max(18px, env(safe-area-inset-right))',
+          top: 'calc(64px + env(safe-area-inset-top))',
+        }}
+        title="Mochila"
+      >
+        <Backpack className="w-5 h-5" />
+      </button>
+
       {/* Botões de ação — canto inferior direito */}
       <div
         className="absolute flex flex-col items-end gap-2.5"
@@ -122,29 +145,11 @@ export const TouchControls: React.FC<TouchControlsProps> = ({ engineRef }) => {
           bottom: 'calc(20px + env(safe-area-inset-bottom))',
         }}
       >
-        <div className="flex gap-2.5">
-          <button
-            type="button"
-            onPointerDown={fireAction('chop')}
-            className={`${actionBtn} w-11 h-11 border-emerald-400/50 bg-emerald-950/70 text-emerald-300`}
-            title="Cortar árvore"
-          >
-            <Axe className="w-5 h-5" />
-          </button>
-          <button
-            type="button"
-            onPointerDown={fireAction('mine')}
-            className={`${actionBtn} w-11 h-11 border-amber-400/50 bg-amber-950/70 text-amber-300`}
-            title="Minerar rocha"
-          >
-            <Pickaxe className="w-5 h-5" />
-          </button>
-        </div>
         <div className="flex items-end gap-2.5">
           <button
             type="button"
             onPointerDown={fireAction('cast')}
-            className={`${actionBtn} w-12 h-12 border-cyan-400/50 bg-cyan-950/70 text-cyan-300`}
+            className={`${actionBtn} w-11 h-11 border-cyan-400/50 bg-cyan-950/70 text-cyan-300`}
             title="Magia"
           >
             <Sparkles className="w-5 h-5" />
@@ -152,7 +157,7 @@ export const TouchControls: React.FC<TouchControlsProps> = ({ engineRef }) => {
           <button
             type="button"
             onPointerDown={fireAction('spin')}
-            className={`${actionBtn} w-12 h-12 border-indigo-400/50 bg-indigo-950/70 text-indigo-300`}
+            className={`${actionBtn} w-11 h-11 border-indigo-400/50 bg-indigo-950/70 text-indigo-300`}
             title="Golpe giratório"
           >
             <RefreshCw className="w-5 h-5" />
@@ -160,12 +165,24 @@ export const TouchControls: React.FC<TouchControlsProps> = ({ engineRef }) => {
           <button
             type="button"
             onPointerDown={fireAction('attack')}
-            className={`${actionBtn} w-16 h-16 border-rose-400/60 bg-rose-950/80 text-rose-200`}
+            className={`${actionBtn} w-12 h-12 border-rose-400/60 bg-rose-950/80 text-rose-200`}
             title="Atacar com a espada"
           >
-            <Swords className="w-7 h-7" />
+            <Swords className="w-5 h-5" />
           </button>
         </div>
+        <button
+          type="button"
+          onPointerDown={(e) => {
+            e.preventDefault();
+            onHarvest();
+          }}
+          className={`${actionBtn} w-[70px] h-[70px] flex-col gap-0.5 border-emerald-400/60 bg-emerald-900/85 text-emerald-100`}
+          title="Coletar recurso mais próximo"
+        >
+          <Hand className="w-6 h-6" />
+          <span className="text-[10px] font-bold">Coletar</span>
+        </button>
       </div>
     </div>
   );

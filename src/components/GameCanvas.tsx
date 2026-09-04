@@ -26,6 +26,8 @@ import {
 } from 'lucide-react';
 import { GameEngine, InteractionState, SelectedPropInfo, TimeOfDay } from '../game/engine';
 import { TouchControls } from './TouchControls';
+import { Inventory } from './Inventory';
+import { Backpack, Hand } from 'lucide-react';
 
 interface PropPaletteItem {
   type: string;
@@ -315,6 +317,12 @@ export const GameCanvas: React.FC = () => {
   const [dialogueIdx, setDialogueIdx] = useState(0);
   const [showShop, setShowShop] = useState(false);
 
+  // Inventário / coleta
+  const [inventory, setInventory] = useState<Record<string, number>>({});
+  const [showInventory, setShowInventory] = useState(false);
+  const [pickupFlash, setPickupFlash] = useState<string | null>(null);
+  const pickupTimer = useRef<number | null>(null);
+
   // Map Editor, Time of Day & Zoom State
   const [isEditMode, setIsEditMode] = useState(false);
   const [selectedProp, setSelectedProp] = useState<SelectedPropInfo | null>(null);
@@ -343,6 +351,16 @@ export const GameCanvas: React.FC = () => {
         setShowShop(false);
         setDialogueIdx(0);
       }
+    };
+
+    engine.onInventoryChange = (inv) => {
+      setInventory(inv);
+    };
+
+    engine.onHarvestPopup = (text) => {
+      setPickupFlash(text);
+      if (pickupTimer.current) window.clearTimeout(pickupTimer.current);
+      pickupTimer.current = window.setTimeout(() => setPickupFlash(null), 900);
     };
 
     engine.onSelectedPropChange = (prop) => {
@@ -379,10 +397,16 @@ export const GameCanvas: React.FC = () => {
     });
     ro.observe(containerRef.current);
 
+    const onKey = (e: KeyboardEvent) => {
+      if (e.code === 'KeyI') setShowInventory((v) => !v);
+    };
+    window.addEventListener('keydown', onKey);
+
     engine.start();
 
     return () => {
       ro.disconnect();
+      window.removeEventListener('keydown', onKey);
       engine.stop();
       engineRef.current = null;
     };
@@ -477,7 +501,7 @@ export const GameCanvas: React.FC = () => {
   const currentCategoryItems = PROP_CATALOG.filter((item) => item.category === activeCategory);
 
   return (
-    <div className="relative w-full h-screen bg-slate-950 flex flex-col items-center justify-center select-none overflow-hidden font-sans">
+    <div className="relative w-full h-full bg-slate-950 flex flex-col items-center justify-center select-none overflow-hidden font-sans">
       {/* ------------------------------------------------------------- */}
       {/* SLEEK TOP BAR EDITOR (Posicionado no topo, fino e desobstruído) */}
       {/* ------------------------------------------------------------- */}
@@ -799,31 +823,49 @@ export const GameCanvas: React.FC = () => {
       </div>
 
       {/* Joystick + botões de ação para celular */}
-      {isTouchDevice && !isEditMode && <TouchControls engineRef={engineRef} />}
+      {isTouchDevice && !isEditMode && (
+        <TouchControls
+          engineRef={engineRef}
+          onHarvest={() => engineRef.current?.harvestAction()}
+          onToggleInventory={() => setShowInventory((v) => !v)}
+        />
+      )}
 
-      {/* Interactive Action HUD (Woodcutting & Mining movements) — desktop */}
+      {/* HUD de coleta — desktop */}
       {!isEditMode && !isTouchDevice && (
-        <div className="fixed bottom-6 right-6 z-30 flex items-center gap-2 pointer-events-auto">
+        <div className="fixed bottom-6 right-6 z-30 flex items-end gap-3 pointer-events-auto">
           <button
             type="button"
-            onClick={() => engineRef.current?.triggerAction('chop')}
-            className="cursor-pointer bg-slate-950/85 hover:bg-emerald-950/90 text-amber-300 hover:text-amber-200 border border-amber-500/40 hover:border-amber-400/80 px-3.5 py-2 rounded-xl text-xs font-bold shadow-xl flex items-center gap-2 backdrop-blur-md transition-all active:scale-95"
-            title="Aperte F ou clique para cortar madeira"
+            onClick={() => setShowInventory((v) => !v)}
+            className="cursor-pointer w-12 h-12 rounded-full bg-slate-950/85 hover:bg-slate-800 text-amber-300 border border-amber-500/40 hover:border-amber-400/80 shadow-xl flex items-center justify-center backdrop-blur-md transition-all active:scale-95"
+            title="Abrir mochila (I)"
           >
-            <span>🪓</span>
-            <span>Cortar Árvore (F)</span>
+            <Backpack className="w-5 h-5" />
           </button>
           <button
             type="button"
-            onClick={() => engineRef.current?.triggerAction('mine')}
-            className="cursor-pointer bg-slate-950/85 hover:bg-amber-950/90 text-amber-300 hover:text-amber-200 border border-amber-500/40 hover:border-amber-400/80 px-3.5 py-2 rounded-xl text-xs font-bold shadow-xl flex items-center gap-2 backdrop-blur-md transition-all active:scale-95"
-            title="Aperte G ou clique para minerar rocha"
+            onClick={() => engineRef.current?.harvestAction()}
+            className="cursor-pointer w-16 h-16 rounded-full bg-emerald-900/85 hover:bg-emerald-800 text-emerald-100 border border-emerald-400/60 shadow-xl flex flex-col items-center justify-center gap-0.5 backdrop-blur-md transition-all active:scale-90"
+            title="Coletar recurso mais próximo (F)"
           >
-            <span>⛏️</span>
-            <span>Minerar Rocha (G)</span>
+            <Hand className="w-6 h-6" />
+            <span className="text-[9px] font-bold">Coletar</span>
           </button>
         </div>
       )}
+
+      {/* Feedback de coleta */}
+      {pickupFlash && (
+        <div className="fixed top-24 left-1/2 -translate-x-1/2 z-40 pointer-events-none bg-emerald-950/90 text-emerald-200 border border-emerald-500/60 rounded-full px-4 py-1 text-sm font-bold shadow-xl animate-in fade-in slide-in-from-bottom-2">
+          {pickupFlash}
+        </div>
+      )}
+
+      <Inventory
+        open={showInventory && !isEditMode}
+        onClose={() => setShowInventory(false)}
+        items={inventory}
+      />
 
       {/* Top Right Quick Controls (Quando o editor está fechado) */}
       {!isEditMode && (

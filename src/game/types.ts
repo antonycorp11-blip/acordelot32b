@@ -82,7 +82,22 @@ export interface WorldProp {
     frameHeight: number;
     frameDuration: number; // ms
   };
+  // Recurso coletável (árvore / pedra)
+  harvest?: HarvestState;
   data?: any;
+}
+
+export interface HarvestState {
+  kind: 'tree' | 'rock';
+  hp: number;
+  maxHp: number;
+  drop: string;
+  dropMin: number;
+  dropMax: number;
+  respawnSecs: number;
+  downUntil: number; // 0 = de pé; senão, timeElapsed em que renasce
+  hitFlash: number; // segundos restantes do flash de golpe
+  shake: number; // segundos restantes de tremor
 }
 
 export interface Particle {

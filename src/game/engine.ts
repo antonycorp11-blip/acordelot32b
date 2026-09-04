@@ -23,6 +23,7 @@ import {
   Particle,
   Butterfly,
   Rect,
+  HarvestState,
 } from './types';
 import {
   buildMap,
@@ -63,6 +64,39 @@ const AKLES_ANIM: Record<'idle' | 'walk' | 'run' | AklesAction, AklesAnimMeta> =
 
 // Linhas canônicas das folhas: 0=down, 1=left, 2=up, 3=right
 const AKLES_DIR_ROW: Record<Direction, number> = { down: 0, left: 1, up: 2, right: 3 };
+
+// ---- RECURSOS COLETÁVEIS (árvores e pedras) ----
+export interface ItemMeta {
+  name: string;
+  icon: string;
+}
+export const ITEM_META: Record<string, ItemMeta> = {
+  wood: { name: 'Madeira', icon: '🪵' },
+  stone: { name: 'Pedra', icon: '🪨' },
+  ore: { name: 'Minério', icon: '⛏️' },
+  fiber: { name: 'Fibra', icon: '🌿' },
+};
+
+interface HarvestDef {
+  kind: 'tree' | 'rock';
+  maxHp: number;
+  drop: string;
+  dropMin: number;
+  dropMax: number;
+  respawnSecs: number;
+}
+export const HARVEST_DEFS: Record<string, HarvestDef> = {
+  oak: { kind: 'tree', maxHp: 4, drop: 'wood', dropMin: 2, dropMax: 4, respawnSecs: 22 },
+  pine: { kind: 'tree', maxHp: 3, drop: 'wood', dropMin: 2, dropMax: 3, respawnSecs: 20 },
+  blossomTree: { kind: 'tree', maxHp: 3, drop: 'wood', dropMin: 2, dropMax: 3, respawnSecs: 24 },
+  bush: { kind: 'tree', maxHp: 2, drop: 'fiber', dropMin: 1, dropMax: 2, respawnSecs: 14 },
+  stoneQuarry: { kind: 'rock', maxHp: 8, drop: 'ore', dropMin: 4, dropMax: 7, respawnSecs: 45 },
+  limestoneBoulders: { kind: 'rock', maxHp: 5, drop: 'stone', dropMin: 3, dropMax: 5, respawnSecs: 32 },
+  rockCluster: { kind: 'rock', maxHp: 3, drop: 'stone', dropMin: 2, dropMax: 3, respawnSecs: 24 },
+  rockPair: { kind: 'rock', maxHp: 3, drop: 'stone', dropMin: 2, dropMax: 3, respawnSecs: 24 },
+  rockMonolith: { kind: 'rock', maxHp: 4, drop: 'stone', dropMin: 2, dropMax: 4, respawnSecs: 28 },
+  rockFlatSlab: { kind: 'rock', maxHp: 2, drop: 'stone', dropMin: 1, dropMax: 2, respawnSecs: 18 },
+};
 
 export interface InteractionState {
   nearMerchant: boolean;
@@ -622,6 +656,12 @@ export class GameEngine {
   isTalkingToMerchant: boolean = false;
   onInteractionChange?: (state: InteractionState) => void;
 
+  // Inventário / coleta de recursos
+  inventory: Record<string, number> = {};
+  onInventoryChange?: (inv: Record<string, number>) => void;
+  onHarvestPopup?: (text: string, worldX: number, worldY: number) => void;
+  private actionHitDone = false;
+
   camX: number = 0;
   camY: number = 0;
   viewportW: number = 480;
@@ -683,6 +723,7 @@ export class GameEngine {
     }
 
     this.loadMapFromStorage();
+    this.initHarvestables();
 
     // Player with 32-bit Knight character
     this.player = {
@@ -902,6 +943,7 @@ export class GameEngine {
     this.player.actionState = action;
     this.player.actionTimer = 0;
     this.player.frame = 0;
+    this.actionHitDone = false;
   }
 
   findNearbyProp(types: string[], maxDist: number): WorldProp | null {
@@ -1318,9 +1360,18 @@ export class GameEngine {
         }
       }
 
-      // If localStorage has nothing, initialize directly from the project's customMapLayout.json file
+      // Sem edições do usuário: usa o customMapLayout.json versionado se ele
+      // tiver conteúdo; caso contrário mantém o layout padrão de buildMap().
       if (!parsed || !Array.isArray(parsed) || parsed.length === 0) {
-        parsed = initialCustomMap as Array<{ id: string; type: string; x: number; y: number; scale: number }>;
+        const initial = initialCustomMap as Array<{
+          id: string;
+          type: string;
+          x: number;
+          y: number;
+          scale: number;
+        }>;
+        if (!Array.isArray(initial) || initial.length === 0) return;
+        parsed = initial;
       }
 
       if (!Array.isArray(parsed)) return;
@@ -1384,8 +1435,133 @@ export class GameEngine {
 
     // Load straight from customMapLayout.json
     this.loadMapFromStorage();
+    this.initHarvestables();
     this.selectProp(null);
     this.saveMapToStorage();
+  }
+
+  // ---- COLETA DE RECURSOS ----
+  initHarvestables() {
+    for (const p of this.props) {
+      const def = HARVEST_DEFS[p.type];
+      if (!def) continue;
+      p.harvest = {
+        kind: def.kind,
+        hp: def.maxHp,
+        maxHp: def.maxHp,
+        drop: def.drop,
+        dropMin: def.dropMin,
+        dropMax: def.dropMax,
+        respawnSecs: def.respawnSecs,
+        downUntil: 0,
+        hitFlash: 0,
+        shake: 0,
+      };
+    }
+  }
+
+  addToInventory(item: string, qty: number) {
+    if (qty <= 0) return;
+    this.inventory[item] = (this.inventory[item] || 0) + qty;
+    this.onInventoryChange?.({ ...this.inventory });
+  }
+
+  private harvestReach() {
+    return 62;
+  }
+
+  findNearestHarvestable(kind: 'tree' | 'rock' | 'any'): WorldProp | null {
+    const px = this.player.x + 12;
+    const py = this.player.y + 24;
+    let best: WorldProp | null = null;
+    let bestD = this.harvestReach();
+    for (const p of this.props) {
+      const h = p.harvest;
+      if (!h || h.downUntil > 0) continue;
+      if (kind !== 'any' && h.kind !== kind) continue;
+      const cx = p.x + p.w / 2;
+      const cy = p.y + p.h * 0.75;
+      const d = Math.hypot(px - cx, py - cy);
+      if (d <= bestD) {
+        bestD = d;
+        best = p;
+      }
+    }
+    return best;
+  }
+
+  // Botão único de coleta: escolhe machado/picareta pelo recurso mais próximo
+  harvestAction() {
+    if (['chop', 'mine', 'attack', 'spin', 'cast'].includes(this.player.actionState as string)) return;
+    const tree = this.findNearestHarvestable('tree');
+    const rock = this.findNearestHarvestable('rock');
+    if (tree && !rock) return this.triggerAction('chop');
+    if (rock && !tree) return this.triggerAction('mine');
+    if (tree && rock) {
+      const px = this.player.x + 12;
+      const py = this.player.y + 24;
+      const dt = Math.hypot(px - (tree.x + tree.w / 2), py - (tree.y + tree.h * 0.75));
+      const dr = Math.hypot(px - (rock.x + rock.w / 2), py - (rock.y + rock.h * 0.75));
+      return this.triggerAction(dt <= dr ? 'chop' : 'mine');
+    }
+    // nada por perto: ainda faz o gesto pra dar feedback
+    this.triggerAction('chop');
+  }
+
+  private applyHarvestHit() {
+    const kind: 'tree' | 'rock' = this.player.actionState === 'mine' ? 'rock' : 'tree';
+    const node = this.findNearestHarvestable(kind);
+    if (!node || !node.harvest) return;
+    const h = node.harvest;
+
+    h.hp -= 1;
+    h.hitFlash = 0.16;
+    h.shake = 0.32;
+
+    // impacto visual
+    const ix = node.x + node.w / 2;
+    const iy = node.y + node.h * 0.55;
+    if (h.kind === 'tree') {
+      for (let i = 0; i < 5; i++) this.addForestLeaf(ix + (Math.random() - 0.5) * 20, iy);
+    } else {
+      this.addMiningSpark(ix, iy);
+      this.addMiningSpark(ix + 4, iy - 4);
+    }
+
+    // ganho parcial por golpe
+    this.addToInventory(h.drop, 1);
+
+    if (h.hp <= 0) {
+      const bonus =
+        h.dropMin + Math.floor(Math.random() * (h.dropMax - h.dropMin + 1));
+      this.addToInventory(h.drop, bonus);
+      h.downUntil = this.timeElapsed + h.respawnSecs;
+      h.hp = 0;
+      // poeira/folhas da queda
+      for (let i = 0; i < 14; i++) {
+        if (h.kind === 'tree') this.addForestLeaf(ix + (Math.random() - 0.5) * 40, iy - Math.random() * 20);
+        else this.addFootstepDust(ix + (Math.random() - 0.5) * 30, node.y + node.h - 6);
+      }
+      this.onHarvestPopup?.(`+${bonus + 1} ${ITEM_META[h.drop]?.name ?? h.drop}`, ix, node.y);
+    } else {
+      this.onHarvestPopup?.(`+1 ${ITEM_META[h.drop]?.name ?? h.drop}`, ix, node.y);
+    }
+  }
+
+  updateHarvestables(dt: number) {
+    for (const p of this.props) {
+      const h = p.harvest;
+      if (!h) continue;
+      if (h.hitFlash > 0) h.hitFlash = Math.max(0, h.hitFlash - dt);
+      if (h.shake > 0) h.shake = Math.max(0, h.shake - dt);
+      if (h.downUntil > 0 && this.timeElapsed >= h.downUntil) {
+        h.downUntil = 0;
+        h.hp = h.maxHp;
+        // brotinho de volta
+        for (let i = 0; i < 6; i++)
+          this.addForestLeaf(p.x + p.w / 2 + (Math.random() - 0.5) * 16, p.y + p.h * 0.6);
+      }
+    }
   }
 
   start() {
@@ -1449,6 +1625,12 @@ export class GameEngine {
       this.player.vy = 0;
       this.player.actionTimer = (this.player.actionTimer || 0) + dt * meta.fps;
       this.player.frame = Math.min(meta.cols - 1, Math.floor(this.player.actionTimer));
+
+      // Golpe conecta no frame de impacto (uma vez por ação)
+      if (!this.actionHitDone && this.player.frame >= 2 && (act === 'chop' || act === 'mine')) {
+        this.actionHitDone = true;
+        this.applyHarvestHit();
+      }
 
       // Partículas de impacto nos frames centrais
       if ((this.player.frame === 2 || this.player.frame === 3) && Math.random() < 0.5) {
@@ -1554,6 +1736,7 @@ export class GameEngine {
     this.updateParticles(dt);
     this.updateButterflies(dt);
     this.updateFireflies(dt);
+    this.updateHarvestables(dt);
 
     if (Math.random() < 0.18) {
       this.addBlossomPetal(
@@ -1661,6 +1844,7 @@ export class GameEngine {
 
     for (const prop of this.props) {
       if (!prop.collider) continue;
+      if (prop.harvest && prop.harvest.downUntil > 0) continue; // recurso derrubado = passável
       const solid = prop.collider;
       if (
         box.x < solid.x + solid.w &&
@@ -2208,8 +2392,41 @@ export class GameEngine {
 
   drawProp(prop: WorldProp, camX: number, camY: number) {
     const ctx = this.ctx;
-    const px = Math.round(prop.x - camX);
+    let px = Math.round(prop.x - camX);
     const py = Math.round(prop.y - camY);
+
+    // Recurso coletável derrubado: toco / entulho + progresso de renascimento
+    const hv = prop.harvest;
+    if (hv && hv.downUntil > 0) {
+      const bx = px + prop.w / 2;
+      const by = py + prop.h - 6;
+      ctx.save();
+      ctx.fillStyle = hv.kind === 'tree' ? 'rgba(90,63,38,0.95)' : 'rgba(120,120,128,0.9)';
+      ctx.beginPath();
+      ctx.ellipse(bx, by, hv.kind === 'tree' ? 9 : 11, 5, 0, 0, Math.PI * 2);
+      ctx.fill();
+      if (hv.kind === 'tree') {
+        ctx.fillStyle = 'rgba(122,88,54,0.95)';
+        ctx.fillRect(bx - 6, by - 8, 12, 8);
+      }
+      // barrinha de renascimento
+      const total = hv.respawnSecs;
+      const left = Math.max(0, hv.downUntil - this.timeElapsed);
+      const prog = 1 - left / total;
+      ctx.fillStyle = 'rgba(0,0,0,0.5)';
+      ctx.fillRect(bx - 12, by - 18, 24, 3);
+      ctx.fillStyle = '#4ade80';
+      ctx.fillRect(bx - 12, by - 18, 24 * prog, 3);
+      ctx.restore();
+      return;
+    }
+
+    // Tremor ao levar golpe
+    let shakeX = 0;
+    if (hv && hv.shake > 0) {
+      shakeX = Math.round(Math.sin(this.timeElapsed * 60) * hv.shake * 9);
+      px += shakeX;
+    }
 
     // 1. Trees & Vegetation
     if (prop.type === 'oak') {
@@ -2319,6 +2536,27 @@ export class GameEngine {
     } else if (prop.type === 'rockFlatSlab' && this.assets?.rockFlatSlab) {
       ctx.drawImage(this.assets.rockFlatSlab, px, py, prop.w, prop.h);
     }
+
+    // Flash branco ao levar golpe + barra de vida do recurso
+    if (hv) {
+      if (hv.hitFlash > 0) {
+        ctx.save();
+        ctx.globalAlpha = Math.min(0.7, hv.hitFlash * 3.5);
+        ctx.globalCompositeOperation = 'lighter';
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(px, py + prop.h * 0.15, prop.w, prop.h * 0.85);
+        ctx.restore();
+      }
+      if (hv.hp < hv.maxHp && hv.downUntil === 0) {
+        const bw = Math.min(40, prop.w * 0.7);
+        const bx = px + prop.w / 2 - bw / 2;
+        const by = py + prop.h * 0.12;
+        ctx.fillStyle = 'rgba(0,0,0,0.55)';
+        ctx.fillRect(bx - 1, by - 1, bw + 2, 5);
+        ctx.fillStyle = hv.kind === 'tree' ? '#4ade80' : '#fbbf24';
+        ctx.fillRect(bx, by, bw * (hv.hp / hv.maxHp), 3);
+      }
+    }
   }
 
   drawNPC(npc: NPC, camX: number, camY: number) {
@@ -2416,7 +2654,8 @@ export class GameEngine {
       if (isAction) {
         col = Math.min(aMeta.cols - 1, Math.max(0, char.frame));
       } else if (isMoving) {
-        col = Math.floor(this.timeElapsed * aMeta.fps) % aMeta.cols;
+        // sincronizado com o passo (stepTimer avança dt*8 ao andar)
+        col = Math.floor(char.stepTimer * (aMeta.fps / 8)) % aMeta.cols;
       } else {
         col = Math.floor(this.timeElapsed * aMeta.fps) % aMeta.cols;
       }

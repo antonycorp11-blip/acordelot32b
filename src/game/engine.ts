@@ -1213,13 +1213,36 @@ export class GameEngine {
   getPieceLevel(key: string): number {
     return this.pieceLevels[key] ?? 0;
   }
+  // custo p/ subir a peça `key` do nível atual -> +1 (reaproveita os mesmos
+  // materiais das armas; null = já no +15).
+  pieceUpgradeCost(key: string): Record<string, number> | null {
+    const entry = EQUIP_PIECE_INDEX[key];
+    if (!entry) return null;
+    const lvl = this.getPieceLevel(key);
+    if (lvl >= 15) return null;
+    const tier = entry.set.tier;
+    return {
+      gold_refined: tier * (1 + Math.floor(lvl * 0.6)),
+      crystal_blue_refined: Math.max(1, Math.floor(tier * (0.5 + lvl * 0.3))),
+      gold_raw: tier * (2 + lvl),
+      crystal_blue_raw: tier * (1 + Math.floor(lvl * 0.7)),
+    };
+  }
   canUpgradePiece(key: string): boolean {
-    return this.getPieceLevel(key) < 15;
+    const cost = this.pieceUpgradeCost(key);
+    if (!cost) return false;
+    return Object.entries(cost).every(([k, n]) => (this.inventory[k] || 0) >= n);
   }
   upgradePiece(key: string): boolean {
-    if (!EQUIP_PIECE_INDEX[key] || !this.canUpgradePiece(key)) return false;
+    if (!this.canUpgradePiece(key)) return false;
+    const cost = this.pieceUpgradeCost(key)!;
+    for (const [k, n] of Object.entries(cost)) {
+      this.inventory[k] = Math.max(0, (this.inventory[k] || 0) - n);
+      if (this.inventory[k] === 0) delete this.inventory[k];
+    }
     this.pieceLevels[key] = this.getPieceLevel(key) + 1;
     this.syncEquipHpBonus();
+    this.onInventoryChange?.({ ...this.inventory });
     this.onEquipChange?.();
     return true;
   }

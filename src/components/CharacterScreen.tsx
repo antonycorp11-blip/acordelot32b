@@ -2,6 +2,7 @@ import React from 'react';
 import {
   X,
   Swords,
+  Sword,
   Plus,
   ChevronsUp,
   Hammer,
@@ -12,10 +13,51 @@ import {
   RefreshCw,
   ArrowUpCircle,
   CheckCircle2,
+  Heart,
+  Shield,
+  ShieldCheck,
+  Target,
+  Flame,
+  Timer,
+  Maximize2,
+  Battery,
+  BatteryCharging,
+  Music2,
+  CircleDot,
+  FlaskConical,
+  ListFilter,
+  ChevronRight,
+  Info,
+  Layers,
 } from 'lucide-react';
 import type { PlayerStats, AttrKey, GameEngine, PassiveGroup, EquipSlotKey, StatKey } from '../game/engine';
 import { PASSIVE_DEFS, PASSIVE_ORDER, EQUIP_SETS, EQUIP_SLOT_ORDER, EQUIP_SLOT_LABEL, STAT_LABELS } from '../game/engine';
+import { ITEM_META } from '../game/engine';
 import type { ToolTier } from '../game/types';
+
+const STAT_ICON: Record<StatKey, React.ComponentType<{ className?: string }>> = {
+  hpPct: Heart,
+  defPct: Shield,
+  atkPct: Sword,
+  basicDmgPct: Swords,
+  skillDmgPct: Sparkles,
+  critChancePct: Target,
+  critDmgPct: Flame,
+  atkSpeedPct: Zap,
+  cooldownReductionPct: Timer,
+  areaPct: Maximize2,
+  resistPct: ShieldCheck,
+  energyMaxPct: Battery,
+  energyRegenPct: BatteryCharging,
+  harmonicPowerPct: Music2,
+};
+
+const SLOT_ICON: Record<EquipSlotKey, React.ComponentType<{ className?: string }>> = {
+  colar: Gem,
+  anel: CircleDot,
+  aura: Sparkles,
+  catalisador: FlaskConical,
+};
 
 interface CharacterScreenProps {
   open: boolean;
@@ -127,8 +169,10 @@ function statLines(stats: Partial<Record<StatKey, number>>): string[] {
     .map((k) => `${STAT_LABELS[k]}: +${stats[k]}%`);
 }
 
-const EquipamentosTab: React.FC<{ engine: GameEngine }> = ({ engine }) => {
+const EquipamentosTab: React.FC<{ engine: GameEngine; inventory: Record<string, number> }> = ({ engine, inventory }) => {
   const [, force] = React.useReducer((n) => n + 1, 0);
+  const [slotFilter, setSlotFilter] = React.useState<EquipSlotKey>('colar');
+  const [showAll, setShowAll] = React.useState(false);
 
   const allPieces: PieceRow[] = React.useMemo(() => {
     const rows: PieceRow[] = [];
@@ -141,7 +185,6 @@ const EquipamentosTab: React.FC<{ engine: GameEngine }> = ({ engine }) => {
     return rows;
   }, []);
 
-  const [selectedKey, setSelectedKey] = React.useState(allPieces[0].key);
   const findEntry = (key: string) => {
     for (const set of EQUIP_SETS) {
       for (const slot of EQUIP_SLOT_ORDER) {
@@ -150,6 +193,8 @@ const EquipamentosTab: React.FC<{ engine: GameEngine }> = ({ engine }) => {
     }
     return null;
   };
+
+  const [selectedKey, setSelectedKey] = React.useState(allPieces.find((p) => p.slot === 'colar')!.key);
   const selected = findEntry(selectedKey)!;
   const piece = selected.piece;
   const set = selected.set;
@@ -160,6 +205,8 @@ const EquipamentosTab: React.FC<{ engine: GameEngine }> = ({ engine }) => {
   const level = engine.getPieceLevel(piece.key);
   const maxed = level >= 15;
   const setCount = engine.activeSetCounts[set.key] ?? 0;
+  const cost = engine.pieceUpgradeCost(piece.key);
+  const canUpgrade = engine.canUpgradePiece(piece.key);
 
   const doEquip = () => {
     if (engine.equipPiece(piece.key)) force();
@@ -172,35 +219,39 @@ const EquipamentosTab: React.FC<{ engine: GameEngine }> = ({ engine }) => {
     if (engine.upgradePiece(piece.key)) force();
   };
 
+  const visiblePieces = showAll ? allPieces : allPieces.filter((r) => r.slot === slotFilter);
+
   return (
     <div className="flex h-full gap-3">
-      {/* Coluna esquerda: 4 slots equipados + lista de todas as peças */}
-      <div className="w-44 shrink-0 flex flex-col gap-2 min-h-0">
+      {/* Coluna esquerda: filtro por slot + lista de peças */}
+      <div className="w-52 shrink-0 flex flex-col gap-2 min-h-0">
         <div className="grid grid-cols-4 gap-1">
           {EQUIP_SLOT_ORDER.map((s) => {
+            const Icon = SLOT_ICON[s];
+            const active = !showAll && slotFilter === s;
             const key = engine.equippedPieces[s];
-            const entry = key ? findEntry(key) : null;
             return (
               <button
                 key={s}
                 type="button"
-                onClick={() => key && setSelectedKey(key)}
-                title={entry ? entry.piece.name : `${EQUIP_SLOT_LABEL[s]} vazio`}
-                className={`aspect-square rounded-lg border flex items-center justify-center overflow-hidden ${
-                  entry ? 'border-emerald-500/60 bg-emerald-950/20' : 'border-dashed border-slate-700 bg-slate-950/40'
+                onClick={() => {
+                  setSlotFilter(s);
+                  setShowAll(false);
+                  setSelectedKey(key ?? allPieces.find((p) => p.slot === s)!.key);
+                }}
+                title={EQUIP_SLOT_LABEL[s]}
+                className={`flex flex-col items-center gap-0.5 rounded-lg border py-1.5 transition-all ${
+                  active ? 'border-amber-400/70 bg-amber-500/10 text-amber-300' : 'border-slate-800 bg-slate-950/50 text-slate-500 hover:text-slate-300'
                 }`}
               >
-                {entry?.piece.img ? (
-                  <img src={entry.piece.img} alt="" className="w-full h-full object-contain p-0.5" style={{ imageRendering: 'pixelated' }} />
-                ) : (
-                  <span className="text-[8px] text-slate-600">{EQUIP_SLOT_LABEL[s].slice(0, 3)}</span>
-                )}
+                <Icon className="w-4 h-4" />
+                <span className="text-[8px] font-bold">{EQUIP_SLOT_LABEL[s]}</span>
               </button>
             );
           })}
         </div>
         <div className="flex-1 min-h-0 overflow-y-auto flex flex-col gap-1 pr-1">
-          {allPieces.map((row) => {
+          {visiblePieces.map((row) => {
             const eq = engine.equippedPieces[row.slot] === row.key;
             return (
               <button
@@ -223,104 +274,169 @@ const EquipamentosTab: React.FC<{ engine: GameEngine }> = ({ engine }) => {
                     {row.slot.slice(0, 3)}
                   </div>
                 )}
-                <div className="min-w-0">
+                <div className="min-w-0 flex-1">
                   <p className="text-[9px] font-bold text-slate-100 truncate">{row.name}</p>
-                  <p className="text-[8px] text-slate-500 truncate">{EQUIP_SLOT_LABEL[row.slot]}</p>
+                  <p className="text-[8px] text-slate-500 truncate">Aprim. +{engine.getPieceLevel(row.key)}</p>
                 </div>
-                {eq && <CheckCircle2 className="w-3 h-3 text-emerald-400 shrink-0 ml-auto" />}
+                {eq && <CheckCircle2 className="w-3 h-3 text-emerald-400 shrink-0" />}
               </button>
             );
           })}
         </div>
+        <button
+          type="button"
+          onClick={() => setShowAll((v) => !v)}
+          className="shrink-0 flex items-center justify-center gap-1 text-[10px] font-bold text-slate-400 hover:text-slate-200 py-1"
+        >
+          <ListFilter className="w-3 h-3" />
+          {showAll ? 'Ver por slot' : 'Ver todos os equipamentos'}
+          <ChevronRight className="w-3 h-3" />
+        </button>
       </div>
 
-      {/* Coluna direita: detalhe grande da peça selecionada */}
+      {/* Coluna direita: detalhe da peça selecionada */}
       <div className="flex-1 min-w-0 flex flex-col gap-2 overflow-y-auto pr-1">
-        <div className="flex gap-3 items-center rounded-xl border p-3" style={{ borderColor: set.color + '40', background: 'rgba(2,6,23,0.6)' }}>
-          <div className="relative w-20 h-20 flex items-center justify-center shrink-0">
-            <div className="absolute inset-0 rounded-full blur-xl" style={{ background: set.color + '30' }} />
-            {piece.img ? (
-              <img src={piece.img} alt={piece.name} className="relative max-w-full max-h-full object-contain" style={{ imageRendering: 'pixelated' }} />
-            ) : (
-              <Gem className="relative w-9 h-9" style={{ color: set.color }} />
-            )}
+        {/* linha 1: peça + bônus de conjunto */}
+        <div className="flex gap-2">
+          <div className="flex-1 min-w-0 flex gap-3 items-center rounded-xl border p-3" style={{ borderColor: set.color + '40', background: 'rgba(2,6,23,0.6)' }}>
+            <div className="relative w-20 h-20 flex items-center justify-center shrink-0 rounded-lg border" style={{ borderColor: set.color + '35' }}>
+              <span
+                className="absolute -top-1.5 -left-1.5 text-[8px] font-black px-1.5 py-0.5 rounded"
+                style={{ background: set.color + '30', color: set.color, border: `1px solid ${set.color}55` }}
+              >
+                Tier {set.tier}
+              </span>
+              <div className="absolute inset-0 rounded-lg blur-xl" style={{ background: set.color + '25' }} />
+              {piece.img ? (
+                <img src={piece.img} alt={piece.name} className="relative max-w-full max-h-full object-contain" style={{ imageRendering: 'pixelated' }} />
+              ) : (
+                <Gem className="relative w-9 h-9" style={{ color: set.color }} />
+              )}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-black text-slate-100">{piece.name}</p>
+              <p className="text-[10px] font-semibold" style={{ color: set.color }}>
+                {EQUIP_SLOT_LABEL[slot]} · Tier {set.tier} · {set.name}
+              </p>
+              <p className="text-[11px] text-slate-400 mt-1">
+                Aprimoramento <span className="text-slate-100 font-bold">+{level}</span>
+                <span className="text-slate-600"> / +15</span>
+              </p>
+              {isEquipped ? (
+                <button
+                  type="button"
+                  onClick={doUnequip}
+                  className="mt-1.5 flex items-center gap-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-[11px] font-bold px-3 py-1.5"
+                >
+                  Desequipar
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={doEquip}
+                  className="mt-1.5 flex items-center gap-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 active:scale-95 text-white text-[11px] font-bold px-3 py-1.5 shadow-lg shadow-blue-600/25"
+                >
+                  <CheckCircle2 className="w-3.5 h-3.5" /> Equipar
+                </button>
+              )}
+            </div>
           </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-black text-slate-100">{piece.name}</p>
-            <p className="text-[10px] font-semibold" style={{ color: set.color }}>
-              {EQUIP_SLOT_LABEL[slot]} · Tier {set.tier} · {set.name}
+
+          <div className="w-56 shrink-0 rounded-xl border border-slate-800 bg-slate-950/50 p-2.5 flex flex-col gap-1">
+            <p className="text-[9px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1">
+              <Layers className="w-3 h-3" /> Bônus do Conjunto
             </p>
-            <p className="text-[11px] text-slate-400 mt-1">
-              Aprimoramento <span className="text-slate-100 font-bold">+{level}</span>
-              <span className="text-slate-600"> / +15</span>
+            <p className="text-[10px] font-semibold text-slate-300 leading-snug">
+              {set.name} ({setCount}/4)
             </p>
-            {isEquipped ? (
-              <button
-                type="button"
-                onClick={doUnequip}
-                className="mt-1.5 flex items-center gap-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-[11px] font-bold px-3 py-1.5"
-              >
-                Desequipar
-              </button>
-            ) : (
-              <button
-                type="button"
-                onClick={doEquip}
-                className="mt-1.5 flex items-center gap-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 active:scale-95 text-white text-[11px] font-bold px-3 py-1.5 shadow-lg shadow-blue-600/25"
-              >
-                <CheckCircle2 className="w-3.5 h-3.5" /> Equipar
-              </button>
-            )}
+            <div className={`text-[10px] leading-snug ${setCount >= 2 ? 'text-emerald-300' : 'text-slate-600'}`}>
+              2 peças: {statLines(set.bonus2).join(' · ') || '—'}
+            </div>
+            <div className={`text-[10px] leading-snug ${setCount >= 4 ? 'text-emerald-300' : 'text-slate-600'}`}>
+              4 peças: {[...statLines(set.bonus4), set.bonus4Extra].filter(Boolean).join(' · ') || '—'}
+            </div>
+            {set.aklesExtra && <p className="text-[9px] text-amber-300/90 mt-0.5 leading-snug">★ Com Akles: {set.aklesExtra}</p>}
           </div>
         </div>
 
-        <div className="rounded-xl border border-slate-800 bg-slate-950/50 p-2.5">
-          <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Atributos (+0)</p>
-          <div className="flex flex-col gap-0.5">
-            {statLines(piece.stats).map((line) => (
-              <p key={line} className="text-[11px] text-slate-200">{line}</p>
-            ))}
-          </div>
-          {piece.passive && (
-            <div className="mt-2 pt-2 border-t border-slate-800">
-              <p className="text-[10px] font-bold" style={{ color: set.color }}>
-                ★ {piece.passive.name}
-              </p>
-              <p className="text-[10px] text-slate-400 leading-snug">{piece.passive.desc}</p>
+        {/* linha 2: atributos + materiais */}
+        <div className="flex gap-2">
+          <div className="flex-1 min-w-0 rounded-xl border border-slate-800 bg-slate-950/50 p-2.5">
+            <p className="text-[9px] font-bold text-slate-500 uppercase tracking-wider mb-1.5 flex items-center gap-1">
+              <Info className="w-3 h-3" /> Atributos
+            </p>
+            <div className="flex flex-col gap-1.5">
+              {(Object.keys(piece.stats) as StatKey[])
+                .filter((k) => piece.stats[k])
+                .map((k) => {
+                  const Icon = STAT_ICON[k];
+                  return (
+                    <div key={k} className="flex items-center gap-2">
+                      <Icon className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+                      <span className="text-[11px] text-slate-300 flex-1">{STAT_LABELS[k]}</span>
+                      <span className="text-[11px] font-bold text-slate-100">+{piece.stats[k]}%</span>
+                    </div>
+                  );
+                })}
             </div>
-          )}
+            {piece.passive && (
+              <div className="mt-2 pt-2 border-t border-slate-800">
+                <p className="text-[10px] font-bold" style={{ color: set.color }}>
+                  ★ {piece.passive.name}
+                </p>
+                <p className="text-[10px] text-slate-400 leading-snug">{piece.passive.desc}</p>
+              </div>
+            )}
+          </div>
+
+          <div className="w-56 shrink-0 rounded-xl border border-slate-800 bg-slate-950/50 p-2.5">
+            <p className="text-[9px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Materiais de Aprimoramento</p>
+            {cost ? (
+              <div className="grid grid-cols-2 gap-1.5">
+                {Object.entries(cost).map(([k, n]) => {
+                  const have = inventory[k] ?? 0;
+                  const ok = have >= n;
+                  const meta = ITEM_META[k];
+                  return (
+                    <div
+                      key={k}
+                      className={`flex items-center gap-1 rounded-md border px-1.5 py-1 ${
+                        ok ? 'border-emerald-600/40 bg-emerald-950/20' : 'border-rose-600/40 bg-rose-950/20'
+                      }`}
+                    >
+                      {meta?.img ? (
+                        <img src={meta.img} alt="" className="w-4 h-4 object-contain shrink-0" />
+                      ) : (
+                        <span className="text-[10px] shrink-0">{meta?.icon ?? '◆'}</span>
+                      )}
+                      <span className={`text-[9px] tabular-nums font-bold ${ok ? 'text-emerald-300' : 'text-rose-300'}`}>
+                        {have}/{n}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <p className="text-[10px] text-slate-600">Nível máximo alcançado.</p>
+            )}
+          </div>
         </div>
 
         <div className="rounded-xl border border-slate-800 bg-slate-950/50 p-2.5 flex items-center justify-between gap-2">
-          <p className="text-[10px] text-slate-500">
+          <p className="text-[10px] text-slate-500 leading-snug">
             Aprimoramento sobe os atributos-base em +8%/nível (não afeta passiva nem bônus de conjunto).
+            {set.identity && <span className="text-slate-600"> {set.identity}</span>}
           </p>
           <button
             type="button"
             onClick={doUpgrade}
-            disabled={maxed}
+            disabled={!canUpgrade}
             className={`shrink-0 flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[11px] font-bold transition-all ${
-              maxed ? 'bg-slate-800 text-slate-600 cursor-not-allowed' : 'bg-emerald-600 hover:bg-emerald-500 text-white active:scale-95'
+              !canUpgrade ? 'bg-slate-800 text-slate-600 cursor-not-allowed' : 'bg-emerald-600 hover:bg-emerald-500 text-white active:scale-95'
             }`}
           >
             <ArrowUpCircle className="w-3.5 h-3.5" /> {maxed ? 'Máximo' : 'Aprimorar'}
           </button>
-        </div>
-
-        <div className="rounded-xl border border-slate-800 bg-slate-950/50 p-2.5">
-          <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
-            Bônus de Conjunto — {set.name} ({setCount}/4 equipadas)
-          </p>
-          <div className={`text-[10px] leading-snug ${setCount >= 2 ? 'text-emerald-300' : 'text-slate-600'}`}>
-            2 peças: {statLines(set.bonus2).join(' · ') || '—'}
-          </div>
-          <div className={`text-[10px] leading-snug ${setCount >= 4 ? 'text-emerald-300' : 'text-slate-600'}`}>
-            4 peças: {[...statLines(set.bonus4), set.bonus4Extra].filter(Boolean).join(' · ') || '—'}
-          </div>
-          {set.aklesExtra && (
-            <p className="text-[9px] text-amber-300/90 mt-1 leading-snug">★ Com Akles: {set.aklesExtra}</p>
-          )}
-          <p className="text-[9px] text-slate-600 mt-1.5 leading-snug">{set.identity}</p>
         </div>
       </div>
     </div>
@@ -395,64 +511,99 @@ const SkillsTab: React.FC<{ engine: GameEngine }> = ({ engine }) => {
       </div>
 
       {/* Coluna direita: detalhe grande da passiva selecionada */}
-      <div className="flex-1 min-w-0 flex flex-col gap-3">
-        <div className="flex gap-4 items-center rounded-xl border p-4" style={{ borderColor: g.color + '35', background: 'rgba(2,6,23,0.6)' }}>
-          <div className="relative w-16 h-16 flex items-center justify-center shrink-0 rounded-full" style={{ background: g.color + '18' }}>
-            <div style={{ color: g.color }}>{g.icon}</div>
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-base font-black text-slate-100">{def.name}</p>
-            <p className="text-[11px] font-semibold" style={{ color: g.color }}>
-              {g.label}
-            </p>
-            <div className="flex items-center gap-4 mt-1.5">
-              <p className="text-[12px] text-slate-400">
-                Nível <span className="text-slate-100 font-bold">{lvl}</span>
-                <span className="text-slate-600"> / 5</span>
-              </p>
-              {lvl > 0 && (
-                <p className="text-[12px] font-bold" style={{ color: g.color }}>
-                  {fmtPassive(selectedId, val)}
-                </p>
-              )}
+      <div className="flex-1 min-w-0 flex flex-col gap-2 overflow-y-auto pr-1">
+        {/* linha 1: card principal + atributos/efeito */}
+        <div className="flex gap-2">
+          <div className="flex-1 min-w-0 flex gap-4 items-center rounded-xl border p-4" style={{ borderColor: g.color + '35', background: 'rgba(2,6,23,0.6)' }}>
+            <div className="relative w-16 h-16 flex items-center justify-center shrink-0 rounded-full" style={{ background: g.color + '18', boxShadow: `0 0 20px ${g.color}25` }}>
+              <div style={{ color: g.color }}>{g.icon}</div>
             </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-base font-black text-slate-100">{def.name}</p>
+              <span
+                className="inline-block text-[10px] font-bold px-1.5 py-0.5 rounded mt-0.5"
+                style={{ background: g.color + '18', color: g.color }}
+              >
+                {g.label}
+              </span>
+              <div className="flex items-center gap-2 mt-1.5">
+                <p className="text-[12px] text-slate-400">
+                  Nível <span className="text-slate-100 font-bold">{lvl}</span>
+                  <span className="text-slate-600"> / 5</span>
+                </p>
+                {lvl > 0 && (
+                  <span className="text-[11px] font-bold px-1.5 py-0.5 rounded" style={{ background: g.color + '18', color: g.color }}>
+                    {fmtPassive(selectedId, val)}
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div className="w-56 shrink-0 rounded-xl border border-slate-800 bg-slate-950/50 p-2.5">
+            <p className="text-[9px] font-bold text-slate-500 uppercase tracking-wider mb-1 flex items-center gap-1">
+              <Info className="w-3 h-3" /> Atributos / Efeito
+            </p>
+            <p className="text-[11px] text-slate-300 leading-snug">{def.desc}</p>
           </div>
         </div>
 
-        <div className="rounded-xl border border-slate-800 bg-slate-950/50 p-3 flex flex-col gap-2">
-          <p className="text-[11px] text-slate-300 leading-snug">{def.desc}</p>
-          <div className="grid grid-cols-5 gap-1.5 mt-1">
-            {def.values.map((v, i) => (
-              <div
-                key={i}
-                className={`rounded-lg border px-1.5 py-1 text-center ${
-                  i < lvl ? 'border-current bg-slate-900/70' : 'border-slate-800 bg-slate-950/40 opacity-50'
-                }`}
-                style={i < lvl ? { color: g.color, borderColor: g.color + '55' } : undefined}
-              >
-                <p className="text-[8px] text-slate-500">Nv.{i + 1}</p>
-                <p className="text-[10px] font-bold">{fmtPassive(selectedId, v)}</p>
-              </div>
-            ))}
+        {/* progressão da passiva */}
+        <div className="rounded-xl border border-slate-800 bg-slate-950/50 p-2.5">
+          <p className="text-[9px] font-bold text-slate-500 uppercase tracking-wider mb-1.5 flex items-center gap-1">
+            <Layers className="w-3 h-3" /> Progressão da Passiva
+          </p>
+          <div className="flex items-center gap-1">
+            {def.values.map((v, i) => {
+              const isCurrent = i === lvl - 1;
+              const reached = i < lvl;
+              return (
+                <React.Fragment key={i}>
+                  <div
+                    className={`flex-1 rounded-lg border px-1.5 py-1.5 text-center ${
+                      isCurrent ? 'bg-slate-900/80' : reached ? 'bg-slate-900/50' : 'border-slate-800 bg-slate-950/40 opacity-50'
+                    }`}
+                    style={isCurrent ? { borderColor: g.color, boxShadow: `0 0 0 1px ${g.color}` } : reached ? { borderColor: g.color + '55' } : undefined}
+                  >
+                    <p className="text-[8px] text-slate-500">Nv.{i + 1}</p>
+                    <p className="text-[11px] font-bold" style={reached ? { color: g.color } : undefined}>
+                      {fmtPassive(selectedId, v)}
+                    </p>
+                    {isCurrent && (
+                      <span className="mt-0.5 flex items-center justify-center gap-0.5 text-[7px] font-black" style={{ color: g.color }}>
+                        <CheckCircle2 className="w-2.5 h-2.5" /> ATIVO
+                      </span>
+                    )}
+                  </div>
+                  {i < def.values.length - 1 && <ChevronRight className="w-3 h-3 text-slate-700 shrink-0" />}
+                </React.Fragment>
+              );
+            })}
           </div>
           {maxed && def.level5Bonus && (
-            <p className="text-[10px] text-amber-300/90 leading-snug border-t border-slate-800 pt-2 mt-1">
+            <p className="text-[10px] text-amber-300/90 leading-snug border-t border-slate-800 pt-2 mt-2">
               ★ {def.level5Bonus}
             </p>
           )}
         </div>
 
-        <button
-          type="button"
-          onClick={levelUp}
-          disabled={maxed}
-          className={`w-full flex items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-xs font-bold transition-all ${
-            maxed ? 'bg-slate-800 text-slate-600 cursor-not-allowed' : 'bg-emerald-600 hover:bg-emerald-500 text-white active:scale-95 shadow-lg shadow-emerald-600/25'
-          }`}
-        >
-          <Plus className="w-4 h-4" />
-          {maxed ? 'Nível máximo' : 'Aumentar passiva'}
-        </button>
+        {/* ação */}
+        <div className="rounded-xl border border-slate-800 bg-slate-950/50 p-2.5 flex items-center gap-2">
+          <p className="flex-1 text-[10px] text-slate-500 leading-snug">
+            Passiva de Akles — sem custo de material, só XP de nível de personagem.
+          </p>
+          <button
+            type="button"
+            onClick={levelUp}
+            disabled={maxed}
+            className={`shrink-0 flex items-center justify-center gap-1.5 rounded-lg px-4 py-2 text-xs font-bold transition-all ${
+              maxed ? 'bg-slate-800 text-slate-600 cursor-not-allowed' : 'bg-emerald-600 hover:bg-emerald-500 text-white active:scale-95 shadow-lg shadow-emerald-600/25'
+            }`}
+          >
+            <Plus className="w-4 h-4" />
+            {maxed ? 'Nível máximo' : 'Aumentar passiva'}
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -609,7 +760,7 @@ export const CharacterScreen: React.FC<CharacterScreenProps> = ({
   return (
     <div className="fixed inset-0 z-40 flex items-center justify-center p-2 pointer-events-auto">
       <div className="absolute inset-0 bg-black/55 backdrop-blur-[2px]" onClick={onClose} />
-      <div className="relative w-full max-w-3xl h-[560px] max-h-[92vh] flex flex-col bg-slate-900/95 border border-amber-500/50 rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+      <div className="relative w-full max-w-5xl h-[620px] max-h-[92vh] flex flex-col bg-slate-900/95 border border-amber-500/50 rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150">
         <div className="flex items-center justify-between px-4 py-2 border-b border-slate-700/70 bg-slate-950/50 shrink-0">
           <h3 className="text-[13px] font-bold text-amber-200 tracking-wide">Ficha — {stats.name}</h3>
           <button type="button" onClick={onClose} className="cursor-pointer text-slate-400 hover:text-white p-1">
@@ -622,7 +773,7 @@ export const CharacterScreen: React.FC<CharacterScreenProps> = ({
             <FichaTab stats={stats} power={power} canLevelUp={canLevelUp} onLevelUp={onLevelUp} onSpend={onSpend} inventory={inventory} engine={engine} />
           )}
           {tab === 'ferramentas' && (engine ? <FerramentasTab engine={engine} /> : null)}
-          {tab === 'equipamentos' && (engine ? <EquipamentosTab engine={engine} /> : null)}
+          {tab === 'equipamentos' && (engine ? <EquipamentosTab engine={engine} inventory={inventory ?? {}} /> : null)}
           {tab === 'skills' && (engine ? <SkillsTab engine={engine} /> : null)}
         </div>
 

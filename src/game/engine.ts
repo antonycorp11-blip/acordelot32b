@@ -1109,10 +1109,14 @@ export class GameEngine {
   // A arma é 100% separada do personagem: nunca fica nas sheets dele. Trocar
   // de arma não exige trocar animação nenhuma — só o config visual muda.
   equippedWeaponKey = 'acordelamina_t2';
-  weaponLevel = 1;
+  // nível de cada arma é independente — trocar de arma não reseta progresso.
+  weaponLevels: Record<string, number> = { acordelamina_t2: 1 };
   onWeaponChange?: () => void;
   get weaponDef(): WeaponDef {
     return WEAPON_DEFS[this.equippedWeaponKey];
+  }
+  get weaponLevel(): number {
+    return this.weaponLevels[this.equippedWeaponKey] ?? 1;
   }
   get weaponAtk(): number {
     const d = this.weaponDef;
@@ -1131,7 +1135,7 @@ export class GameEngine {
       this.inventory[k] = Math.max(0, (this.inventory[k] || 0) - n);
       if (this.inventory[k] === 0) delete this.inventory[k];
     }
-    this.weaponLevel++;
+    this.weaponLevels[this.equippedWeaponKey] = this.weaponLevel + 1;
     this.onInventoryChange?.({ ...this.inventory });
     this.onWeaponChange?.();
     this.onHarvestPopup?.(
@@ -1139,6 +1143,14 @@ export class GameEngine {
       this.player.x,
       this.player.y - 20,
     );
+    return true;
+  }
+  // Troca a arma equipada (catálogo — sem gate de posse por enquanto).
+  equipWeapon(key: string): boolean {
+    if (!WEAPON_DEFS[key] || key === this.equippedWeaponKey) return false;
+    this.equippedWeaponKey = key;
+    if (this.weaponLevels[key] == null) this.weaponLevels[key] = 1;
+    this.onWeaponChange?.();
     return true;
   }
 
@@ -5523,8 +5535,12 @@ export class GameEngine {
       wy = Math.round(py + v.restOffset.y + bob - camY);
     }
 
-    const dispH = (img.naturalHeight || 300) * v.scale * scaleMul;
-    const dispW = (img.naturalWidth || 100) * v.scale * scaleMul;
+    // v.scale = altura alvo em px (não multiplicador!) — normaliza o
+    // tamanho na tela mesmo entre sprites de fontes com resoluções bem
+    // diferentes (ex.: 125x420 vs 474x783). Largura segue a proporção.
+    const aspect = (img.naturalWidth || 100) / (img.naturalHeight || 300);
+    const dispH = v.scale * scaleMul;
+    const dispW = dispH * aspect;
     const rad = (angleDeg * Math.PI) / 180;
 
     ctx.save();

@@ -13,6 +13,7 @@ import {
   Zap,
   Settings,
   Check,
+  Library,
 } from 'lucide-react';
 import type { GameEngine } from '../game/engine';
 
@@ -22,6 +23,7 @@ interface TouchControlsProps {
   onToggleSynth: () => void;
   onTogglePartitura: () => void;
   onToggleWeapon: () => void;
+  onToggleCatalog: () => void;
 }
 
 const JOYSTICK_SIZE = 132;
@@ -68,6 +70,7 @@ export const TouchControls: React.FC<TouchControlsProps> = ({
   onToggleSynth,
   onTogglePartitura,
   onToggleWeapon,
+  onToggleCatalog,
 }) => {
   const baseRef = useRef<HTMLDivElement | null>(null);
   const originRef = useRef<{ x: number; y: number } | null>(null);
@@ -321,6 +324,10 @@ export const TouchControls: React.FC<TouchControlsProps> = ({
       </D>
       <D id="btn_weapon" className={`${actionBtn} absolute w-11 h-11 border-blue-400/50 bg-slate-950/80 text-blue-300`} title="Arma" onAction={onToggleWeapon} style={{ right: 'max(14px, env(safe-area-inset-right))', top: 'calc(280px + env(safe-area-inset-top))' }}>
         <Swords className="w-5 h-5" />
+      </D>
+      {/* Catálogo — botão temporário pra ver armas/equipamentos novos por tier */}
+      <D id="btn_catalog" className={`${actionBtn} absolute w-11 h-11 border-amber-400/50 bg-slate-950/80 text-amber-300`} title="Catálogo" onAction={onToggleCatalog} style={{ right: 'max(14px, env(safe-area-inset-right))', top: 'calc(334px + env(safe-area-inset-top))' }}>
+        <Library className="w-5 h-5" />
       </D>
 
       {/* Poções: cura + buff temporário */}

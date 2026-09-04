@@ -34,8 +34,9 @@ import { DayCycleIndicator } from './DayCycleIndicator';
 import { SynthesisScreen } from './SynthesisScreen';
 import { PartituraScreen } from './PartituraScreen';
 import { WeaponScreen } from './WeaponScreen';
+import { CatalogScreen } from './CatalogScreen';
 import { publishMapToCode, getGhToken, setGhToken } from '../game/mapPersist';
-import { Backpack, Hand, User, CloudRain, Music4, FlaskConical, ScrollText, Swords, Zap } from 'lucide-react';
+import { Backpack, Hand, User, CloudRain, Music4, FlaskConical, ScrollText, Swords, Zap, Library } from 'lucide-react';
 
 interface PropPaletteItem {
   type: string;
@@ -477,6 +478,7 @@ export const GameCanvas: React.FC = () => {
   const [showSynth, setShowSynth] = useState(false);
   const [showPartitura, setShowPartitura] = useState(false);
   const [showWeapon, setShowWeapon] = useState(false);
+  const [showCatalog, setShowCatalog] = useState(false);
   // Skills agora é uma aba dentro da Ficha — abrir com esse atalho já cai nela
   const [sheetInitialTab, setSheetInitialTab] = useState<
     'ficha' | 'ferramentas' | 'equipamentos' | 'skills'
@@ -590,6 +592,7 @@ export const GameCanvas: React.FC = () => {
         setSheetInitialTab('skills');
         setShowSheet(true);
       }
+      if (e.code === 'KeyK') setShowCatalog((v) => !v);
     };
     window.addEventListener('keydown', onKey);
 
@@ -1104,6 +1107,7 @@ export const GameCanvas: React.FC = () => {
           onToggleSynth={() => setShowSynth((v) => !v)}
           onTogglePartitura={() => setShowPartitura((v) => !v)}
           onToggleWeapon={() => setShowWeapon((v) => !v)}
+          onToggleCatalog={() => setShowCatalog((v) => !v)}
         />
       )}
 
@@ -1140,6 +1144,14 @@ export const GameCanvas: React.FC = () => {
             title="Arma (U)"
           >
             <Swords className="w-5 h-5" />
+          </button>
+          <button
+            type="button"
+            onClick={() => setShowCatalog((v) => !v)}
+            className="cursor-pointer w-12 h-12 rounded-full bg-slate-950/85 hover:bg-slate-800 text-amber-300 border border-amber-500/40 hover:border-amber-400/80 shadow-xl flex items-center justify-center backdrop-blur-md transition-all active:scale-95"
+            title="Catálogo (K)"
+          >
+            <Library className="w-5 h-5" />
           </button>
           <button
             type="button"
@@ -1240,6 +1252,12 @@ export const GameCanvas: React.FC = () => {
         onClose={() => setShowWeapon(false)}
         engine={engineRef.current}
         inventory={inventory}
+      />
+
+      <CatalogScreen
+        open={showCatalog && !isEditMode}
+        onClose={() => setShowCatalog(false)}
+        engine={engineRef.current}
       />
 
       {/* Configuração do token do GitHub (uma vez) para publicar o mapa */}

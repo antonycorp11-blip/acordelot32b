@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, Sword, ArrowUpCircle, Lock } from 'lucide-react';
+import { X, Sword, ArrowUpCircle, CheckCircle2 } from 'lucide-react';
 import type { GameEngine } from '../game/engine';
 import { ITEM_META, WEAPON_DEFS } from '../game/engine';
 
@@ -9,10 +9,6 @@ interface Props {
   engine: GameEngine | null;
   inventory: Record<string, number>;
 }
-
-// Slots de arma — só a Acordelâmina existe hoje; os demais ficam reservados
-// (a lista cresce sozinha conforme WEAPON_DEFS ganhar novas armas).
-const FUTURE_SLOTS = 3;
 
 /** Tela de Arma, em paisagem: lista de armas à esquerda, detalhe grande à direita. */
 export const WeaponScreen: React.FC<Props> = ({ open, onClose, engine, inventory }) => {
@@ -24,14 +20,17 @@ export const WeaponScreen: React.FC<Props> = ({ open, onClose, engine, inventory
   const equippedKey = engine.equippedWeaponKey;
   const viewingEquipped = selected === equippedKey;
   const def = WEAPON_DEFS[selected];
-  const level = viewingEquipped ? engine.weaponLevel : 1;
-  const atk = viewingEquipped ? engine.weaponAtk : def.baseAtk;
+  const level = engine.weaponLevels[selected] ?? 1;
+  const atk = def.baseAtk + def.atkPerLevel * (level - 1);
   const maxed = level >= def.maxLevel;
   const cost = !maxed ? def.upgradeCost(level) : null;
   const canUpgrade = viewingEquipped && engine.canUpgradeWeapon();
 
   const doUpgrade = () => {
     if (engine.upgradeWeapon()) force();
+  };
+  const doEquip = () => {
+    if (engine.equipWeapon(selected)) force();
   };
 
   return (
@@ -65,7 +64,7 @@ export const WeaponScreen: React.FC<Props> = ({ open, onClose, engine, inventory
                   }`}
                 >
                   <img
-                    src={`/assets/weapons/${d.key}.png`}
+                    src={d.img}
                     alt={d.name}
                     className="w-9 h-11 object-contain shrink-0"
                     style={{ imageRendering: 'pixelated' }}
@@ -82,17 +81,6 @@ export const WeaponScreen: React.FC<Props> = ({ open, onClose, engine, inventory
                 </button>
               );
             })}
-            {Array.from({ length: FUTURE_SLOTS }).map((_, i) => (
-              <div
-                key={i}
-                className="flex items-center gap-2 rounded-xl border border-dashed border-slate-800 bg-slate-950/30 p-2 opacity-50"
-              >
-                <div className="w-9 h-11 flex items-center justify-center shrink-0">
-                  <Lock className="w-4 h-4 text-slate-600" />
-                </div>
-                <p className="text-[10px] text-slate-600">Em breve</p>
-              </div>
-            ))}
           </div>
 
           {/* Coluna direita: detalhe grande da arma selecionada */}
@@ -101,7 +89,7 @@ export const WeaponScreen: React.FC<Props> = ({ open, onClose, engine, inventory
               <div className="relative w-24 h-32 flex items-center justify-center shrink-0">
                 <div className="absolute inset-0 rounded-full blur-2xl bg-blue-500/25" />
                 <img
-                  src={`/assets/weapons/${def.key}.png`}
+                  src={def.img}
                   alt={def.name}
                   className="relative max-w-full max-h-full object-contain"
                   style={{ filter: 'drop-shadow(0 0 10px rgba(96,165,250,0.55))' }}
@@ -120,7 +108,13 @@ export const WeaponScreen: React.FC<Props> = ({ open, onClose, engine, inventory
                   <p className="text-[12px] font-bold text-amber-300">ATQ +{atk}</p>
                 </div>
                 {!viewingEquipped && (
-                  <p className="text-[10px] text-slate-500 mt-1.5">Ainda não desbloqueada.</p>
+                  <button
+                    type="button"
+                    onClick={doEquip}
+                    className="mt-2 flex items-center gap-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 active:scale-95 text-white text-[11px] font-bold px-3 py-1.5 shadow-lg shadow-blue-600/25 transition-all"
+                  >
+                    <CheckCircle2 className="w-3.5 h-3.5" /> Equipar
+                  </button>
                 )}
               </div>
             </div>
@@ -128,7 +122,7 @@ export const WeaponScreen: React.FC<Props> = ({ open, onClose, engine, inventory
             {viewingEquipped &&
               (maxed ? (
                 <div className="flex-1 flex items-center justify-center text-[12px] text-slate-400">
-                  Nível máximo alcançado. Novas armas T3+ virão em breve.
+                  Nível máximo alcançado.
                 </div>
               ) : (
                 <div className="rounded-xl border border-slate-800 bg-slate-950/50 p-3 flex flex-col gap-2">
@@ -180,8 +174,8 @@ export const WeaponScreen: React.FC<Props> = ({ open, onClose, engine, inventory
               ))}
 
             <p className="text-[9px] text-slate-600 leading-snug mt-auto">
-              As habilidades pertencem a Akles — a arma só dá atributos. Novas armas (T3+, sazonais,
-              especiais) poderão ser equipadas sem trocar as animações do personagem.
+              As habilidades pertencem a Akles — a arma só dá atributos. Trocar de arma não muda as
+              animações do personagem, e o nível de cada arma é guardado separadamente.
             </p>
           </div>
         </div>

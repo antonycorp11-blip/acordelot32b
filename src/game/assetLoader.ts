@@ -27,6 +27,15 @@ export interface LoadedAssets {
   monAranha: HTMLImageElement;
   monNocturno: HTMLImageElement;
   monMaestro: HTMLImageElement;
+  monColosso: HTMLImageElement;
+  monDama: HTMLImageElement;
+
+  // Props da Floresta Sombria
+  darkDeadtree: HTMLImageElement;
+  darkBigpine: HTMLImageElement;
+  darkBigrock: HTMLImageElement;
+  darkIcecrystal: HTMLImageElement;
+  darkThorn: HTMLImageElement;
 
   // Nós de extração
   spotWood: HTMLImageElement;
@@ -146,6 +155,15 @@ const ASSET_PATHS: Record<keyof LoadedAssets, string> = {
   monAranha: '/assets/monsters/aranha.png',
   monNocturno: '/assets/monsters/nocturno.png',
   monMaestro: '/assets/monsters/maestro.png',
+  monColosso: '/assets/monsters/colosso.png',
+  monDama: '/assets/monsters/dama.png',
+
+  // Props da Floresta Sombria
+  darkDeadtree: '/assets/props/dark_deadtree.png',
+  darkBigpine: '/assets/props/dark_bigpine.png',
+  darkBigrock: '/assets/props/dark_bigrock.png',
+  darkIcecrystal: '/assets/props/dark_icecrystal.png',
+  darkThorn: '/assets/props/dark_thorn_p.png',
 
   // Nós de extração (spots)
   spotWood: '/assets/props/wood2_spot.png',

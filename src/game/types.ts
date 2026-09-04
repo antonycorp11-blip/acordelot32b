@@ -136,6 +136,8 @@ export interface Enemy {
   homeY: number;
   hp: number;
   maxHp: number;
+  level: number;
+  dmgMul: number; // multiplicador de dano derivado do nível
   facingLeft: boolean;
   state: 'idle' | 'walk' | 'chase' | 'attack' | 'hurt' | 'dead';
   frame: number;

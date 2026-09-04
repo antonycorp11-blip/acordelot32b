@@ -13,12 +13,14 @@
  */
 import { Rect, WorldProp, NPC } from './types';
 
-// Mapa 4x maior — muita floresta e rios em volta da vila.
+// Mapa: bloco norte (vila + terras editadas) + bloco sul (FLORESTA SOMBRIA).
 export const MAP_COLS = 144;
-export const MAP_ROWS = 108;
+export const OLD_ROWS = 108; // fim do bloco norte — nada acima disso muda
+export const DARK_START = 110; // início da Floresta Sombria
+export const MAP_ROWS = 176; // + 68 linhas de floresta sombria
 export const TILE_SIZE = 32;
 export const WORLD_WIDTH = MAP_COLS * TILE_SIZE; // 4608px
-export const WORLD_HEIGHT = MAP_ROWS * TILE_SIZE; // 3456px
+export const WORLD_HEIGHT = MAP_ROWS * TILE_SIZE;
 
 /** Tile IDs do tileset Terrain2 (36 colunas) + sentinelas de água. */
 export const TERRAIN_TILES = {
@@ -37,10 +39,17 @@ export const TERRAIN_TILES = {
   STONE_TR: 309,
   STONE_BL: 415,
   STONE_BR: 417,
-  // sentinelas (renderizados como água animada, fora do tileset)
+  // sentinelas (renderizados fora do tileset)
   WATER_DEEP: 9000,
   WATER_SHALLOW: 9001,
+  DARK_SOIL: 9002, // terra escura da floresta sombria
+  DARK_STONE: 9003, // laje de pedra musgosa
+  DARK_MOSS: 9004, // musgo escuro (clareiras)
+  DARK_PATH: 9005, // trilha de terra batida (caminhos da floresta)
 };
+
+// Faixa de transição (em linhas) entre o mapa antigo e a Floresta Sombria.
+export const FADE_ROWS = 10;
 
 export interface MapGrid {
   ground: number[][];
@@ -90,14 +99,27 @@ export function buildMap(): MapGrid {
   const props: WorldProp[] = [];
   const npcs: NPC[] = [];
 
-  // 1. Grama base com variações suaves
+  // 1. Solo base
   for (let r = 0; r < MAP_ROWS; r++) {
     const row: number[] = [];
     for (let c = 0; c < MAP_COLS; c++) {
       const noise = (Math.sin(c * 0.35 + r * 0.25) + Math.cos(c * 0.65 - r * 0.55)) / 2;
-      if (noise > 0.55) row.push(TERRAIN_TILES.GRASS_FLOWER1);
-      else if (noise < -0.55) row.push(TERRAIN_TILES.GRASS_FLOWER2);
-      else row.push(TERRAIN_TILES.GRASS_BASE);
+      if (r >= DARK_START) {
+        // Floresta Sombria: terra escura uniforme (musgo só nas clareiras, adiante)
+        row.push(TERRAIN_TILES.DARK_SOIL);
+      } else if (r >= DARK_START - FADE_ROWS) {
+        // faixa de transição: grama vai cedendo lugar à terra escura
+        const t01 = (r - (DARK_START - FADE_ROWS)) / FADE_ROWS;
+        const h = Math.abs(Math.sin(c * 127.1 + r * 311.7) * 43758.5) % 1;
+        if (h < t01 * 0.9) row.push(TERRAIN_TILES.DARK_SOIL);
+        else if (noise > 0.55) row.push(TERRAIN_TILES.GRASS_FLOWER1);
+        else if (noise < -0.55) row.push(TERRAIN_TILES.GRASS_FLOWER2);
+        else row.push(TERRAIN_TILES.GRASS_BASE);
+      } else {
+        if (noise > 0.55) row.push(TERRAIN_TILES.GRASS_FLOWER1);
+        else if (noise < -0.55) row.push(TERRAIN_TILES.GRASS_FLOWER2);
+        else row.push(TERRAIN_TILES.GRASS_BASE);
+      }
     }
     ground.push(row);
   }
@@ -429,7 +451,7 @@ export function buildMap(): MapGrid {
     wiggle: number,
     shallow = false
   ) => {
-    const len = vertical ? MAP_ROWS : MAP_COLS;
+    const len = vertical ? OLD_ROWS : MAP_COLS;
     for (let i = 0; i < len; i++) {
       const center =
         startCol + Math.sin(i * 0.045) * wiggle + Math.sin(i * 0.13 + 1) * wiggle * 0.35;
@@ -437,7 +459,7 @@ export function buildMap(): MapGrid {
       for (let d = -width; d <= width; d++) {
         const c = vertical ? cc + d : i;
         const r = vertical ? i : cc + d;
-        if (c < 1 || c >= MAP_COLS - 1 || r < 1 || r >= MAP_ROWS - 1) continue;
+        if (c < 1 || c >= MAP_COLS - 1 || r < 1 || r >= OLD_ROWS - 1) continue;
         if (inTown(c, r)) continue; // rio contorna a vila
         const edge = Math.abs(d) >= width;
         if (edge) {
@@ -550,10 +572,10 @@ export function buildMap(): MapGrid {
     }
   }
 
-  // --- FLORESTAS DENSAS PROCEDURAIS (com teto de perf) ---
+  // --- FLORESTAS DENSAS PROCEDURAIS (bloco norte apenas) ---
   let fid = 0;
   const MAX_FOREST = 1500;
-  for (let r = 2; r < MAP_ROWS - 2 && fid < MAX_FOREST; r++) {
+  for (let r = 2; r < OLD_ROWS - 2 && fid < MAX_FOREST; r++) {
     for (let c = 2; c < MAP_COLS - 2 && fid < MAX_FOREST; c++) {
       if (isRoad(c, r) || isWater(c, r) || inTown(c, r) || deck.has(`${c},${r}`)) continue;
 
@@ -578,11 +600,129 @@ export function buildMap(): MapGrid {
   // Cinturão de floresta bem fechado nas 4 bordas
   for (let c = 2; c < MAP_COLS - 2; c += 3) {
     addPine(`bN_${t++}`, c * TILE_SIZE + (t % 2) * 12, (1 + (t % 2)) * TILE_SIZE);
-    addOak(`bS_${t++}`, c * TILE_SIZE, (MAP_ROWS - 3 - (t % 2)) * TILE_SIZE);
+  }
+  // borda sul da Floresta Sombria — irregular, com pinheiros mortos e vivos
+  for (let c = 2; c < MAP_COLS - 2; c += 2) {
+    if (rnd() < 0.28) continue; // deixa falhas
+    const jc = c + (rnd() < 0.5 ? 0 : 1);
+    const x = jc * TILE_SIZE + Math.round((rnd() - 0.5) * 26);
+    const y = (MAP_ROWS - 2 - Math.floor(rnd() * 3)) * TILE_SIZE - Math.round(rnd() * 30);
+    if (rnd() < 0.5) props.push({ id: `bS_${t++}`, type: 'dark_bigpine', x, y, w: 52, h: 74, sortY: y + 70 });
+    else addPine(`bS_${t++}`, x, y);
   }
   for (let r = 3; r < MAP_ROWS - 3; r += 3) {
     addOak(`bW_${t++}`, (1 + (t % 2)) * TILE_SIZE, r * TILE_SIZE);
     addPine(`bE_${t++}`, (MAP_COLS - 3 - (t % 2)) * TILE_SIZE, r * TILE_SIZE);
+  }
+
+  // =====================================================================
+  //  FLORESTA SOMBRIA (bloco sul) — densa, rochosa, cheia de cristais.
+  //  Sem zoneamento: só floresta, pedras, clareiras e MUITOS monstros.
+  // =====================================================================
+  const dprop = (id: string, type: string, x: number, y: number, w: number, h: number) => {
+    props.push({ id, type, x, y, w, h, sortY: y + h - 4 });
+  };
+  let did = 0;
+
+  // clareiras (círculos onde a floresta rareia — abrigam cristais e chefes)
+  const glades: Array<[number, number, number]> = [];
+  for (let i = 0; i < 13; i++) {
+    glades.push([
+      8 + Math.floor(rnd() * (MAP_COLS - 16)),
+      DARK_START + 5 + Math.floor(rnd() * (MAP_ROWS - DARK_START - 10)),
+      4 + Math.floor(rnd() * 3),
+    ]);
+  }
+  const inGlade = (c: number, r: number) => {
+    for (const [gc, gr, rad] of glades) {
+      if (Math.hypot(c - gc, r - gr) < rad) return rad - Math.hypot(c - gc, r - gr);
+    }
+    return 0;
+  };
+
+  // ---- Rede de trilhas de terra batida (caminhos claros) ----
+  // Nenhuma árvore/pedra a <= PATH_CLEAR tiles do centro de uma trilha.
+  const pathCells = new Set<string>();
+  const stampPath = (c: number, r: number, half: number) => {
+    for (let dr = -half; dr <= half; dr++)
+      for (let dc = -half; dc <= half; dc++) {
+        const cc = c + dc;
+        const rr = r + dr;
+        if (cc < 1 || cc >= MAP_COLS - 1 || rr < DARK_START || rr >= MAP_ROWS - 1) continue;
+        pathCells.add(`${cc},${rr}`);
+        if (ground[rr][cc] < 9000 || ground[rr][cc] === TERRAIN_TILES.DARK_SOIL || ground[rr][cc] === TERRAIN_TILES.DARK_STONE || ground[rr][cc] === TERRAIN_TILES.DARK_MOSS)
+          ground[rr][cc] = TERRAIN_TILES.DARK_PATH;
+      }
+  };
+  // 2 trilhas verticais serpenteando de cima a baixo
+  for (let k = 0; k < 2; k++) {
+    let c = 24 + k * 64 + Math.floor(rnd() * 16);
+    for (let r = DARK_START; r < MAP_ROWS - 2; r++) {
+      c += Math.round((rnd() - 0.5) * 2.2);
+      c = Math.max(6, Math.min(MAP_COLS - 6, c));
+      stampPath(c, r, rnd() < 0.25 ? 2 : 1);
+    }
+  }
+  // 2 trilhas horizontais ligando as laterais
+  for (let k = 0; k < 2; k++) {
+    let r = DARK_START + 14 + k * 26 + Math.floor(rnd() * 8);
+    for (let c = 2; c < MAP_COLS - 2; c++) {
+      r += Math.round((rnd() - 0.5) * 2.2);
+      r = Math.max(DARK_START + 3, Math.min(MAP_ROWS - 4, r));
+      stampPath(c, r, rnd() < 0.25 ? 2 : 1);
+    }
+  }
+  const onPath = (c: number, r: number) => pathCells.has(`${c},${r}`);
+
+  const MAX_DARK = 4400;
+  for (let r = DARK_START + 1; r < MAP_ROWS - 2 && did < MAX_DARK; r++) {
+    for (let c = 2; c < MAP_COLS - 2 && did < MAX_DARK; c++) {
+      if (onPath(c, r)) continue; // trilha limpa
+      const gl = inGlade(c, r);
+      if (gl > 2.5) {
+        ground[r][c] = TERRAIN_TILES.DARK_MOSS;
+        continue; // centro da clareira: vazio
+      }
+      const glEdge = gl > 0;
+      const n = fnoise(c * 1.3, r * 1.1);
+      // densa, mas transitável (clareiras e trilhas abrem espaço)
+      const density = glEdge ? 0.12 : n > 0.15 ? 0.55 : 0.3;
+      const p = rnd();
+      if (p > density) {
+        // mesmo sem árvore, chance de pedra/cristal
+        if (rnd() < (glEdge ? 0.16 : 0.07)) {
+          const x = c * TILE_SIZE + Math.round((rnd() - 0.5) * 12);
+          const y = r * TILE_SIZE + Math.round((rnd() - 0.5) * 12);
+          const q = rnd();
+          if (q < 0.32) dprop(`d${did++}`, 'spot_crystal_blue', x, y, 56, 60);
+          else if (q < 0.52) dprop(`d${did++}`, 'spot_crystal_red', x, y, 56, 60);
+          else if (q < 0.68) dprop(`d${did++}`, 'dark_icecrystal', x, y, 52, 58);
+          else if (q < 0.86) dprop(`d${did++}`, 'rockCluster', x, y, 32, 26);
+          else dprop(`d${did++}`, 'dark_bigrock', x, y, 60, 46);
+        }
+        continue;
+      }
+      const x = c * TILE_SIZE + Math.round((rnd() - 0.5) * 14);
+      const y = r * TILE_SIZE + Math.round((rnd() - 0.5) * 14);
+      const q = rnd();
+      if (q < 0.44) dprop(`d${did++}`, 'dark_bigpine', x, y, 52, 74);
+      else if (q < 0.74) dprop(`d${did++}`, 'dark_deadtree', x, y, 34, 74);
+      else if (q < 0.86) dprop(`d${did++}`, 'dark_thorn', x, y, 30, 24);
+      else if (q < 0.94) addPine(`d${did++}`, x, y);
+      else addBush(`d${did++}`, x, y);
+    }
+  }
+  // rochedos e monólitos maiores espalhados
+  for (let i = 0; i < 140 && did < MAX_DARK; i++) {
+    const c = 4 + Math.floor(rnd() * (MAP_COLS - 8));
+    const r = DARK_START + 4 + Math.floor(rnd() * (MAP_ROWS - DARK_START - 8));
+    if (inGlade(c, r) > 3 || onPath(c, r)) continue;
+    const x = c * TILE_SIZE;
+    const y = r * TILE_SIZE;
+    const q = rnd();
+    if (q < 0.4) dprop(`dr${did++}`, 'limestoneBoulders', x, y, 88, 86);
+    else if (q < 0.7) dprop(`dr${did++}`, 'rockMonolith', x, y, 24, 40);
+    else dprop(`dr${did++}`, 'stoneQuarry', x, y, 140, 140);
   }
 
   // 10. MERCADOR GILDOR (lado leste da praça)

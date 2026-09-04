@@ -224,6 +224,20 @@ const PROP_CATALOG: PropPaletteItem[] = [
     badge: 'Coletável',
   },
   {
+    type: 'dark_bigrock',
+    name: 'Rochedo Sombrio',
+    category: 'rocks',
+    imgSrc: '/assets/props/dark_bigrock.png',
+    badge: 'Sombria',
+  },
+  {
+    type: 'dark_icecrystal',
+    name: 'Cristal Gélido',
+    category: 'rocks',
+    imgSrc: '/assets/props/dark_icecrystal.png',
+    badge: 'Sombria',
+  },
+  {
     type: 'stoneQuarry',
     name: 'Pedreira de Mineração',
     category: 'rocks',
@@ -348,6 +362,27 @@ const PROP_CATALOG: PropPaletteItem[] = [
     name: 'Arbusto com Frutas',
     category: 'trees',
     badge: 'Baixo',
+  },
+  {
+    type: 'dark_deadtree',
+    name: 'Árvore Morta',
+    category: 'trees',
+    imgSrc: '/assets/props/dark_deadtree.png',
+    badge: 'Sombria',
+  },
+  {
+    type: 'dark_bigpine',
+    name: 'Pinheiro Sombrio',
+    category: 'trees',
+    imgSrc: '/assets/props/dark_bigpine.png',
+    badge: 'Sombria',
+  },
+  {
+    type: 'dark_thorn',
+    name: 'Espinheiro',
+    category: 'trees',
+    imgSrc: '/assets/props/dark_thorn_p.png',
+    badge: 'Sombria',
   },
 ];
 

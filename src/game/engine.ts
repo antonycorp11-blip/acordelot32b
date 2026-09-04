@@ -34,6 +34,8 @@ import {
   TILE_SIZE,
   WORLD_WIDTH,
   WORLD_HEIGHT,
+  DARK_START,
+  FADE_ROWS,
 } from './mapData';
 import { loadGameAssets, LoadedAssets } from './assetLoader';
 import { generateCharacterSprites, generateTrees, generateHouses } from './pixelArt';
@@ -215,6 +217,9 @@ export const HARVEST_DEFS: Record<string, HarvestDef> = {
   spot_crystal_blue: { kind: 'rock', maxHp: 6, drop: 'crystal_blue_raw', dropMin: 1, dropMax: 3, respawnSecs: 50 },
   spot_crystal_red: { kind: 'rock', maxHp: 8, drop: 'crystal_red_raw', dropMin: 1, dropMax: 2, respawnSecs: 60 },
   spot_eco_essence: { kind: 'rock', maxHp: 5, drop: 'eco_dust', dropMin: 2, dropMax: 4, respawnSecs: 40 },
+  dark_icecrystal: { kind: 'rock', maxHp: 5, drop: 'crystal_blue_raw', dropMin: 1, dropMax: 3, respawnSecs: 45 },
+  dark_bigrock: { kind: 'rock', maxHp: 6, drop: 'stone', dropMin: 3, dropMax: 5, respawnSecs: 35 },
+  dark_deadtree: { kind: 'tree', maxHp: 3, drop: 'wood', dropMin: 1, dropMax: 3, respawnSecs: 25 },
 };
 
 // ---- MONSTROS DISSONANTES + ECOS MUSICAIS ----
@@ -255,6 +260,16 @@ export const ENEMY_DEFS: Record<string, EnemyDef> = {
     sheet: 'monMaestro', name: 'Maestro Esqueleto', hostile: true, cols: 5, cw: 118, ch: 132, disp: 0.56,
     hp: 70, speed: 54, aggro: 260, attackRange: 40, touchDamage: 22, attackCd: 1.4,
     xp: 60, claveMin: 3, claveMax: 5, fragMin: 4, fragMax: 7, respawnSecs: 80,
+  },
+  colosso: {
+    sheet: 'monColosso', name: 'Colosso Dissonante', hostile: true, cols: 5, cw: 150, ch: 150, disp: 0.62,
+    hp: 140, speed: 40, aggro: 240, attackRange: 46, touchDamage: 30, attackCd: 1.8,
+    xp: 120, claveMin: 5, claveMax: 9, fragMin: 5, fragMax: 9, respawnSecs: 110,
+  },
+  dama: {
+    sheet: 'monDama', name: 'Dama do Silêncio', hostile: true, cols: 5, cw: 120, ch: 140, disp: 0.56,
+    hp: 55, speed: 68, aggro: 300, attackRange: 36, touchDamage: 18, attackCd: 1.1,
+    xp: 55, claveMin: 3, claveMax: 5, fragMin: 3, fragMax: 6, respawnSecs: 70,
   },
 };
 
@@ -833,6 +848,13 @@ export const EDITABLE_PROP_METAS: Record<
   spot_crystal_blue: { category: 'rock', name: 'Cristal de Eco Azul', baseW: 56, baseH: 60, colOffXRatio: 0.22, colOffYRatio: 0.62, colWRatio: 0.56, colHRatio: 0.32, sortYOffset: 56, canDelete: true, canDuplicate: true },
   spot_crystal_red: { category: 'rock', name: 'Cristal Dissonante', baseW: 56, baseH: 60, colOffXRatio: 0.22, colOffYRatio: 0.62, colWRatio: 0.56, colHRatio: 0.32, sortYOffset: 56, canDelete: true, canDuplicate: true },
   spot_eco_essence: { category: 'rock', name: 'Nascente de Eco', baseW: 62, baseH: 46, colOffXRatio: 0.15, colOffYRatio: 0.45, colWRatio: 0.7, colHRatio: 0.45, sortYOffset: 42, canDelete: true, canDuplicate: true },
+
+  // 9. FLORESTA SOMBRIA
+  dark_deadtree: { category: 'tree', name: 'Árvore Morta', baseW: 34, baseH: 74, colOffXRatio: 0.36, colOffYRatio: 0.86, colWRatio: 0.28, colHRatio: 0.1, sortYOffset: 70, canDelete: true, canDuplicate: true },
+  dark_bigpine: { category: 'tree', name: 'Pinheiro Sombrio', baseW: 52, baseH: 74, colOffXRatio: 0.4, colOffYRatio: 0.85, colWRatio: 0.2, colHRatio: 0.12, sortYOffset: 70, canDelete: true, canDuplicate: true },
+  dark_thorn: { category: 'bush', name: 'Espinheiro', baseW: 30, baseH: 24, sortYOffset: 22, canDelete: true, canDuplicate: true },
+  dark_bigrock: { category: 'rock', name: 'Rochedo Sombrio', baseW: 60, baseH: 46, colOffXRatio: 0.12, colOffYRatio: 0.4, colWRatio: 0.76, colHRatio: 0.5, sortYOffset: 42, canDelete: true, canDuplicate: true },
+  dark_icecrystal: { category: 'rock', name: 'Cristal Gélido', baseW: 52, baseH: 58, colOffXRatio: 0.2, colOffYRatio: 0.6, colWRatio: 0.6, colHRatio: 0.34, sortYOffset: 54, canDelete: true, canDuplicate: true },
 };
 
 export class GameEngine {
@@ -1035,6 +1057,7 @@ export class GameEngine {
     }
 
     this.loadMapFromStorage();
+    this.rebuildColliderGrid();
     this.initHarvestables();
     this.initFragments();
     this.initEnemies();
@@ -1338,13 +1361,44 @@ export class GameEngine {
     }
   }
 
+  // A Floresta Sombria é sempre noite e quase sempre chuva.
+  // darkT: 0 = mapa normal, 1 = fundo da floresta. Faixa de transição suave.
+  get darkT() {
+    const y0 = (DARK_START - FADE_ROWS) * TILE_SIZE;
+    const y1 = (DARK_START + 6) * TILE_SIZE;
+    const t = (this.player.y - y0) / (y1 - y0);
+    const c = t < 0 ? 0 : t > 1 ? 1 : t;
+    return c * c * (3 - 2 * c); // smoothstep
+  }
+  get inDarkForest() {
+    return this.darkT > 0.5;
+  }
+  effTime(): TimeOfDay {
+    return this.darkT > 0.6 ? 'night' : this.timeOfDay;
+  }
+  effWeather(): 'clear' | 'rain' {
+    if (this.darkT > 0.35) return 'rain';
+    return this.weather;
+  }
+
   updateWeatherAndWind(dt: number) {
     // vento suave que oscila
     this.windX = 12 + Math.sin(this.timeElapsed * 0.13) * 16 + Math.sin(this.timeElapsed * 0.9) * 3;
 
-    if (this.weather !== 'rain') {
+    const raining = this.effWeather() === 'rain';
+    if (!raining) {
       if (this.rain.length) this.rain.length = 0;
       return;
+    }
+    if (this.rain.length === 0) {
+      for (let i = 0; i < 260; i++) {
+        this.rain.push({
+          x: Math.random() * (this.viewportW + 200) - 100,
+          y: Math.random() * this.viewportH,
+          len: 8 + Math.random() * 10,
+          speed: 620 + Math.random() * 320,
+        });
+      }
     }
     const angle = this.windX * 0.9;
     for (const d of this.rain) {
@@ -1361,15 +1415,17 @@ export class GameEngine {
   }
 
   renderRain(ctx: CanvasRenderingContext2D) {
-    if (this.weather !== 'rain') return;
+    if (this.effWeather() !== 'rain') return;
     const w = this.viewportW;
     const h = this.viewportH;
+    // intensidade: chuva do clima = cheia; chuva da Floresta Sombria entra pela faixa
+    const intensity = Math.max(this.weather === 'rain' ? 1 : 0, Math.min(1, this.darkT / 0.6));
     // leve escurecida / azulado de tempestade
-    ctx.fillStyle = 'rgba(30, 41, 66, 0.16)';
+    ctx.fillStyle = `rgba(30, 41, 66, ${0.16 * intensity})`;
     ctx.fillRect(0, 0, w, h);
 
     ctx.save();
-    ctx.strokeStyle = 'rgba(190, 214, 240, 0.5)';
+    ctx.strokeStyle = `rgba(190, 214, 240, ${0.5 * intensity})`;
     ctx.lineWidth = 1;
     const ax = this.windX * 0.04;
     ctx.beginPath();
@@ -1692,6 +1748,7 @@ export class GameEngine {
   };
 
   syncPropAutoCollider(prop: WorldProp) {
+    this.gridDirty = true;
     const meta = EDITABLE_PROP_METAS[prop.type];
     if (!meta) return;
 
@@ -1946,9 +2003,23 @@ export class GameEngine {
       const rebuiltProps: WorldProp[] = [...staticProps];
       const savedIds = new Set<string>();
 
+      // Props procedurais da Floresta Sombria (buildMap). O snapshot salvo pelo
+      // usuário foi criado antes dessa região existir, então nunca contém props
+      // abaixo de DARK_START. Guardamos os originais para reanexar depois — a menos
+      // que o snapshot já traga aquele id (usuário editou/moveu/apagou a sombria).
+      const darkLine = DARK_START * TILE_SIZE;
+      const darkProceduralProps = this.props.filter(
+        (p) => EDITABLE_PROP_METAS[p.type] && p.y >= darkLine,
+      );
+
       for (const item of parsed) {
         const meta = EDITABLE_PROP_METAS[item.type];
         if (!meta) continue;
+        // O antigo cinturão sul (bS_*) foi congelado no snapshot na borda do mapa
+        // pré-expansão (linha ~105) e agora forma uma "fila de árvores" no meio do
+        // caminho para a Floresta Sombria. Descarta — buildMap recria a borda sul
+        // (irregular) já na nova extremidade.
+        if (item.id.startsWith('bS_')) continue;
 
         savedIds.add(item.id);
         const scale = Math.max(0.4, Math.min(2.5, item.scale || 1.0));
@@ -1970,6 +2041,13 @@ export class GameEngine {
 
         this.syncPropAutoCollider(prop);
         rebuiltProps.push(prop);
+      }
+
+      // Reanexa a Floresta Sombria procedural que o snapshot não cobre.
+      for (const dp of darkProceduralProps) {
+        if (savedIds.has(dp.id)) continue;
+        this.syncPropAutoCollider(dp);
+        rebuiltProps.push(dp);
       }
 
       this.props = rebuiltProps;
@@ -2001,6 +2079,7 @@ export class GameEngine {
 
     // Load straight from customMapLayout.json
     this.loadMapFromStorage();
+    this.rebuildColliderGrid();
     this.initHarvestables();
     this.initFragments();
     this.initEnemies();
@@ -2103,13 +2182,17 @@ export class GameEngine {
   }
 
   // ---- MONSTROS / COMBATE ----
-  private spawnEnemy(kind: string, c: number, r: number, id: number): boolean {
+  private spawnEnemy(kind: string, c: number, r: number, id: number, level = 1): boolean {
     const g = this.ground[r]?.[c];
-    if (g === undefined || g >= 9000) return false;
+    if (g === undefined || g === 9000 || g === 9001) return false;
     const x = c * TILE_SIZE + 8;
     const y = r * TILE_SIZE + 8;
     if (this.checkSolidCollision({ x, y, w: 16, h: 12 })) return false;
     const def = ENEMY_DEFS[kind];
+    const lvl = Math.max(1, Math.round(level));
+    const hpMul = 1 + (lvl - 1) * 0.3;
+    const dmgMul = 1 + (lvl - 1) * 0.25;
+    const hp = Math.round(def.hp * hpMul);
     this.enemies.push({
       id: `enemy_${id}`,
       kind,
@@ -2119,8 +2202,10 @@ export class GameEngine {
       y,
       homeX: x,
       homeY: y,
-      hp: def.hp,
-      maxHp: def.hp,
+      hp,
+      maxHp: hp,
+      level: lvl,
+      dmgMul,
       facingLeft: Math.random() < 0.5,
       state: 'idle',
       frame: 0,
@@ -2150,12 +2235,16 @@ export class GameEngine {
     for (const [cc, rr] of clusters) {
       const kind = hostiles[Math.floor(Math.random() * hostiles.length)];
       const n = 2 + Math.floor(Math.random() * 3);
+      // nível cresce com a distância da vila (spawn ~ col 36, row 29)
+      const distTiles = Math.hypot(cc - 36, rr - 29);
+      const baseLvl = 1 + Math.floor(distTiles / 26);
       for (let k = 0; k < n; k++) {
         this.spawnEnemy(
           kind,
           cc + Math.round((Math.random() - 0.5) * 8),
           rr + Math.round((Math.random() - 0.5) * 8),
-          id++
+          id++,
+          baseLvl + Math.floor(Math.random() * 2)
         );
       }
     }
@@ -2166,6 +2255,24 @@ export class GameEngine {
         const r = 4 + Math.floor(Math.random() * 34);
         if (this.spawnEnemy('eco_' + NOTE_KEY[i], c, r, id++)) break;
       }
+    }
+
+    // FLORESTA SOMBRIA — MUITOS monstros espalhados por toda a região
+    const darkStartRow = DARK_START + 3;
+    const darkEndRow = MAP_ROWS - 4;
+    const darkKinds = ['aranha', 'nocturno', 'maestro', 'dama', 'colosso'];
+    let placed = 0;
+    for (let tries = 0; tries < 900 && placed < 130; tries++) {
+      const c = 3 + Math.floor(Math.random() * (MAP_COLS - 6));
+      const r = darkStartRow + Math.floor(Math.random() * (darkEndRow - darkStartRow));
+      // colosso é raro (chefe)
+      const roll = Math.random();
+      const kind =
+        roll < 0.06 ? 'colosso' : darkKinds[Math.floor(Math.random() * 4)];
+      // nível base da Floresta Sombria: começa alto e cresce com a profundidade
+      const depthLvl = 6 + Math.floor((r - DARK_START) / 7) + Math.floor(Math.random() * 3);
+      const lvl = kind === 'colosso' ? depthLvl + 4 : depthLvl;
+      if (this.spawnEnemy(kind, c, r, id++, lvl)) placed++;
     }
   }
 
@@ -2201,7 +2308,8 @@ export class GameEngine {
       e.frame = 0;
       e.stateTimer = 0;
       const def = ENEMY_DEFS[e.kind];
-      const claves = def.claveMin + Math.floor(Math.random() * (def.claveMax - def.claveMin + 1));
+      const lvlBonus = Math.floor((e.level - 1) / 2);
+      const claves = def.claveMin + lvlBonus + Math.floor(Math.random() * (def.claveMax - def.claveMin + 1));
       const frags = def.fragMin + Math.floor(Math.random() * (def.fragMax - def.fragMin + 1));
       if (claves > 0) this.addCoins(claves);
       if (!e.hostile && e.note !== undefined) {
@@ -2216,7 +2324,7 @@ export class GameEngine {
         if (frags > 0) bits.push(`+${frags} frag`);
         this.onHarvestPopup?.(bits.join('  ') || `${def.name} derrotado`, e.x, e.y - 12);
       }
-      this.gainXp(def.xp);
+      this.gainXp(Math.round(def.xp * (1 + (e.level - 1) * 0.35)));
       e.respawnAt = this.timeElapsed + def.respawnSecs;
     } else {
       e.state = 'hurt';
@@ -2305,6 +2413,21 @@ export class GameEngine {
 
     for (const e of this.enemies) {
       const def = ENEMY_DEFS[e.kind];
+
+      // Fora de vista: só conta respawn, congela IA (perf)
+      const farSq = (px - e.x) ** 2 + (py - e.y) ** 2;
+      if (farSq > 1100 * 1100) {
+        if (e.state === 'dead' && e.respawnAt > 0 && this.timeElapsed >= e.respawnAt) {
+          e.state = 'idle';
+          e.hp = e.maxHp;
+          e.x = e.homeX;
+          e.y = e.homeY;
+          e.respawnAt = 0;
+          e.frame = 0;
+        }
+        continue;
+      }
+
       e.animTimer += dt;
       if (e.hurtFlash > 0) e.hurtFlash = Math.max(0, e.hurtFlash - dt);
 
@@ -2347,7 +2470,8 @@ export class GameEngine {
         e.stateTimer += dt;
         e.frame = Math.min(def.cols - 1, Math.floor(e.stateTimer * 10));
         if (e.stateTimer > 0.25 && e.stateTimer - dt <= 0.25) {
-          if (dToPlayer < def.attackRange + 10) this.damagePlayer(def.touchDamage);
+          if (dToPlayer < def.attackRange + 10)
+            this.damagePlayer(Math.round(def.touchDamage * e.dmgMul));
         }
         if (e.stateTimer > 0.6) {
           e.state = 'chase';
@@ -2383,7 +2507,7 @@ export class GameEngine {
         e.frame = Math.floor(e.animTimer * 9) % def.cols;
         // contato direto
         if (dToPlayer < 22 && e.attackCd <= 0) {
-          this.damagePlayer(Math.round(def.touchDamage * 0.6));
+          this.damagePlayer(Math.round(def.touchDamage * 0.6 * e.dmgMul));
           e.attackCd = def.attackCd;
         }
       } else {
@@ -2563,6 +2687,7 @@ export class GameEngine {
       this.gainXp(h.kind === 'rock' ? 14 : 9);
       h.downUntil = this.timeElapsed + h.respawnSecs;
       h.hp = 0;
+      this.gridDirty = true;
       // poeira/folhas da queda
       for (let i = 0; i < 14; i++) {
         if (h.kind === 'tree') this.addForestLeaf(ix + (Math.random() - 0.5) * 40, iy - Math.random() * 20);
@@ -2583,6 +2708,7 @@ export class GameEngine {
       if (h.downUntil > 0 && this.timeElapsed >= h.downUntil) {
         h.downUntil = 0;
         h.hp = h.maxHp;
+        this.gridDirty = true;
         // brotinho de volta
         for (let i = 0; i < 6; i++)
           this.addForestLeaf(p.x + p.w / 2 + (Math.random() - 0.5) * 16, p.y + p.h * 0.6);
@@ -2620,6 +2746,7 @@ export class GameEngine {
 
   update(dt: number) {
     this.timeElapsed += dt;
+    if (this.gridDirty) this.rebuildColliderGrid();
 
     this.shrineTimer += dt;
     if (this.shrineTimer > 0.11) {
@@ -2865,32 +2992,57 @@ export class GameEngine {
     }
   }
 
+  // Grade espacial de colisores (128px) — evita varrer milhares de props
+  private grid = new Map<string, Rect[]>();
+  private static GC = 128;
+  private gridKey(x: number, y: number) {
+    return ((x / GameEngine.GC) | 0) + ',' + ((y / GameEngine.GC) | 0);
+  }
+  private addToGrid(rc: Rect) {
+    const gc = GameEngine.GC;
+    const gx0 = Math.floor(rc.x / gc);
+    const gx1 = Math.floor((rc.x + rc.w) / gc);
+    const gy0 = Math.floor(rc.y / gc);
+    const gy1 = Math.floor((rc.y + rc.h) / gc);
+    for (let gx = gx0; gx <= gx1; gx++)
+      for (let gy = gy0; gy <= gy1; gy++) {
+        const k = gx + ',' + gy;
+        (this.grid.get(k) ?? this.grid.set(k, []).get(k)!).push(rc);
+      }
+  }
+  gridDirty = true;
+  rebuildColliderGrid() {
+    this.grid.clear();
+    for (const s of this.staticColliders) this.addToGrid(s);
+    for (const p of this.props) {
+      if (!p.collider) continue;
+      if (p.harvest && p.harvest.downUntil > 0) continue; // derrubado = passável
+      this.addToGrid(p.collider);
+    }
+    this.gridDirty = false;
+  }
+
   checkSolidCollision(box: Rect): boolean {
-    for (const solid of this.staticColliders) {
-      if (
-        box.x < solid.x + solid.w &&
-        box.x + box.w > solid.x &&
-        box.y < solid.y + solid.h &&
-        box.y + box.h > solid.y
-      ) {
-        return true;
+    const gc = GameEngine.GC;
+    const gx0 = Math.floor(box.x / gc);
+    const gx1 = Math.floor((box.x + box.w) / gc);
+    const gy0 = Math.floor(box.y / gc);
+    const gy1 = Math.floor((box.y + box.h) / gc);
+    for (let gx = gx0; gx <= gx1; gx++)
+      for (let gy = gy0; gy <= gy1; gy++) {
+        const cell = this.grid.get(gx + ',' + gy);
+        if (!cell) continue;
+        for (const s of cell) {
+          if (
+            box.x < s.x + s.w &&
+            box.x + box.w > s.x &&
+            box.y < s.y + s.h &&
+            box.y + box.h > s.y
+          )
+            return true;
+        }
       }
-    }
-
-    for (const prop of this.props) {
-      if (!prop.collider) continue;
-      if (prop.harvest && prop.harvest.downUntil > 0) continue; // recurso derrubado = passável
-      const solid = prop.collider;
-      if (
-        box.x < solid.x + solid.w &&
-        box.x + box.w > solid.x &&
-        box.y < solid.y + solid.h &&
-        box.y + box.h > solid.y
-      ) {
-        return true;
-      }
-    }
-
+    // props derrubados são passáveis mesmo estando na grade (raro)
     return false;
   }
 
@@ -3030,6 +3182,31 @@ export class GameEngine {
           const screenX = c * TILE_SIZE - camX;
           const screenY = r * TILE_SIZE - camY;
 
+          if (tileId >= 9002 && tileId <= 9005) {
+            // solo da Floresta Sombria — terroso, contraste baixo (nada de xadrez)
+            ctx.fillStyle =
+              tileId === 9004
+                ? '#323c2a' // musgo escuro (clareiras)
+                : tileId === 9005
+                  ? '#5a4632' // trilha de terra batida
+                  : '#3b3226'; // terra escura
+            ctx.fillRect(screenX, screenY, 32, 32);
+            // ruído por tile (suave, aleatório) — quebra qualquer padrão
+            const nz = (Math.abs(Math.sin(c * 91.7 + r * 47.3)) % 1) - 0.5;
+            ctx.fillStyle = `rgba(0,0,0,${0.05 + nz * 0.045})`;
+            ctx.fillRect(screenX, screenY, 32, 32);
+            if (tileId === 9004) {
+              ctx.fillStyle = 'rgba(70,86,56,0.16)';
+              ctx.fillRect(screenX + ((c * 13) % 22), screenY + ((r * 7) % 20), 6, 5);
+              ctx.fillRect(screenX + ((c * 29) % 24), screenY + ((r * 19) % 22), 4, 3);
+            } else if (tileId === 9005) {
+              ctx.fillStyle = 'rgba(120,95,66,0.35)';
+              ctx.fillRect(screenX + ((c * 11) % 22), screenY + ((r * 7) % 22), 5, 3);
+              ctx.fillStyle = 'rgba(30,22,15,0.3)';
+              ctx.fillRect(screenX + ((c * 17) % 24), screenY + ((r * 13) % 24), 3, 3);
+            }
+            continue;
+          }
           if (tileId >= 9000) {
             this.drawWaterTile(ctx, screenX, screenY, c, r, tileId === 9001, wt);
             continue;
@@ -3282,9 +3459,17 @@ export class GameEngine {
   }
 
   renderLightingShader(mainCtx: CanvasRenderingContext2D, camX: number, camY: number) {
-    if (this.timeOfDay === 'day') {
+    const tod = this.effTime();
+    const dt = this.darkT;
+    const dark = this.inDarkForest;
+    if (tod === 'day' && dt < 0.02) {
       mainCtx.fillStyle = 'rgba(255, 245, 200, 0.025)';
       mainCtx.fillRect(0, 0, this.viewportW, this.viewportH);
+      return;
+    }
+    if (tod === 'day') {
+      // dia no norte, mas o herói entrou na faixa da Floresta Sombria
+      this.renderDarkForestVeil(mainCtx, camX, camY, dt);
       return;
     }
 
@@ -3294,7 +3479,7 @@ export class GameEngine {
 
     lCtx.clearRect(0, 0, w, h);
 
-    if (this.timeOfDay === 'sunset') {
+    if (tod === 'sunset') {
       mainCtx.fillStyle = 'rgba(217, 119, 6, 0.2)';
       mainCtx.fillRect(0, 0, w, h);
 
@@ -3323,16 +3508,56 @@ export class GameEngine {
       return;
     }
 
-    // ===== NOITE — azulada, com luar =====
-    lCtx.fillStyle = 'rgba(13, 19, 42, 0.70)';
+    // ===== NOITE — azulada, com luar. Na Floresta Sombria fecha um pouco mais,
+    // mas NÃO ao ponto de cegar (transição suave via dt). =====
+    const nightA = 0.66 + 0.04 * dt; // antes: 0.70 normal / 0.86 sombria
+    lCtx.fillStyle = `rgba(9, 12, 24, ${nightA})`;
     lCtx.fillRect(0, 0, w, h);
 
     lCtx.save();
     lCtx.globalCompositeOperation = 'destination-out';
 
-    // Luar ambiente: clareia o mapa inteiro de forma uniforme e suave
-    lCtx.fillStyle = 'rgba(0, 0, 0, 0.24)';
+    // Luar ambiente (mais forte = mais visível)
+    lCtx.fillStyle = `rgba(0, 0, 0, ${0.26 - 0.08 * dt})`;
     lCtx.fillRect(0, 0, w, h);
+
+    // Halo do herói na floresta sombria (senão fica cego)
+    if (dt > 0.05) {
+      const hx = Math.round(this.player.x + 12 - camX);
+      const hy = Math.round(this.player.y + 8 - camY);
+      const hr = 110 + 46 * dt;
+      const hg = lCtx.createRadialGradient(hx, hy, 6, hx, hy, hr);
+      hg.addColorStop(0, 'rgba(0,0,0,0.82)');
+      hg.addColorStop(0.6, 'rgba(0,0,0,0.36)');
+      hg.addColorStop(1, 'rgba(0,0,0,0)');
+      lCtx.fillStyle = hg;
+      lCtx.beginPath();
+      lCtx.arc(hx, hy, hr, 0, Math.PI * 2);
+      lCtx.fill();
+    }
+
+    // Cristais brilham como fontes de luz
+    for (const prop of this.props) {
+      if (
+        prop.type !== 'spot_crystal_blue' &&
+        prop.type !== 'spot_crystal_red' &&
+        prop.type !== 'dark_icecrystal'
+      )
+        continue;
+      const cx = Math.round(prop.x + prop.w / 2 - camX);
+      const cy = Math.round(prop.y + prop.h * 0.55 - camY);
+      if (cx < -80 || cx > w + 80 || cy < -80 || cy > h + 80) continue;
+      const pulse = 0.7 + Math.sin(this.timeElapsed * 2.2 + prop.x * 0.05) * 0.3;
+      const rad = 46 * pulse;
+      const g = lCtx.createRadialGradient(cx, cy, 2, cx, cy, rad);
+      g.addColorStop(0, 'rgba(0,0,0,0.85)');
+      g.addColorStop(0.5, 'rgba(0,0,0,0.4)');
+      g.addColorStop(1, 'rgba(0,0,0,0)');
+      lCtx.fillStyle = g;
+      lCtx.beginPath();
+      lCtx.arc(cx, cy, rad, 0, Math.PI * 2);
+      lCtx.fill();
+    }
 
     // A. Postes — halo menor e mais discreto
     for (const prop of this.props) {
@@ -3458,6 +3683,62 @@ export class GameEngine {
     }
 
     mainCtx.restore();
+  }
+
+  // Escurecimento da Floresta Sombria quando o resto do mundo está de DIA.
+  // Recorta halo do herói e brilho dos cristais para não cegar.
+  renderDarkForestVeil(
+    mainCtx: CanvasRenderingContext2D,
+    camX: number,
+    camY: number,
+    dt: number,
+  ) {
+    const lCtx = this.lightCtx;
+    const w = this.viewportW;
+    const h = this.viewportH;
+    lCtx.clearRect(0, 0, w, h);
+    lCtx.fillStyle = `rgba(10, 13, 24, ${0.62 * dt})`;
+    lCtx.fillRect(0, 0, w, h);
+
+    lCtx.save();
+    lCtx.globalCompositeOperation = 'destination-out';
+
+    const hx = Math.round(this.player.x + 12 - camX);
+    const hy = Math.round(this.player.y + 8 - camY);
+    const hr = 130 + 40 * dt;
+    const hg = lCtx.createRadialGradient(hx, hy, 8, hx, hy, hr);
+    hg.addColorStop(0, 'rgba(0,0,0,0.85)');
+    hg.addColorStop(0.6, 'rgba(0,0,0,0.35)');
+    hg.addColorStop(1, 'rgba(0,0,0,0)');
+    lCtx.fillStyle = hg;
+    lCtx.beginPath();
+    lCtx.arc(hx, hy, hr, 0, Math.PI * 2);
+    lCtx.fill();
+
+    for (const prop of this.props) {
+      if (
+        prop.type !== 'spot_crystal_blue' &&
+        prop.type !== 'spot_crystal_red' &&
+        prop.type !== 'dark_icecrystal'
+      )
+        continue;
+      const cx = Math.round(prop.x + prop.w / 2 - camX);
+      const cy = Math.round(prop.y + prop.h * 0.55 - camY);
+      if (cx < -80 || cx > w + 80 || cy < -80 || cy > h + 80) continue;
+      const pulse = 0.7 + Math.sin(this.timeElapsed * 2.2 + prop.x * 0.05) * 0.3;
+      const rad = 44 * pulse;
+      const g = lCtx.createRadialGradient(cx, cy, 2, cx, cy, rad);
+      g.addColorStop(0, 'rgba(0,0,0,0.8)');
+      g.addColorStop(0.5, 'rgba(0,0,0,0.35)');
+      g.addColorStop(1, 'rgba(0,0,0,0)');
+      lCtx.fillStyle = g;
+      lCtx.beginPath();
+      lCtx.arc(cx, cy, rad, 0, Math.PI * 2);
+      lCtx.fill();
+    }
+
+    lCtx.restore();
+    mainCtx.drawImage(this.lightCanvas, 0, 0);
   }
 
   renderEditorGizmos(ctx: CanvasRenderingContext2D, camX: number, camY: number) {
@@ -3756,6 +4037,67 @@ export class GameEngine {
     } else if (prop.type === 'spot_eco_essence' && this.assets?.spotEcoEssence) {
       ctx.drawImage(this.assets.spotEcoEssence, px, py, prop.w, prop.h);
     }
+    // 7. Floresta Sombria
+    else if (prop.type === 'dark_deadtree' && this.assets?.darkDeadtree) {
+      ctx.drawImage(this.assets.darkDeadtree, px, py, prop.w, prop.h);
+    } else if (prop.type === 'dark_bigpine' && this.assets?.darkBigpine) {
+      ctx.drawImage(this.assets.darkBigpine, px, py, prop.w, prop.h);
+    } else if (prop.type === 'dark_bigrock' && this.assets?.darkBigrock) {
+      ctx.drawImage(this.assets.darkBigrock, px, py, prop.w, prop.h);
+    } else if (prop.type === 'dark_icecrystal' && this.assets?.darkIcecrystal) {
+      ctx.drawImage(this.assets.darkIcecrystal, px, py, prop.w, prop.h);
+    } else if (prop.type === 'dark_thorn' && this.assets?.darkThorn) {
+      ctx.drawImage(this.assets.darkThorn, px, py, prop.w, prop.h);
+    }
+
+    // Brilho + partículas nos nós de coleta (cristais, madeira, minério, ouro)
+    const spotFx: Record<string, string> = {
+      spot_crystal_blue: '90,170,255',
+      spot_crystal_red: '255,90,90',
+      dark_icecrystal: '160,220,255',
+      spot_wood: '250,204,120',
+      spot_mineral: '190,200,215',
+      spot_gold: '255,215,110',
+    };
+    const fxCol = spotFx[prop.type];
+    if (fxCol) {
+      const isCrystal =
+        prop.type === 'spot_crystal_blue' ||
+        prop.type === 'spot_crystal_red' ||
+        prop.type === 'dark_icecrystal';
+      const downed = hv && hv.downUntil > 0;
+      if (!downed) {
+        const pulse = 0.55 + Math.sin(this.timeElapsed * 2.2 + prop.x * 0.05) * 0.35;
+        const gcx = px + prop.w / 2;
+        const gcy = py + prop.h * 0.55;
+        ctx.save();
+        ctx.globalCompositeOperation = 'lighter';
+        const rad = prop.w * (isCrystal ? 0.85 : 0.62);
+        const gr = ctx.createRadialGradient(gcx, gcy, 2, gcx, gcy, rad);
+        gr.addColorStop(0, `rgba(${fxCol},${(isCrystal ? 0.4 : 0.26) * pulse})`);
+        gr.addColorStop(1, `rgba(${fxCol},0)`);
+        ctx.fillStyle = gr;
+        ctx.beginPath();
+        ctx.arc(gcx, gcy, rad, 0, Math.PI * 2);
+        ctx.fill();
+
+        // motes que sobem chamando atenção (procedurais, sem alocação)
+        const seed = (prop.x * 13.37 + prop.y * 7.11) % 1000;
+        const motes = isCrystal ? 5 : 4;
+        for (let i = 0; i < motes; i++) {
+          const ph = (this.timeElapsed * 0.6 + seed + i * (1 / motes)) % 1;
+          const mx = gcx + Math.sin((seed + i) * 2.2 + ph * 6.28) * prop.w * 0.34;
+          const my = py + prop.h * 0.72 - ph * prop.h * 1.15;
+          const a = Math.sin(ph * Math.PI) * (0.35 + 0.35 * pulse);
+          const s = 1.4 + Math.sin(ph * Math.PI) * 1.6;
+          ctx.fillStyle = `rgba(${fxCol},${a})`;
+          ctx.beginPath();
+          ctx.arc(mx, my, s, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.restore();
+      }
+    }
 
     // Flash branco ao levar golpe + barra de vida do recurso
     if (hv) {
@@ -3889,15 +4231,33 @@ export class GameEngine {
     }
     ctx.restore();
 
-    // barra de vida
-    if (e.hp < e.maxHp && e.state !== 'dead') {
+    // barra de vida + nível (nível sempre visível nos monstros hostis)
+    if (e.hostile && e.state !== 'dead') {
       const bw = 26;
       const bx = cx + 8 - bw / 2;
       const by = dy - 4;
-      ctx.fillStyle = 'rgba(0,0,0,0.6)';
-      ctx.fillRect(bx - 1, by - 1, bw + 2, 4);
-      ctx.fillStyle = '#f43f5e';
-      ctx.fillRect(bx, by, bw * Math.max(0, e.hp / e.maxHp), 2);
+      const hpFrac = Math.max(0, e.hp / e.maxHp);
+
+      // etiqueta de nível acima da barra
+      const lvlText = `Lv ${e.level}`;
+      ctx.font = 'bold 9px monospace';
+      ctx.textAlign = 'center';
+      const tw = ctx.measureText(lvlText).width + 8;
+      const lx = cx + 8;
+      const ly = by - 11;
+      ctx.fillStyle = 'rgba(10,12,20,0.78)';
+      ctx.fillRect(lx - tw / 2, ly - 7, tw, 11);
+      // cor por faixa de nível (dificuldade)
+      ctx.fillStyle =
+        e.level >= 12 ? '#f0abfc' : e.level >= 8 ? '#fca5a5' : e.level >= 4 ? '#fcd34d' : '#a7f3d0';
+      ctx.fillText(lvlText, lx, ly + 2);
+
+      if (hpFrac < 1) {
+        ctx.fillStyle = 'rgba(0,0,0,0.6)';
+        ctx.fillRect(bx - 1, by - 1, bw + 2, 4);
+        ctx.fillStyle = '#f43f5e';
+        ctx.fillRect(bx, by, bw * hpFrac, 2);
+      }
     }
   }
 

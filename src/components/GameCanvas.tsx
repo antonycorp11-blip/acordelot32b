@@ -461,6 +461,7 @@ export const GameCanvas: React.FC = () => {
   const engineRef = useRef<GameEngine | null>(null);
 
   const [isTouchDevice, setIsTouchDevice] = useState(false);
+  const [isPortrait, setIsPortrait] = useState(false);
   const [interaction, setInteraction] = useState<InteractionState>({
     nearMerchant: false,
     isTalking: false,
@@ -505,6 +506,20 @@ export const GameCanvas: React.FC = () => {
   const [activeCategory, setActiveCategory] = useState<
     'houses_front' | 'houses_angles' | 'rocks' | 'street' | 'trees' | 'walls'
   >('houses_front');
+
+  // O jogo é pensado SEMPRE pra paisagem — em celular na vertical o HUD
+  // inteiro (posicionado em coordenadas de paisagem) sai torto/de lado.
+  // Em vez de deixar isso confuso, avisa e trava até girar o aparelho.
+  useEffect(() => {
+    const check = () => setIsPortrait(window.innerHeight > window.innerWidth);
+    check();
+    window.addEventListener('resize', check);
+    window.addEventListener('orientationchange', check);
+    return () => {
+      window.removeEventListener('resize', check);
+      window.removeEventListener('orientationchange', check);
+    };
+  }, []);
 
   useEffect(() => {
     const hasTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
@@ -735,6 +750,18 @@ export const GameCanvas: React.FC = () => {
 
   return (
     <div className="relative w-full h-full bg-slate-950 flex flex-col items-center justify-center select-none overflow-hidden font-sans">
+      {/* O jogo só funciona em paisagem — em retrato o HUD inteiro fica
+          torto (posições pensadas pra tela larga). Trava até girar. */}
+      {isTouchDevice && isPortrait && (
+        <div className="fixed inset-0 z-[999] flex flex-col items-center justify-center gap-4 bg-slate-950 text-center px-8 pointer-events-auto">
+          <div className="text-6xl animate-bounce" style={{ animationDuration: '1.6s' }}>📱↻</div>
+          <p className="text-lg font-black text-amber-300">Gire o celular</p>
+          <p className="text-sm text-slate-400 max-w-xs">
+            O Acordelot só funciona em modo paisagem (deitado). Vire seu aparelho pra continuar.
+          </p>
+        </div>
+      )}
+
       {/* ------------------------------------------------------------- */}
       {/* SLEEK TOP BAR EDITOR (Posicionado no topo, fino e desobstruído) */}
       {/* ------------------------------------------------------------- */}

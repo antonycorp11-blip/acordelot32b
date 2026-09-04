@@ -111,7 +111,7 @@ const AKLES_DIR_ROW: Record<Direction, number> = { down: 0, left: 1, up: 2, righ
 // em scripts/process-wins.mjs (chroma-key com descontaminação de cor +
 // erosão de 2px + filtro de maior blob conectado por frame — sem franja
 // magenta e sem sobra de linha vizinha): 136x240, pés ancorados embaixo.
-const WINS_DISP = 0.335;
+const WINS_DISP = 0.24;
 const WINS_ANIM: Record<'idle' | 'walk' | 'run', AklesAnimMeta> = {
   idle: { sheet: 'winsMove', cw: 136, ch: 240, cols: 10, fps: 6, loop: true, disp: WINS_DISP, feetFrac: 1 },
   walk: { sheet: 'winsMove', cw: 136, ch: 240, cols: 10, fps: 10, loop: true, disp: WINS_DISP, feetFrac: 1 },
@@ -122,7 +122,7 @@ const WINS_DIR_ROW: Record<Direction, number> = { down: 0, left: 1, right: 2, up
 
 // ---- Huans — classe Cordas (personagem temporário) ----
 // Célula processada em scripts/process-wins.mjs (mesmo pipeline): 144x211.
-const HUANS_DISP = 0.38;
+const HUANS_DISP = 0.27;
 const HUANS_ANIM: Record<'idle' | 'walk' | 'run', AklesAnimMeta> = {
   idle: { sheet: 'huansMove', cw: 144, ch: 211, cols: 10, fps: 6, loop: true, disp: HUANS_DISP, feetFrac: 1 },
   walk: { sheet: 'huansMove', cw: 144, ch: 211, cols: 10, fps: 11, loop: true, disp: HUANS_DISP, feetFrac: 1 },

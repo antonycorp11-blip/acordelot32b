@@ -70,13 +70,6 @@
     "scale": 1
   },
   {
-    "id": "b_back_tavern",
-    "type": "houseBackTavernMossy",
-    "x": 1692,
-    "y": 895,
-    "scale": 1
-  },
-  {
     "id": "b_lodge_west",
     "type": "lodgeWest",
     "x": 1244,
@@ -312,13 +305,6 @@
     "type": "streetLantern",
     "x": 1468,
     "y": 699,
-    "scale": 1
-  },
-  {
-    "id": "lantern_19",
-    "type": "streetLantern",
-    "x": 1816,
-    "y": 913,
     "scale": 1
   },
   {
@@ -12980,9 +12966,9 @@
   {
     "id": "pine_copy_1788495386545_56",
     "type": "pine",
-    "x": 1622,
-    "y": 612,
-    "scale": 1
+    "x": 1621,
+    "y": 588,
+    "scale": 1.6
   },
   {
     "id": "blossomTree_copy_1788495386548_856",
@@ -13031,6 +13017,132 @@
     "type": "rockPair",
     "x": 1799,
     "y": 450,
+    "scale": 1
+  },
+  {
+    "id": "blacksmithFront_copy_1788495444052_150",
+    "type": "blacksmithFront",
+    "x": 2591,
+    "y": 746,
+    "scale": 1
+  },
+  {
+    "id": "bldgTownHall_copy_1788495444055_576",
+    "type": "bldgTownHall",
+    "x": 2768,
+    "y": 736,
+    "scale": 1
+  },
+  {
+    "id": "wagonCart_copy_1788495444063_955",
+    "type": "wagonCart",
+    "x": 2519,
+    "y": 740,
+    "scale": 1
+  },
+  {
+    "id": "barrelStack_copy_1788495444067_190",
+    "type": "barrelStack",
+    "x": 2707,
+    "y": 755,
+    "scale": 1
+  },
+  {
+    "id": "streetLantern_copy_1788495444071_57",
+    "type": "streetLantern",
+    "x": 2508,
+    "y": 800,
+    "scale": 1
+  },
+  {
+    "id": "streetLantern_copy_1788495444075_638",
+    "type": "streetLantern",
+    "x": 2714,
+    "y": 801,
+    "scale": 1
+  },
+  {
+    "id": "wagonCart_copy_1788495444081_995",
+    "type": "wagonCart",
+    "x": 2318,
+    "y": 743,
+    "scale": 1
+  },
+  {
+    "id": "wagonCart_copy_1788495447549_874",
+    "type": "wagonCart",
+    "x": 1861,
+    "y": 701,
+    "scale": 1
+  },
+  {
+    "id": "wagonCart_copy_1788495447563_366",
+    "type": "wagonCart",
+    "x": 1660,
+    "y": 704,
+    "scale": 1
+  },
+  {
+    "id": "residentialFront_copy_1788495518325_813",
+    "type": "residentialFront",
+    "x": 2036,
+    "y": 644,
+    "scale": 1
+  },
+  {
+    "id": "blacksmithFront_copy_1788495518339_680",
+    "type": "blacksmithFront",
+    "x": 2256,
+    "y": 646,
+    "scale": 1
+  },
+  {
+    "id": "bldgTownHall_copy_1788495518345_382",
+    "type": "bldgTownHall",
+    "x": 2433,
+    "y": 636,
+    "scale": 1
+  },
+  {
+    "id": "villageWell_copy_1788495518349_287",
+    "type": "villageWell",
+    "x": 1941,
+    "y": 685,
+    "scale": 1
+  },
+  {
+    "id": "wagonCart_copy_1788495518352_857",
+    "type": "wagonCart",
+    "x": 2184,
+    "y": 640,
+    "scale": 1
+  },
+  {
+    "id": "barrelStack_copy_1788495518357_383",
+    "type": "barrelStack",
+    "x": 2372,
+    "y": 655,
+    "scale": 1
+  },
+  {
+    "id": "streetLantern_copy_1788495518375_395",
+    "type": "streetLantern",
+    "x": 2173,
+    "y": 700,
+    "scale": 1
+  },
+  {
+    "id": "streetLantern_copy_1788495518391_570",
+    "type": "streetLantern",
+    "x": 2379,
+    "y": 701,
+    "scale": 1
+  },
+  {
+    "id": "wagonCart_copy_1788495518403_367",
+    "type": "wagonCart",
+    "x": 1983,
+    "y": 643,
     "scale": 1
   }
 ]

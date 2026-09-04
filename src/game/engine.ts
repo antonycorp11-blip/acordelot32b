@@ -49,10 +49,13 @@ import {
   DIR_ANGLE_DEG,
 } from './weapons';
 import { PASSIVE_DEFS } from './passives';
+import { EQUIP_ITEMS, EQUIP_SLOT_ORDER, EquipSlot } from './equipment';
 export { WEAPON_DEFS } from './weapons';
 export { PASSIVE_DEFS, PASSIVE_ORDER } from './passives';
+export { EQUIP_ITEMS, EQUIP_SLOT_ORDER } from './equipment';
 export type { WeaponDef, WeaponTier } from './weapons';
 export type { PassiveDef, PassiveGroup } from './passives';
+export type { EquipSlot, EquipItemDef } from './equipment';
 
 export type TimeOfDay = 'day' | 'sunset' | 'night';
 
@@ -1175,6 +1178,45 @@ export class GameEngine {
     this.passiveLevels[id] = Math.max(0, Math.min(5, Math.round(level)));
   }
 
+  // ---- Equipamentos (Aura visual + Catalisador/Anel/Colar só estatística) ----
+  // 0 = não equipado ainda. onEquip incrementa o nível (equipa no clique
+  // seguinte se estiver em 0) — sem material definido ainda, é grátis.
+  equipLevels: Record<EquipSlot, number> = { aura: 0, catalisador: 0, anel: 0, colar: 0 };
+  onEquipChange?: () => void;
+  getEquipLevel(slot: EquipSlot): number {
+    return this.equipLevels[slot] ?? 0;
+  }
+  levelUpEquip(slot: EquipSlot): boolean {
+    const def = EQUIP_ITEMS[slot];
+    const cur = this.equipLevels[slot] ?? 0;
+    if (cur >= def.maxLevel) return false;
+    const beforeHp = this.equipMaxHpBonus;
+    this.equipLevels[slot] = cur + 1;
+    if (slot === 'colar') {
+      const gained = this.equipMaxHpBonus - beforeHp;
+      this.stats.maxHp += gained;
+      this.stats.hp += gained;
+      this.onStatsChange?.({ ...this.stats });
+    }
+    this.onEquipChange?.();
+    return true;
+  }
+  equipStatBonus(slot: EquipSlot): number {
+    const lvl = this.getEquipLevel(slot);
+    if (lvl <= 0) return 0;
+    const def = EQUIP_ITEMS[slot];
+    return def.statBase + def.statPerLevel * (lvl - 1);
+  }
+  get equipSkillDmgBonusPct() {
+    return (this.equipStatBonus('aura') + this.equipStatBonus('catalisador')) / 100;
+  }
+  get equipAtkSpeedBonusPct() {
+    return this.equipStatBonus('anel') / 100;
+  }
+  get equipMaxHpBonus() {
+    return this.equipStatBonus('colar');
+  }
+
   // ---- multiplicadores derivados das passivas ----
   get basicAtkMul() {
     return (
@@ -1185,7 +1227,12 @@ export class GameEngine {
     );
   }
   get skillDmgMul() {
-    return 1 + this.passiveValue('canalizacao') + this.passiveValue('ressonanciaInterior');
+    return (
+      1 +
+      this.passiveValue('canalizacao') +
+      this.passiveValue('ressonanciaInterior') +
+      this.equipSkillDmgBonusPct
+    );
   }
   get critChanceBonus() {
     return this.passiveValue('ouvidoAbsoluto');
@@ -4132,6 +4179,13 @@ export class GameEngine {
       draw: () => this.drawCompanion(camX, camY),
     });
 
+    if (this.equipLevels.aura > 0) {
+      renderables.push({
+        sortY: this.player.y + 5,
+        draw: () => this.drawAura(camX, camY),
+      });
+    }
+
     renderables.push({
       sortY: this.player.y + 30,
       draw: () => this.drawPlayer(camX, camY),
@@ -5329,6 +5383,44 @@ export class GameEngine {
   }
 
   // Ferramenta de coleta ao lado do Akles (ele fica parado, a ferramenta bate).
+  // Aura Ressonante (único equipamento visual) — brilho + notas orbitando
+  drawAura(camX: number, camY: number) {
+    const lvl = this.equipLevels.aura;
+    if (lvl <= 0) return;
+    const ctx = this.ctx;
+    const def = EQUIP_ITEMS.aura;
+    const cx = Math.round(this.player.x + 12 - camX);
+    const cy = Math.round(this.player.y + 26 - camY);
+    const t = this.timeElapsed;
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    // anel no chão
+    const pulse = 0.6 + Math.sin(t * 2) * 0.2;
+    const g = ctx.createRadialGradient(cx, cy, 2, cx, cy, 20 + lvl * 2);
+    g.addColorStop(0, def.color + '55');
+    g.addColorStop(1, def.color + '00');
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.ellipse(cx, cy, 18 + lvl * 2, 8 + lvl, 0, 0, Math.PI * 2);
+    ctx.fill();
+    // notas orbitando (mais com nível maior)
+    const n = 2 + lvl;
+    for (let i = 0; i < n; i++) {
+      const ang = t * 1.4 + (i * Math.PI * 2) / n;
+      const rx = 20 + lvl * 1.5;
+      const ry = 10 + lvl * 0.6;
+      const ox = cx + Math.cos(ang) * rx;
+      const oy = cy - 14 + Math.sin(ang) * ry - Math.abs(Math.sin(t * 2 + i)) * 6;
+      ctx.globalAlpha = Math.min(1, 0.55 + 0.3 * pulse);
+      ctx.fillStyle = def.color;
+      ctx.beginPath();
+      ctx.arc(ox, oy, 1.6, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.globalAlpha = 1;
+    }
+    ctx.restore();
+  }
+
   // ---- ARMA FLUTUANTE (sistema global) ----
   // Nunca faz parte das sheets do Akles. Posição/rotação/escala 100% por
   // código: repouso flutuando ao lado, combo de 4 golpes, ou Amplificação

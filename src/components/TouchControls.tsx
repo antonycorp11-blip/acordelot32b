@@ -320,10 +320,7 @@ export const TouchControls: React.FC<TouchControlsProps> = ({
       <D id="btn_weapon" className={`${actionBtn} absolute w-11 h-11 border-blue-400/50 bg-slate-950/80 text-blue-300`} title="Arma" onAction={onToggleWeapon} style={{ right: 'max(14px, env(safe-area-inset-right))', top: 'calc(280px + env(safe-area-inset-top))' }}>
         <Swords className="w-5 h-5" />
       </D>
-      <D id="btn_skills" className={`${actionBtn} absolute w-11 h-11 border-indigo-400/50 bg-slate-950/80 text-indigo-300`} title="Skills" onAction={onToggleSkills} style={{ right: 'max(14px, env(safe-area-inset-right))', top: 'calc(334px + env(safe-area-inset-top))' }}>
-        <Zap className="w-5 h-5" />
-      </D>
-      <D id="btn_sheet" className={`${actionBtn} absolute w-11 h-11 border-sky-400/50 bg-slate-950/80 text-sky-300`} title="Ficha" onAction={onToggleSheet} style={{ right: 'max(14px, env(safe-area-inset-right))', top: 'calc(388px + env(safe-area-inset-top))' }}>
+      <D id="btn_sheet" className={`${actionBtn} absolute w-11 h-11 border-sky-400/50 bg-slate-950/80 text-sky-300`} title="Ficha (Ferramentas/Equipamentos/Skills ficam nas abas)" onAction={onToggleSheet} style={{ right: 'max(14px, env(safe-area-inset-right))', top: 'calc(334px + env(safe-area-inset-top))' }}>
         <User className="w-5 h-5" />
       </D>
 

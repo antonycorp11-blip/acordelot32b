@@ -31,6 +31,7 @@ import { Inventory } from './Inventory';
 import { PlayerHud } from './PlayerHud';
 import { CharacterScreen } from './CharacterScreen';
 import { SynthesisScreen } from './SynthesisScreen';
+import { publishMapToCode, getGhToken, setGhToken } from '../game/mapPersist';
 import { Backpack, Hand, User, CloudRain, Music4 } from 'lucide-react';
 
 interface PropPaletteItem {
@@ -337,6 +338,10 @@ export const GameCanvas: React.FC = () => {
   const [isEditMode, setIsEditMode] = useState(false);
   const [selectedProp, setSelectedProp] = useState<SelectedPropInfo | null>(null);
   const [saveNotice, setSaveNotice] = useState(false);
+  const [showTokenDialog, setShowTokenDialog] = useState(false);
+  const [tokenInput, setTokenInput] = useState('');
+  const [publishState, setPublishState] = useState<'idle' | 'publishing'>('idle');
+  const [publishMsg, setPublishMsg] = useState<string | null>(null);
   const [zoomLevel, setZoomLevel] = useState(1.0);
   const [timeOfDay, setTimeOfDay] = useState<TimeOfDay>('day');
   const [activeCategory, setActiveCategory] = useState<
@@ -481,10 +486,34 @@ export const GameCanvas: React.FC = () => {
     engineRef.current?.spawnProp(type);
   };
 
-  const handleSaveExplicitly = () => {
-    engineRef.current?.saveMapToStorage();
-    setSaveNotice(true);
-    setTimeout(() => setSaveNotice(false), 2000);
+  const handleSaveExplicitly = async () => {
+    const engine = engineRef.current;
+    if (!engine) return;
+    engine.saveMapToStorage(); // persistência local instantânea
+
+    // Publicar no código (commit no GitHub). Se não houver token, pede.
+    if (!getGhToken()) {
+      setShowTokenDialog(true);
+      return;
+    }
+    setPublishState('publishing');
+    const res = await publishMapToCode(engine.serializeMap());
+    setPublishState('idle');
+    setPublishMsg(res.ok ? '✓ ' + res.message : '✗ ' + res.message);
+    setTimeout(() => setPublishMsg(null), 5000);
+  };
+
+  const handleSaveToken = async () => {
+    setGhToken(tokenInput);
+    setShowTokenDialog(false);
+    setTokenInput('');
+    if (getGhToken() && engineRef.current) {
+      setPublishState('publishing');
+      const res = await publishMapToCode(engineRef.current.serializeMap());
+      setPublishState('idle');
+      setPublishMsg(res.ok ? '✓ ' + res.message : '✗ ' + res.message);
+      setTimeout(() => setPublishMsg(null), 5000);
+    }
   };
 
   const handleResetMap = () => {
@@ -542,16 +571,21 @@ export const GameCanvas: React.FC = () => {
                 </span>
               </div>
 
-              {/* Save directly to code file and LocalStorage */}
+              {/* Publica o layout no código (commit no GitHub) */}
               <button
                 type="button"
                 onClick={handleSaveExplicitly}
-                className="cursor-pointer flex items-center gap-1.5 bg-emerald-950/70 hover:bg-emerald-900/90 text-emerald-300 border border-emerald-500/50 px-2.5 py-1 rounded-xl text-xs transition-all active:scale-95 shadow-sm"
-                title="Grava o layout diretamente no arquivo src/game/customMapLayout.json no código do jogo e no LocalStorage."
+                disabled={publishState === 'publishing'}
+                className="cursor-pointer flex items-center gap-1.5 bg-emerald-950/70 hover:bg-emerald-900/90 text-emerald-300 border border-emerald-500/50 px-2.5 py-1 rounded-xl text-xs transition-all active:scale-95 shadow-sm disabled:opacity-60"
+                title="Salva no navegador e comita src/game/customMapLayout.json no GitHub — vira build permanente."
               >
                 <Save className="w-3.5 h-3.5 text-emerald-400" />
                 <span className="text-[11px] font-bold text-emerald-300">
-                  {saveNotice ? '✓ Gravado no Código!' : 'Salvar no Código'}
+                  {publishState === 'publishing'
+                    ? 'Publicando…'
+                    : publishMsg
+                      ? publishMsg
+                      : 'Publicar no Código'}
                 </span>
               </button>
             </div>
@@ -946,6 +980,65 @@ export const GameCanvas: React.FC = () => {
         fragments={fragments}
         built={notesBuilt}
       />
+
+      {/* Configuração do token do GitHub (uma vez) para publicar o mapa */}
+      {showTokenDialog && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-auto">
+          <div className="absolute inset-0 bg-black/60" onClick={() => setShowTokenDialog(false)} />
+          <div className="relative w-full max-w-md bg-slate-900 border border-emerald-500/50 rounded-2xl shadow-2xl p-5">
+            <h3 className="text-sm font-bold text-emerald-200 mb-2">Publicar o mapa no código</h3>
+            <p className="text-[12px] text-slate-300 leading-relaxed mb-3">
+              O site publicado é estático, então o editor comita{' '}
+              <code className="text-emerald-300">customMapLayout.json</code> direto no GitHub. Cole
+              um <b>token pessoal</b> (uma vez — fica só neste navegador):
+            </p>
+            <ol className="text-[11px] text-slate-400 list-decimal ml-4 space-y-1 mb-3">
+              <li>
+                Abra{' '}
+                <a
+                  href="https://github.com/settings/personal-access-tokens/new"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-emerald-400 underline"
+                >
+                  github.com/settings/personal-access-tokens/new
+                </a>
+              </li>
+              <li>
+                Repository access → <b>Only select repositories</b> → <b>acordelot32b</b>
+              </li>
+              <li>
+                Permissions → Repository → <b>Contents: Read and write</b>
+              </li>
+              <li>Gere e cole o token abaixo</li>
+            </ol>
+            <input
+              type="password"
+              value={tokenInput}
+              onChange={(e) => setTokenInput(e.target.value)}
+              placeholder="github_pat_..."
+              className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-100 font-mono focus:border-emerald-500 outline-none"
+            />
+            <div className="flex justify-end gap-2 mt-3">
+              <button
+                type="button"
+                onClick={() => setShowTokenDialog(false)}
+                className="cursor-pointer text-xs text-slate-400 hover:text-white px-3 py-1.5"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveToken}
+                disabled={!tokenInput.trim()}
+                className="cursor-pointer bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white text-xs font-bold px-4 py-1.5 rounded-lg"
+              >
+                Salvar e publicar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Top Right Quick Controls (Quando o editor está fechado) */}
       {!isEditMode && (

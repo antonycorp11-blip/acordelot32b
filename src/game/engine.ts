@@ -1613,17 +1613,22 @@ export class GameEngine {
     };
   }
 
+  // Layout editável do mapa (usado no localStorage e ao publicar no código)
+  serializeMap() {
+    return this.props
+      .filter((p) => EDITABLE_PROP_METAS[p.type])
+      .map((p) => ({
+        id: p.id,
+        type: p.type,
+        x: p.x,
+        y: p.y,
+        scale: this.propScales[p.id] || 1.0,
+      }));
+  }
+
   saveMapToStorage() {
     try {
-      const savedProps = this.props
-        .filter((p) => EDITABLE_PROP_METAS[p.type])
-        .map((p) => ({
-          id: p.id,
-          type: p.type,
-          x: p.x,
-          y: p.y,
-          scale: this.propScales[p.id] || 1.0,
-        }));
+      const savedProps = this.serializeMap();
 
       // 1. Instant local persistence
       localStorage.setItem('acordelot_map_v3', JSON.stringify(savedProps));
@@ -3061,7 +3066,7 @@ export class GameEngine {
     }
   }
 
-  // "Shader" de água em canvas: base em camadas + ondas diagonais + espuma
+  // "Shader" de água em canvas — mesma paleta teal da Fonte Sagrada
   drawWaterTile(
     ctx: CanvasRenderingContext2D,
     x: number,
@@ -3071,46 +3076,49 @@ export class GameEngine {
     shallow: boolean,
     t: number
   ) {
-    // 1. base
-    ctx.fillStyle = shallow ? '#2f7f8c' : '#16436b';
+    // 1. base teal (igual à água da fonte: ~#40a0a0)
+    ctx.fillStyle = shallow ? '#57b7ac' : '#2f8f92';
     ctx.fillRect(x, y, 32, 32);
 
-    // 2. profundidade — mancha escura suave que "respira"
-    const depth = 0.5 + Math.sin(c * 0.5 + r * 0.5 + t * 0.6) * 0.5;
+    // 2. profundidade — respira devagar
+    const depth = 0.5 + Math.sin(c * 0.5 + r * 0.5 + t * 0.5) * 0.5;
     ctx.fillStyle = shallow
-      ? `rgba(90, 170, 180, ${0.12 * depth})`
-      : `rgba(6, 22, 44, ${0.28 * depth})`;
+      ? `rgba(150, 220, 210, ${0.14 * depth})`
+      : `rgba(12, 54, 66, ${0.30 * depth})`;
     ctx.fillRect(x, y, 32, 32);
 
-    // 3. ondas diagonais que rolam com o vento
-    const flow = t * (shallow ? 34 : 22) + this.windX * 1.4;
+    // 3. cáusticas — arcos claros que ondulam e rolam com o vento
+    const flow = t * (shallow ? 30 : 20) + this.windX * 1.2;
+    ctx.strokeStyle = shallow ? 'rgba(224, 252, 250, 0.30)' : 'rgba(190, 240, 240, 0.22)';
+    ctx.lineWidth = 1;
     for (let i = 0; i < 3; i++) {
-      const band = (c * 7 + r * 5 + i * 30 + flow) % 48;
-      const off = band < 24 ? band : 48 - band;
-      const wy = y + off + Math.sin(t * 1.6 + c + r + i) * 1.2;
-      ctx.fillStyle = shallow
-        ? `rgba(210, 245, 250, ${0.16 - i * 0.03})`
-        : `rgba(120, 180, 225, ${0.13 - i * 0.03})`;
-      ctx.fillRect(x - 2, Math.round(wy), 36, 1);
+      const band = (c * 9 + r * 6 + i * 40 + flow) % 60;
+      const off = band < 30 ? band : 60 - band;
+      const wy = y + off - 3;
+      const wob = Math.sin(t * 2 + c * 1.3 + r + i) * 2.2;
+      ctx.beginPath();
+      ctx.moveTo(x - 2, wy + wob);
+      ctx.quadraticCurveTo(x + 16, wy - 2 + wob, x + 34, wy + wob);
+      ctx.stroke();
     }
 
-    // 4. espuma nas margens (borda que toca terra)
+    // 4. espuma nas margens
     const g = this.ground;
     const land = (cc: number, rr: number) => {
       const v = g[rr]?.[cc];
       return v !== undefined && v < 9000;
     };
-    const foam = Math.sin(t * 3 + c + r) * 0.4 + 0.6;
-    ctx.fillStyle = `rgba(235, 248, 250, ${0.4 * foam})`;
+    const foam = Math.sin(t * 3 + c + r) * 0.35 + 0.65;
+    ctx.fillStyle = `rgba(240, 252, 250, ${0.5 * foam})`;
     if (land(c, r - 1)) ctx.fillRect(x, y, 32, 2);
     if (land(c, r + 1)) ctx.fillRect(x, y + 30, 32, 2);
     if (land(c - 1, r)) ctx.fillRect(x, y, 2, 32);
     if (land(c + 1, r)) ctx.fillRect(x + 30, y, 2, 32);
 
-    // 5. brilho especular pontual
+    // 5. lampejo especular
     const spec = Math.sin(c * 1.7 + r * 1.1 + t * 2.1);
-    if (spec > 0.9) {
-      ctx.fillStyle = `rgba(255,255,255,${(spec - 0.9) * 4})`;
+    if (spec > 0.88) {
+      ctx.fillStyle = `rgba(255,255,255,${(spec - 0.88) * 3.5})`;
       ctx.fillRect(x + ((c * 11) % 22) + 4, y + ((r * 7) % 20) + 4, 2, 2);
     }
   }

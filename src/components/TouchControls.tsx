@@ -9,6 +9,7 @@ import {
   User,
   FlaskConical,
   Lock,
+  ScrollText,
 } from 'lucide-react';
 import type { GameEngine, AklesAction } from '../game/engine';
 
@@ -17,6 +18,7 @@ interface TouchControlsProps {
   onHarvest: () => void;
   onToggleInventory: () => void;
   onToggleSynth: () => void;
+  onTogglePartitura: () => void;
   onToggleSheet: () => void;
 }
 
@@ -33,6 +35,7 @@ export const TouchControls: React.FC<TouchControlsProps> = ({
   onHarvest,
   onToggleInventory,
   onToggleSynth,
+  onTogglePartitura,
   onToggleSheet,
 }) => {
   const baseRef = useRef<HTMLDivElement | null>(null);
@@ -164,6 +167,17 @@ export const TouchControls: React.FC<TouchControlsProps> = ({
           title="Síntese de notas"
         >
           <Music4 className="w-5 h-5" />
+        </button>
+        <button
+          type="button"
+          onPointerDown={(e) => {
+            e.preventDefault();
+            onTogglePartitura();
+          }}
+          className={`${actionBtn} w-11 h-11 border-amber-400/50 bg-slate-950/80 text-amber-300`}
+          title="Síntese de Partituras"
+        >
+          <ScrollText className="w-5 h-5" />
         </button>
         <button
           type="button"

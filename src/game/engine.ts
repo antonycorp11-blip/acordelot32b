@@ -82,10 +82,24 @@ export interface ItemMeta {
   name: string;
   icon: string;
   weight: number; // peso por unidade
-  heal?: number; // cura de vida (uso futuro)
+  heal?: number; // cura de vida
+  xp?: number; // XP concedido ao usar (partituras)
   img?: string; // ícone em arquivo (opcional)
   desc?: string; // descrição (tooltip)
 }
+
+// Partituras: usadas para SUBIR DE NÍVEL. 3 tiers, cada um dá um tanto de XP.
+// Sintetizadas na Síntese de Partituras a partir de claves (+ fragmentos nos tiers altos).
+export type PartituraTier = 'bronze' | 'prata' | 'ouro';
+export const PARTITURA_TIERS: PartituraTier[] = ['bronze', 'prata', 'ouro'];
+export const PARTITURA_DEFS: Record<
+  PartituraTier,
+  { key: string; name: string; xp: number; claves: number; frags: number }
+> = {
+  bronze: { key: 'partitura_bronze', name: 'Partitura de Bronze', xp: 45, claves: 20, frags: 0 },
+  prata: { key: 'partitura_prata', name: 'Partitura de Prata', xp: 140, claves: 55, frags: 15 },
+  ouro: { key: 'partitura_ouro', name: 'Partitura de Ouro', xp: 420, claves: 140, frags: 40 },
+};
 
 // notas cromáticas (Dó..Si) — nomes, cores e chaves de arquivo
 export const NOTE_NAMES = ['Dó', 'Dó♯', 'Ré', 'Ré♯', 'Mi', 'Fá', 'Fá♯', 'Sol', 'Sol♯', 'Lá', 'Lá♯', 'Si'];
@@ -115,6 +129,30 @@ export const ITEM_META: Record<string, ItemMeta> = {
     weight: 0.05,
     img: '/assets/items/props/eco_essence_raw.png',
     desc: 'Resíduo cintilante de um Eco dissipado. Usada para invocar novos Ecos.',
+  },
+  partitura_bronze: {
+    name: 'Partitura de Bronze',
+    icon: '🎵',
+    weight: 0,
+    xp: PARTITURA_DEFS.bronze.xp,
+    img: '/assets/items/notes/note_c.png',
+    desc: `Partitura simples. Usada na ficha para subir de nível (+${PARTITURA_DEFS.bronze.xp} XP).`,
+  },
+  partitura_prata: {
+    name: 'Partitura de Prata',
+    icon: '🎶',
+    weight: 0,
+    xp: PARTITURA_DEFS.prata.xp,
+    img: '/assets/items/notes/note_g.png',
+    desc: `Partitura elaborada. Subir de nível na ficha (+${PARTITURA_DEFS.prata.xp} XP).`,
+  },
+  partitura_ouro: {
+    name: 'Partitura de Ouro',
+    icon: '🏅',
+    weight: 0,
+    xp: PARTITURA_DEFS.ouro.xp,
+    img: '/assets/items/notes/note_a.png',
+    desc: `Obra-prima. Subir de nível na ficha (+${PARTITURA_DEFS.ouro.xp} XP).`,
   },
 };
 // pares bruto/refinado dos nós de extração
@@ -1070,29 +1108,21 @@ export class GameEngine {
   }
 
   gainXp(n: number) {
-    // XP acumula; a subida de nível é manual (via item / botão da ficha)
+    // XP de kills é um trílho pequeno; o grosso vem das PARTITURAS (ficha).
     this.stats.xp += n;
     if (this.stats.xp >= this.stats.xpNext) this.stats.xp = this.stats.xpNext;
     this.onStatsChange?.({ ...this.stats });
   }
 
   get canLevelUp() {
-    return this.stats.xp >= this.stats.xpNext;
+    return this.stats.xp >= this.stats.xpNext || this.partituraXpAvailable > 0;
   }
 
-  // Chamado ao usar o item de nível (ou pelo botão da ficha por enquanto)
+  // Botão "Subir de Nível" da ficha: usa o XP + as partituras do inventário.
   levelUp(): boolean {
-    const s = this.stats;
-    if (s.xp < s.xpNext) return false;
-    s.xp -= s.xpNext;
-    s.level += 1;
-    s.xpNext = Math.round(s.xpNext * 1.45);
-    s.maxHp += 12;
-    s.hp = s.maxHp;
-    s.attrPoints += 3;
-    this.onStatsChange?.({ ...s });
-    this.onHarvestPopup?.(`Nível ${s.level}! +3 pontos`, this.player.x, this.player.y - 20);
-    return true;
+    const before = this.stats.level;
+    this.levelUpWithPartituras();
+    return this.stats.level > before;
   }
 
   spendAttrPoint(attr: AttrKey): boolean {
@@ -2299,6 +2329,104 @@ export class GameEngine {
     this.inventory['clave'] = (this.inventory['clave'] || 0) + n;
     this.onInventoryChange?.({ ...this.inventory });
     this.onCoinsChange?.(this.coins);
+  }
+
+  private spendCoins(n: number) {
+    this.coins = Math.max(0, this.coins - n);
+    this.inventory['clave'] = Math.max(0, (this.inventory['clave'] || 0) - n);
+    if (this.inventory['clave'] === 0) delete this.inventory['clave'];
+    this.onCoinsChange?.(this.coins);
+  }
+
+  get totalFragments(): number {
+    return this.fragments.reduce((a, b) => a + b, 0);
+  }
+
+  // Consome fragmentos soltos (dos montes maiores primeiro) — não mexe nas notas prontas
+  private spendFragments(n: number): boolean {
+    if (this.totalFragments < n) return false;
+    let left = n;
+    const order = this.fragments
+      .map((v, i) => [v, i] as [number, number])
+      .sort((a, b) => b[0] - a[0]);
+    for (const [, i] of order) {
+      if (left <= 0) break;
+      const take = Math.min(this.fragments[i], left);
+      this.fragments[i] -= take;
+      const key = 'frag_' + NOTE_KEY[i];
+      this.inventory[key] = Math.max(0, (this.inventory[key] || 0) - take);
+      if (this.inventory[key] === 0) delete this.inventory[key];
+      left -= take;
+    }
+    this.onFragmentsChange?.({ fragments: [...this.fragments], built: [...this.notesBuilt] });
+    this.onInventoryChange?.({ ...this.inventory });
+    return true;
+  }
+
+  // ---- PARTITURAS ----
+  canSynthPartitura(tier: PartituraTier): boolean {
+    const d = PARTITURA_DEFS[tier];
+    return this.coins >= d.claves && this.totalFragments >= d.frags;
+  }
+
+  synthPartitura(tier: PartituraTier): boolean {
+    const d = PARTITURA_DEFS[tier];
+    if (!this.canSynthPartitura(tier)) return false;
+    this.spendCoins(d.claves);
+    if (d.frags > 0) this.spendFragments(d.frags);
+    this.inventory[d.key] = (this.inventory[d.key] || 0) + 1;
+    this.onInventoryChange?.({ ...this.inventory });
+    this.onHarvestPopup?.(`♪ ${d.name} composta!`, this.player.x, this.player.y - 24);
+    return true;
+  }
+
+  get partituraXpAvailable(): number {
+    return PARTITURA_TIERS.reduce(
+      (s, t) => s + (this.inventory[PARTITURA_DEFS[t].key] || 0) * PARTITURA_DEFS[t].xp,
+      0,
+    );
+  }
+
+  // "Subir de Nível" na ficha: gasta partituras do inventário para encher o XP
+  // e sobe quantos níveis der. Retorna quantos níveis subiu.
+  levelUpWithPartituras(): number {
+    let levels = 0;
+    // usa da menor pra maior, só o necessário
+    let guard = 0;
+    while (guard++ < 200) {
+      const s = this.stats;
+      if (s.xp >= s.xpNext) {
+        this.applyLevelUp();
+        levels++;
+        continue;
+      }
+      // precisa de mais XP — consome a menor partitura disponível
+      const tier = PARTITURA_TIERS.find((t) => (this.inventory[PARTITURA_DEFS[t].key] || 0) > 0);
+      if (!tier) break;
+      const d = PARTITURA_DEFS[tier];
+      this.inventory[d.key] -= 1;
+      if (this.inventory[d.key] <= 0) delete this.inventory[d.key];
+      s.xp += d.xp;
+    }
+    this.onInventoryChange?.({ ...this.inventory });
+    this.onStatsChange?.({ ...this.stats });
+    if (levels > 0)
+      this.onHarvestPopup?.(
+        `Nível ${this.stats.level}! +${levels * 3} pontos`,
+        this.player.x,
+        this.player.y - 20,
+      );
+    return levels;
+  }
+
+  private applyLevelUp() {
+    const s = this.stats;
+    s.xp -= s.xpNext;
+    s.level += 1;
+    s.xpNext = Math.round(s.xpNext * 1.45);
+    s.maxHp += 12;
+    s.hp = s.maxHp;
+    s.attrPoints += 3;
   }
 
   updateFragments(dt: number) {

@@ -32,8 +32,9 @@ import { PlayerHud } from './PlayerHud';
 import { CharacterScreen } from './CharacterScreen';
 import { DayCycleIndicator } from './DayCycleIndicator';
 import { SynthesisScreen } from './SynthesisScreen';
+import { PartituraScreen } from './PartituraScreen';
 import { publishMapToCode, getGhToken, setGhToken } from '../game/mapPersist';
-import { Backpack, Hand, User, CloudRain, Music4, FlaskConical } from 'lucide-react';
+import { Backpack, Hand, User, CloudRain, Music4, FlaskConical, ScrollText } from 'lucide-react';
 
 interface PropPaletteItem {
   type: string;
@@ -409,6 +410,7 @@ export const GameCanvas: React.FC = () => {
   const [stats, setStats] = useState<PlayerStats | null>(null);
   const [isRaining, setIsRaining] = useState(false);
   const [showSynth, setShowSynth] = useState(false);
+  const [showPartitura, setShowPartitura] = useState(false);
   const [fragments, setFragments] = useState<number[]>(new Array(12).fill(0));
   const [notesBuilt, setNotesBuilt] = useState<number[]>(new Array(12).fill(0));
   const [coins, setCoins] = useState(0);
@@ -509,6 +511,7 @@ export const GameCanvas: React.FC = () => {
       if (e.code === 'KeyI') setShowInventory((v) => !v);
       if (e.code === 'KeyC') setShowSheet((v) => !v);
       if (e.code === 'KeyN') setShowSynth((v) => !v);
+      if (e.code === 'KeyP') setShowPartitura((v) => !v);
     };
     window.addEventListener('keydown', onKey);
 
@@ -1011,6 +1014,7 @@ export const GameCanvas: React.FC = () => {
           onHarvest={() => engineRef.current?.harvestAction()}
           onToggleInventory={() => setShowInventory((v) => !v)}
           onToggleSynth={() => setShowSynth((v) => !v)}
+          onTogglePartitura={() => setShowPartitura((v) => !v)}
           onToggleSheet={() => setShowSheet((v) => !v)}
         />
       )}
@@ -1021,16 +1025,27 @@ export const GameCanvas: React.FC = () => {
           onClose={() => setShowSheet(false)}
           stats={stats}
           power={engineRef.current?.combatPower ?? 0}
-          canLevelUp={stats.xp >= stats.xpNext}
+          canLevelUp={
+            stats.xp >= stats.xpNext || (engineRef.current?.partituraXpAvailable ?? 0) > 0
+          }
           onLevelUp={() => engineRef.current?.levelUp()}
           onSpend={(attr) => engineRef.current?.spendAttrPoint(attr)}
           engine={engineRef.current}
+          inventory={inventory}
         />
       )}
 
       {/* HUD de coleta — desktop */}
       {!isEditMode && !isTouchDevice && (
         <div className="fixed bottom-6 right-6 z-30 flex items-end gap-3 pointer-events-auto">
+          <button
+            type="button"
+            onClick={() => setShowPartitura((v) => !v)}
+            className="cursor-pointer w-12 h-12 rounded-full bg-slate-950/85 hover:bg-slate-800 text-amber-300 border border-amber-500/40 hover:border-amber-400/80 shadow-xl flex items-center justify-center backdrop-blur-md transition-all active:scale-95"
+            title="Síntese de Partituras (P)"
+          >
+            <ScrollText className="w-5 h-5" />
+          </button>
           <button
             type="button"
             onClick={() => setShowSynth((v) => !v)}
@@ -1111,6 +1126,15 @@ export const GameCanvas: React.FC = () => {
         onClose={() => setShowSynth(false)}
         fragments={fragments}
         built={notesBuilt}
+      />
+
+      <PartituraScreen
+        open={showPartitura && !isEditMode}
+        onClose={() => setShowPartitura(false)}
+        engine={engineRef.current}
+        coins={coins}
+        fragments={fragments}
+        inventory={inventory}
       />
 
       {/* Configuração do token do GitHub (uma vez) para publicar o mapa */}

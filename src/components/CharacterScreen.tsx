@@ -12,7 +12,14 @@ interface CharacterScreenProps {
   onLevelUp: () => void;
   onSpend: (attr: AttrKey) => void;
   engine?: GameEngine | null;
+  inventory?: Record<string, number>;
 }
+
+const PARTITURA_ROWS: Array<[string, string, string]> = [
+  ['partitura_bronze', 'Bronze', '#b45309'],
+  ['partitura_prata', 'Prata', '#94a3b8'],
+  ['partitura_ouro', 'Ouro', '#fbbf24'],
+];
 
 const TIER_META: Record<ToolTier, { label: string; ring: string; dot: string }> = {
   wood: { label: 'Madeira', ring: 'border-amber-700/70', dot: 'bg-amber-600' },
@@ -142,8 +149,10 @@ export const CharacterScreen: React.FC<CharacterScreenProps> = ({
   onLevelUp,
   onSpend,
   engine,
+  inventory,
 }) => {
   const [showEquip, setShowEquip] = React.useState(false);
+  const [, forceTick] = React.useReducer((n) => n + 1, 0);
   React.useEffect(() => {
     if (!open) setShowEquip(false);
   }, [open]);
@@ -204,7 +213,10 @@ export const CharacterScreen: React.FC<CharacterScreenProps> = ({
             </div>
             <button
               type="button"
-              onClick={onLevelUp}
+              onClick={() => {
+                onLevelUp();
+                forceTick();
+              }}
               disabled={!canLevelUp}
               className={`w-full flex items-center justify-center gap-1.5 rounded-lg px-2 py-1.5 text-xs font-bold transition-all ${
                 canLevelUp
@@ -215,6 +227,36 @@ export const CharacterScreen: React.FC<CharacterScreenProps> = ({
               <ChevronsUp className="w-4 h-4" />
               Subir de Nível
             </button>
+
+            {/* Partituras — consumidas ao subir de nível */}
+            <div className="rounded-lg border border-slate-800 bg-slate-950/50 px-2 py-1.5">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-[10px] font-bold text-slate-400">🎵 Partituras</span>
+                {engine && (
+                  <span className="text-[9px] text-amber-300/90">
+                    +{engine.partituraXpAvailable} XP
+                  </span>
+                )}
+              </div>
+              <div className="flex gap-1.5">
+                {PARTITURA_ROWS.map(([key, label, color]) => (
+                  <div
+                    key={key}
+                    className="flex-1 rounded-md border bg-slate-900/70 py-1 text-center"
+                    style={{ borderColor: color + '55' }}
+                    title={label}
+                  >
+                    <div className="text-[10px] font-black" style={{ color }}>
+                      {inventory?.[key] ?? 0}
+                    </div>
+                    <div className="text-[8px] text-slate-500">{label}</div>
+                  </div>
+                ))}
+              </div>
+              <p className="text-[8px] text-slate-600 leading-tight mt-1">
+                Sintetize partituras com claves na Síntese de Partituras.
+              </p>
+            </div>
           </div>
 
           {/* Coluna direita: atributos + poder */}

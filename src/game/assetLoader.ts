@@ -23,6 +23,13 @@ export interface LoadedAssets {
   knightIdle: HTMLImageElement;
   knightSlash: HTMLImageElement;
 
+  // NPCs
+  npcCadencia: HTMLImageElement;
+  npcTonico: HTMLImageElement;
+  npcSetimo: HTMLImageElement;
+  npcSeminima: HTMLImageElement;
+  npcDiapasao: HTMLImageElement;
+
   // Akles - Herói Cavaleiro (sprite sheets 32-bit processadas)
   aklesIdle: HTMLImageElement;
   aklesWalk: HTMLImageElement;
@@ -107,6 +114,13 @@ const ASSET_PATHS: Record<keyof LoadedAssets, string> = {
   knightWalk: '/assets/characters/knight_walk.png',
   knightIdle: '/assets/characters/knight_idle.png',
   knightSlash: '/assets/characters/knight_slash.png',
+
+  // NPCs
+  npcCadencia: '/assets/characters/npcs/cadencia.png',
+  npcTonico: '/assets/characters/npcs/tonico.png',
+  npcSetimo: '/assets/characters/npcs/setimo.png',
+  npcSeminima: '/assets/characters/npcs/seminima.png',
+  npcDiapasao: '/assets/characters/npcs/diapasao.png',
 
   // Akles - Herói Cavaleiro
   aklesIdle: '/assets/characters/akles/akles_idle.png',

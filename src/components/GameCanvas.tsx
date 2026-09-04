@@ -30,7 +30,8 @@ import { TouchControls } from './TouchControls';
 import { Inventory } from './Inventory';
 import { PlayerHud } from './PlayerHud';
 import { CharacterScreen } from './CharacterScreen';
-import { Backpack, Hand, User, CloudRain } from 'lucide-react';
+import { SynthesisScreen } from './SynthesisScreen';
+import { Backpack, Hand, User, CloudRain, Music4 } from 'lucide-react';
 
 interface PropPaletteItem {
   type: string;
@@ -328,6 +329,9 @@ export const GameCanvas: React.FC = () => {
   const pickupTimer = useRef<number | null>(null);
   const [stats, setStats] = useState<PlayerStats | null>(null);
   const [isRaining, setIsRaining] = useState(false);
+  const [showSynth, setShowSynth] = useState(false);
+  const [fragments, setFragments] = useState<number[]>(new Array(12).fill(0));
+  const [notesBuilt, setNotesBuilt] = useState<number[]>(new Array(12).fill(0));
 
   // Map Editor, Time of Day & Zoom State
   const [isEditMode, setIsEditMode] = useState(false);
@@ -367,6 +371,11 @@ export const GameCanvas: React.FC = () => {
       setStats(s);
     };
     setStats({ ...engine.stats });
+
+    engine.onFragmentsChange = ({ fragments: f, built }) => {
+      setFragments(f);
+      setNotesBuilt(built);
+    };
 
     engine.onHarvestPopup = (text) => {
       setPickupFlash(text);
@@ -411,6 +420,7 @@ export const GameCanvas: React.FC = () => {
     const onKey = (e: KeyboardEvent) => {
       if (e.code === 'KeyI') setShowInventory((v) => !v);
       if (e.code === 'KeyC') setShowSheet((v) => !v);
+      if (e.code === 'KeyN') setShowSynth((v) => !v);
     };
     window.addEventListener('keydown', onKey);
 
@@ -424,20 +434,19 @@ export const GameCanvas: React.FC = () => {
     };
   }, []);
 
+  const dlgLines = interaction.npc?.dialogue ?? interaction.dialogue ?? [];
   const handleNextDialogue = () => {
-    if (!interaction.dialogue) return;
-    if (dialogueIdx < interaction.dialogue.length - 1) {
+    if (dialogueIdx < dlgLines.length - 1) {
       setDialogueIdx((prev) => prev + 1);
-    } else {
+    } else if (interaction.npc?.isMerchant) {
       setShowShop(true);
+    } else {
+      handleCloseDialogue();
     }
   };
 
   const handleCloseDialogue = () => {
-    if (engineRef.current) {
-      engineRef.current.isTalkingToMerchant = false;
-    }
-    setInteraction((prev) => ({ ...prev, isTalking: false }));
+    engineRef.current?.closeDialogue();
     setShowShop(false);
     setDialogueIdx(0);
   };
@@ -845,6 +854,8 @@ export const GameCanvas: React.FC = () => {
           engineRef={engineRef}
           onHarvest={() => engineRef.current?.harvestAction()}
           onToggleInventory={() => setShowInventory((v) => !v)}
+          onToggleSynth={() => setShowSynth((v) => !v)}
+          onToggleSheet={() => setShowSheet((v) => !v)}
         />
       )}
 
@@ -863,6 +874,14 @@ export const GameCanvas: React.FC = () => {
       {/* HUD de coleta — desktop */}
       {!isEditMode && !isTouchDevice && (
         <div className="fixed bottom-6 right-6 z-30 flex items-end gap-3 pointer-events-auto">
+          <button
+            type="button"
+            onClick={() => setShowSynth((v) => !v)}
+            className="cursor-pointer w-12 h-12 rounded-full bg-slate-950/85 hover:bg-slate-800 text-fuchsia-300 border border-fuchsia-500/40 hover:border-fuchsia-400/80 shadow-xl flex items-center justify-center backdrop-blur-md transition-all active:scale-95"
+            title="Síntese de notas (N)"
+          >
+            <Music4 className="w-5 h-5" />
+          </button>
           <button
             type="button"
             onClick={() => setShowSheet((v) => !v)}
@@ -891,6 +910,23 @@ export const GameCanvas: React.FC = () => {
         </div>
       )}
 
+      {/* Botão de falar com NPC próximo */}
+      {!isEditMode && interaction.nearNpc && !interaction.isTalking && (
+        <button
+          type="button"
+          onClick={() => engineRef.current?.handleInteract()}
+          className="fixed left-1/2 -translate-x-1/2 z-30 pointer-events-auto flex items-center gap-2 px-4 py-2 rounded-full text-xs font-black shadow-xl active:scale-95 transition-transform animate-in fade-in slide-in-from-bottom-2"
+          style={{
+            bottom: 'calc(96px + env(safe-area-inset-bottom))',
+            background: interaction.nearNpc.accent,
+            color: '#0b1220',
+          }}
+        >
+          <span className="text-sm">♪</span>
+          Falar com {interaction.nearNpc.name}
+        </button>
+      )}
+
       {/* Feedback de coleta */}
       {pickupFlash && (
         <div className="fixed top-24 left-1/2 -translate-x-1/2 z-40 pointer-events-none bg-emerald-950/90 text-emerald-200 border border-emerald-500/60 rounded-full px-4 py-1 text-sm font-bold shadow-xl animate-in fade-in slide-in-from-bottom-2">
@@ -902,6 +938,13 @@ export const GameCanvas: React.FC = () => {
         open={showInventory && !isEditMode}
         onClose={() => setShowInventory(false)}
         items={inventory}
+      />
+
+      <SynthesisScreen
+        open={showSynth && !isEditMode}
+        onClose={() => setShowSynth(false)}
+        fragments={fragments}
+        built={notesBuilt}
       />
 
       {/* Top Right Quick Controls (Quando o editor está fechado) */}
@@ -990,46 +1033,75 @@ export const GameCanvas: React.FC = () => {
         </div>
       </div>
 
-      {/* NPC Merchant Dialogue & Shop Modal */}
+      {/* Balão de diálogo dos NPCs (estilizado por cor de destaque) */}
       {interaction.isTalking && (
         <div
-          id="merchant-dialogue-modal"
-          className="absolute inset-0 z-30 flex items-end justify-center pb-8 pointer-events-none"
+          id="npc-dialogue-modal"
+          className="absolute inset-0 z-30 flex items-end justify-center pb-6 pointer-events-none"
         >
-          <div className="bg-slate-950/90 backdrop-blur-md border border-amber-500/50 rounded-2xl p-5 max-w-lg w-full mx-4 shadow-2xl pointer-events-auto animate-in fade-in slide-in-from-bottom-6 duration-200">
-            <div className="flex items-center justify-between mb-3 border-b border-slate-800 pb-2">
-              <div className="flex items-center gap-2">
-                <Store className="w-5 h-5 text-amber-400" />
-                <div>
-                  <h3 className="text-sm font-bold text-amber-200">
-                    {interaction.merchantName || 'Comerciante das Ruínas'}
-                  </h3>
-                  <p className="text-[11px] text-slate-400">
-                    {interaction.merchantTitle || 'Mercador Viajante'}
-                  </p>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={handleCloseDialogue}
-                className="cursor-pointer text-slate-400 hover:text-white p-1"
-              >
-                <X className="w-4 h-4" />
-              </button>
+          <div
+            className="relative bg-slate-950/92 backdrop-blur-md rounded-2xl p-4 pt-6 max-w-lg w-full mx-4 shadow-2xl pointer-events-auto animate-in fade-in slide-in-from-bottom-6 duration-200 border"
+            style={{
+              borderColor: (interaction.npc?.accent ?? '#f59e0b') + '99',
+              boxShadow: `0 0 40px -8px ${(interaction.npc?.accent ?? '#f59e0b')}55`,
+            }}
+          >
+            {/* Chapa de nome flutuante */}
+            <div
+              className="absolute -top-3.5 left-4 flex items-center gap-2 px-3 py-1 rounded-full text-[11px] font-black tracking-wide shadow-lg"
+              style={{
+                background: (interaction.npc?.accent ?? '#f59e0b'),
+                color: '#0b1220',
+              }}
+            >
+              <span className="text-sm">♪</span>
+              {interaction.npc?.name ?? interaction.merchantName ?? 'Viajante'}
             </div>
+            <button
+              type="button"
+              onClick={handleCloseDialogue}
+              className="absolute top-2 right-2 cursor-pointer text-slate-500 hover:text-white p-1"
+            >
+              <X className="w-4 h-4" />
+            </button>
+
+            <p className="text-[11px] mb-2" style={{ color: (interaction.npc?.accent ?? '#f59e0b') }}>
+              {interaction.npc?.title ?? interaction.merchantTitle ?? ''}
+            </p>
 
             {!showShop ? (
               <div>
-                <p className="text-sm text-slate-200 leading-relaxed min-h-[48px]">
-                  {interaction.dialogue?.[dialogueIdx] || 'Olá viajante, bem-vindo às Ruínas Antigas!'}
+                <p className="text-sm text-slate-100 leading-relaxed min-h-[52px]">
+                  {dlgLines[dialogueIdx] ?? '...'}
                 </p>
-                <div className="mt-4 flex justify-end">
+                <div className="mt-3 flex items-center justify-between">
+                  <div className="flex gap-1">
+                    {dlgLines.map((_, i) => (
+                      <span
+                        key={i}
+                        className="w-1.5 h-1.5 rounded-full transition-colors"
+                        style={{
+                          background:
+                            i === dialogueIdx
+                              ? (interaction.npc?.accent ?? '#f59e0b')
+                              : '#33415577',
+                        }}
+                      />
+                    ))}
+                  </div>
                   <button
                     type="button"
                     onClick={handleNextDialogue}
-                    className="cursor-pointer bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold px-4 py-1.5 rounded-xl text-xs flex items-center gap-1 transition-all"
+                    className="cursor-pointer font-bold px-4 py-1.5 rounded-xl text-xs flex items-center gap-1 transition-all active:scale-95"
+                    style={{ background: (interaction.npc?.accent ?? '#f59e0b'), color: '#0b1220' }}
                   >
-                    <span>Continuar</span>
+                    <span>
+                      {dialogueIdx < dlgLines.length - 1
+                        ? 'Continuar'
+                        : interaction.npc?.isMerchant
+                          ? 'Ver loja'
+                          : 'Encerrar'}
+                    </span>
                     <ChevronRight className="w-4 h-4" />
                   </button>
                 </div>

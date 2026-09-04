@@ -1,11 +1,13 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Swords, RefreshCw, Sparkles, Hand, Backpack } from 'lucide-react';
+import { Swords, RefreshCw, Sparkles, Hand, Backpack, Music4, User } from 'lucide-react';
 import type { GameEngine, AklesAction } from '../game/engine';
 
 interface TouchControlsProps {
   engineRef: React.MutableRefObject<GameEngine | null>;
   onHarvest: () => void;
   onToggleInventory: () => void;
+  onToggleSynth: () => void;
+  onToggleSheet: () => void;
 }
 
 const JOYSTICK_SIZE = 132;
@@ -20,6 +22,8 @@ export const TouchControls: React.FC<TouchControlsProps> = ({
   engineRef,
   onHarvest,
   onToggleInventory,
+  onToggleSynth,
+  onToggleSheet,
 }) => {
   const baseRef = useRef<HTMLDivElement | null>(null);
   const originRef = useRef<{ x: number; y: number } | null>(null);
@@ -120,22 +124,48 @@ export const TouchControls: React.FC<TouchControlsProps> = ({
         />
       </div>
 
-      {/* Mochila — canto superior direito, abaixo dos controles */}
-      <button
-        type="button"
-        onPointerDown={(e) => {
-          e.preventDefault();
-          onToggleInventory();
-        }}
-        className={`${actionBtn} absolute w-11 h-11 border-amber-400/50 bg-slate-950/80 text-amber-300`}
+      {/* Menu lateral direito — mochila / síntese / ficha */}
+      <div
+        className="absolute flex flex-col gap-2"
         style={{
           right: 'max(18px, env(safe-area-inset-right))',
           top: 'calc(64px + env(safe-area-inset-top))',
         }}
-        title="Mochila"
       >
-        <Backpack className="w-5 h-5" />
-      </button>
+        <button
+          type="button"
+          onPointerDown={(e) => {
+            e.preventDefault();
+            onToggleInventory();
+          }}
+          className={`${actionBtn} w-11 h-11 border-amber-400/50 bg-slate-950/80 text-amber-300`}
+          title="Mochila"
+        >
+          <Backpack className="w-5 h-5" />
+        </button>
+        <button
+          type="button"
+          onPointerDown={(e) => {
+            e.preventDefault();
+            onToggleSynth();
+          }}
+          className={`${actionBtn} w-11 h-11 border-fuchsia-400/50 bg-slate-950/80 text-fuchsia-300`}
+          title="Síntese de notas"
+        >
+          <Music4 className="w-5 h-5" />
+        </button>
+        <button
+          type="button"
+          onPointerDown={(e) => {
+            e.preventDefault();
+            onToggleSheet();
+          }}
+          className={`${actionBtn} w-11 h-11 border-sky-400/50 bg-slate-950/80 text-sky-300`}
+          title="Ficha"
+        >
+          <User className="w-5 h-5" />
+        </button>
+      </div>
 
       {/* Botões de ação — canto inferior direito */}
       <div

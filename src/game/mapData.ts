@@ -619,5 +619,134 @@ export function buildMap(): MapGrid {
   });
   solidColliders.push({ x: mX + 16, y: mY + 44, w: 32, h: 20 });
 
+  // 11. NPCs COM ROTA (tema musical de Acordelot)
+  const T = TILE_SIZE;
+  const addNpc = (o: {
+    id: string;
+    name: string;
+    title: string;
+    sprite: NPC['spriteType'];
+    accent: string;
+    speed: number;
+    route: Array<[number, number]>;
+    dialogue: string[];
+  }) => {
+    const route = o.route.map(([c, r]) => ({ x: c * T, y: r * T }));
+    npcs.push({
+      id: o.id,
+      name: o.name,
+      title: o.title,
+      spriteType: o.sprite,
+      accent: o.accent,
+      x: route[0].x,
+      y: route[0].y,
+      vx: 0,
+      vy: 0,
+      direction: 'down',
+      frame: 0,
+      isMoving: false,
+      stepTimer: Math.random() * 4,
+      width: 28,
+      height: 40,
+      homeX: route[0].x,
+      homeY: route[0].y,
+      patrolRadius: 0,
+      wanderTimer: 0,
+      idleTimer: 0,
+      wanderTarget: null,
+      speed: o.speed,
+      collider: { offsetX: 8, offsetY: 28, w: 12, h: 10 },
+      dialogue: o.dialogue,
+      route,
+      routeIdx: 1 % route.length,
+      routePause: Math.random() * 2,
+    });
+  };
+
+  addNpc({
+    id: 'npc_cadencia',
+    name: 'Maestrina Cadença',
+    title: 'Regente do Coral da Vila',
+    sprite: 'cadencia',
+    accent: '#6366f1',
+    speed: 42,
+    route: [
+      [26, 25], [26, 28], [32, 28], [32, 25],
+    ],
+    dialogue: [
+      'Silêncio... escute a Vila respirar em compasso quaternário.',
+      'Cada fragmento que você recolhe é meia frase de uma melodia esquecida.',
+      'Trinta fragmentos afinam uma nota inteira. Doze notas, e Acordelot volta a cantar.',
+    ],
+  });
+
+  addNpc({
+    id: 'npc_tonico',
+    name: 'Seu Tônico',
+    title: 'Lavrador e Guardião da Tônica',
+    sprite: 'tonico',
+    accent: '#22c55e',
+    speed: 40,
+    route: [
+      [10, 44], [10, 50], [20, 50], [20, 44],
+    ],
+    dialogue: [
+      'Toda escala começa e termina em casa, moço. Isso é a tônica.',
+      'Plantei fá sustenido no canteiro do fundo. Ainda não brotou.',
+      'Se achar um fragmento verde por aí, é meu — mas pode ficar. A terra dá mais.',
+    ],
+  });
+
+  addNpc({
+    id: 'npc_setimo',
+    name: 'Sétimo, o Errante',
+    title: 'Bardo das Sete Estradas',
+    sprite: 'setimo',
+    accent: '#a855f7',
+    speed: 48,
+    route: [
+      [37, 11], [37, 23], [46, 26], [37, 44], [37, 23],
+    ],
+    dialogue: [
+      'Ah! Um rosto novo — e que timing dramático você tem!',
+      'Sou o intervalo que nunca resolve. Tensão pura, do primeiro ao último acorde.',
+      'Junte as doze notas e eu componho a sua lenda. Cobro em aplausos.',
+    ],
+  });
+
+  addNpc({
+    id: 'npc_seminima',
+    name: 'Semínima',
+    title: 'Aprendiz de Compasso',
+    sprite: 'seminima',
+    accent: '#f59e0b',
+    speed: 58,
+    route: [
+      [44, 25], [52, 25], [52, 28], [44, 28],
+    ],
+    dialogue: [
+      'Você TAMBÉM tá catando os brilhozinhos coloridos?! Achei seis!',
+      'O Mestre Diapasão diz que eu ando rápido demais. Semínima é rápida, oras!',
+      'Se eu montar a nota Lá primeiro, eu ganho, combinado?',
+    ],
+  });
+
+  addNpc({
+    id: 'npc_diapasao',
+    name: 'Mestre Diapasão',
+    title: 'Afinador de Almas',
+    sprite: 'diapasao',
+    accent: '#06b6d4',
+    speed: 28,
+    route: [
+      [39, 25], [39, 29], [43, 29], [43, 25],
+    ],
+    dialogue: [
+      'Bata-me contra a pedra e eu te dou o Lá — 432 vibrações de verdade.',
+      'Os fragmentos são joias comutativas: a ordem em que os soma não altera a nota.',
+      'Abra a Síntese quando tiver trinta de uma cor. O resto é paciência e ouvido.',
+    ],
+  });
+
   return { ground, solidColliders, props, npcs };
 }

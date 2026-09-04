@@ -34,11 +34,20 @@ export interface CharacterState {
   };
 }
 
+export type NpcSprite =
+  | 'merchant'
+  | 'cadencia'
+  | 'tonico'
+  | 'setimo'
+  | 'seminima'
+  | 'diapasao';
+
 export interface NPC extends CharacterState {
   id: string;
   name: string;
   title?: string;
-  spriteType: 'merchant' | 'elder' | 'baker' | 'villager' | 'gardener' | 'dog';
+  spriteType: NpcSprite;
+  accent?: string; // cor de destaque do balão de diálogo
   homeX: number;
   homeY: number;
   patrolRadius: number;
@@ -47,6 +56,10 @@ export interface NPC extends CharacterState {
   wanderTarget: Point | null;
   speed: number;
   dialogue?: string[];
+  // rota de patrulha (waypoints em px de mundo)
+  route?: Point[];
+  routeIdx?: number;
+  routePause?: number;
 }
 
 export interface CompanionState {

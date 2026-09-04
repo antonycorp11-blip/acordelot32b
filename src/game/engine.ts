@@ -116,6 +116,56 @@ interface HarvestDef {
   dropMax: number;
   respawnSecs: number;
 }
+// ---- FRAGMENTOS DE NOTAS (joias comutativas — 12 notas cromáticas) ----
+export const NOTE_NAMES = [
+  'Dó',
+  'Dó♯',
+  'Ré',
+  'Ré♯',
+  'Mi',
+  'Fá',
+  'Fá♯',
+  'Sol',
+  'Sol♯',
+  'Lá',
+  'Lá♯',
+  'Si',
+];
+// roda cromática de cores (12 matizes)
+export const NOTE_COLORS = [
+  '#ef4444',
+  '#f97316',
+  '#f59e0b',
+  '#eab308',
+  '#a3e635',
+  '#22c55e',
+  '#14b8a6',
+  '#06b6d4',
+  '#3b82f6',
+  '#6366f1',
+  '#a855f7',
+  '#ec4899',
+];
+export const FRAGMENTS_PER_NOTE = 30;
+
+export interface FragmentPickup {
+  id: string;
+  x: number;
+  y: number;
+  note: number;
+  bob: number;
+  respawnAt: number;
+}
+
+const NPC_ANIM = { cw: 96, ch: 148, cols: 10, fps: 9 };
+const NPC_SHEET: Record<string, keyof LoadedAssets> = {
+  cadencia: 'npcCadencia',
+  tonico: 'npcTonico',
+  setimo: 'npcSetimo',
+  seminima: 'npcSeminima',
+  diapasao: 'npcDiapasao',
+};
+
 export const HARVEST_DEFS: Record<string, HarvestDef> = {
   oak: { kind: 'tree', maxHp: 4, drop: 'wood', dropMin: 2, dropMax: 4, respawnSecs: 22 },
   pine: { kind: 'tree', maxHp: 3, drop: 'wood', dropMin: 2, dropMax: 3, respawnSecs: 20 },
@@ -129,9 +179,20 @@ export const HARVEST_DEFS: Record<string, HarvestDef> = {
   rockFlatSlab: { kind: 'rock', maxHp: 2, drop: 'stone', dropMin: 1, dropMax: 2, respawnSecs: 18 },
 };
 
+export interface InteractionNpc {
+  id: string;
+  name: string;
+  title?: string;
+  accent: string;
+  dialogue: string[];
+  isMerchant: boolean;
+}
 export interface InteractionState {
-  nearMerchant: boolean;
+  nearNpc?: InteractionNpc;
   isTalking: boolean;
+  npc?: InteractionNpc;
+  // compat
+  nearMerchant?: boolean;
   merchantName?: string;
   merchantTitle?: string;
   dialogue?: string[];
@@ -685,7 +746,15 @@ export class GameEngine {
 
   isNearMerchant: boolean = false;
   isTalkingToMerchant: boolean = false;
+  nearestNpcId: string | null = null;
+  talkingNpcId: string | null = null;
   onInteractionChange?: (state: InteractionState) => void;
+
+  // Fragmentos de notas
+  fragments: number[] = new Array(12).fill(0);
+  notesBuilt: number[] = new Array(12).fill(0);
+  fragmentPickups: FragmentPickup[] = [];
+  onFragmentsChange?: (data: { fragments: number[]; built: number[] }) => void;
 
   // Inventário / coleta de recursos
   inventory: Record<string, number> = {};
@@ -830,6 +899,7 @@ export class GameEngine {
 
     this.loadMapFromStorage();
     this.initHarvestables();
+    this.initFragments();
 
     // Player with 32-bit Knight character
     this.player = {
@@ -1194,20 +1264,52 @@ export class GameEngine {
     this.lightCanvas.height = this.viewportH;
   }
 
+  private npcToInteraction(n: NPC): InteractionNpc {
+    return {
+      id: n.id,
+      name: n.name,
+      title: n.title,
+      accent: n.accent ?? '#f59e0b',
+      dialogue: n.dialogue ?? ['...'],
+      isMerchant: n.spriteType === 'merchant',
+    };
+  }
+
+  emitInteraction() {
+    if (!this.onInteractionChange) return;
+    const near = this.npcs.find((n) => n.id === this.nearestNpcId) || null;
+    const talking = this.npcs.find((n) => n.id === this.talkingNpcId) || null;
+    const info = near ? this.npcToInteraction(near) : undefined;
+    this.onInteractionChange({
+      nearNpc: info,
+      isTalking: !!talking,
+      npc: talking ? this.npcToInteraction(talking) : undefined,
+      // compat
+      nearMerchant: near?.spriteType === 'merchant',
+      merchantName: talking?.name,
+      merchantTitle: talking?.title,
+      dialogue: talking?.dialogue,
+    });
+  }
+
   handleInteract() {
-    if (this.isNearMerchant) {
-      this.isTalkingToMerchant = !this.isTalkingToMerchant;
-      const merchant = this.npcs.find((n) => n.spriteType === 'merchant');
-      if (this.onInteractionChange) {
-        this.onInteractionChange({
-          nearMerchant: true,
-          isTalking: this.isTalkingToMerchant,
-          merchantName: merchant?.name,
-          merchantTitle: merchant?.title,
-          dialogue: merchant?.dialogue,
-        });
-      }
+    if (this.talkingNpcId) {
+      this.talkingNpcId = null;
+      this.isTalkingToMerchant = false;
+      this.emitInteraction();
+      return;
     }
+    if (this.nearestNpcId) {
+      this.talkingNpcId = this.nearestNpcId;
+      this.isTalkingToMerchant = this.isNearMerchant;
+      this.emitInteraction();
+    }
+  }
+
+  closeDialogue() {
+    this.talkingNpcId = null;
+    this.isTalkingToMerchant = false;
+    this.emitInteraction();
   }
 
   // Drag logic for Map Editor
@@ -1631,6 +1733,7 @@ export class GameEngine {
     // Load straight from customMapLayout.json
     this.loadMapFromStorage();
     this.initHarvestables();
+    this.initFragments();
     this.selectProp(null);
     this.saveMapToStorage();
   }
@@ -1652,6 +1755,122 @@ export class GameEngine {
         hitFlash: 0,
         shake: 0,
       };
+    }
+  }
+
+  // ---- FRAGMENTOS DE NOTAS ----
+  initFragments() {
+    this.fragmentPickups = [];
+    // 5 por nota espalhados por trilhas/clareiras acessíveis
+    for (let note = 0; note < 12; note++) {
+      for (let k = 0; k < 5; k++) {
+        this.fragmentPickups.push(this.makeFragment(`frag_${note}_${k}`, note));
+      }
+    }
+  }
+
+  private makeFragment(id: string, note: number): FragmentPickup {
+    // procura um tile de grama longe de água
+    let x = 0;
+    let y = 0;
+    for (let tries = 0; tries < 40; tries++) {
+      const c = 4 + Math.floor(Math.random() * (MAP_COLS - 8));
+      const r = 4 + Math.floor(Math.random() * (MAP_ROWS - 8));
+      const g = this.ground[r]?.[c];
+      if (g !== undefined && g < 9000) {
+        x = c * TILE_SIZE + 16;
+        y = r * TILE_SIZE + 16;
+        if (!this.checkSolidCollision({ x: x - 8, y: y - 8, w: 16, h: 16 })) break;
+      }
+    }
+    return { id, x, y, note, bob: Math.random() * Math.PI * 2, respawnAt: 0 };
+  }
+
+  addFragment(note: number) {
+    this.fragments[note] += 1;
+    while (this.fragments[note] >= FRAGMENTS_PER_NOTE) {
+      this.fragments[note] -= FRAGMENTS_PER_NOTE;
+      this.notesBuilt[note] += 1;
+      this.onHarvestPopup?.(
+        `♪ Nota ${NOTE_NAMES[note]} montada!`,
+        this.player.x,
+        this.player.y - 24
+      );
+    }
+    this.onFragmentsChange?.({ fragments: [...this.fragments], built: [...this.notesBuilt] });
+  }
+
+  updateFragments(dt: number) {
+    const px = this.player.x + 12;
+    const py = this.player.y + 20;
+    for (const f of this.fragmentPickups) {
+      if (f.respawnAt > 0) {
+        if (this.timeElapsed >= f.respawnAt) {
+          Object.assign(f, this.makeFragment(f.id, f.note), { respawnAt: 0 });
+        }
+        continue;
+      }
+      f.bob += dt * 3;
+      if (Math.hypot(px - f.x, py - f.y) < 26) {
+        this.addFragment(f.note);
+        this.onHarvestPopup?.(`+1 fragmento ${NOTE_NAMES[f.note]}`, f.x, f.y);
+        for (let i = 0; i < 8; i++) this.addMiningSpark(f.x, f.y - 6);
+        f.respawnAt = this.timeElapsed + 55 + Math.random() * 30;
+      }
+    }
+  }
+
+  // ---- NPCs COM ROTA ----
+  updateNpcs(dt: number) {
+    for (const npc of this.npcs) {
+      if (npc.spriteType === 'merchant') continue;
+      const talking = this.talkingNpcId === npc.id;
+      const route = npc.route;
+      if (talking || !route || route.length < 2) {
+        npc.isMoving = false;
+        npc.stepTimer += dt * 3;
+        continue;
+      }
+      if ((npc.routePause ?? 0) > 0) {
+        npc.routePause = (npc.routePause ?? 0) - dt;
+        npc.isMoving = false;
+        npc.stepTimer += dt * 3;
+        continue;
+      }
+      const idx = npc.routeIdx ?? 0;
+      const target = route[idx];
+      const dx = target.x - npc.x;
+      const dy = target.y - npc.y;
+      const dist = Math.hypot(dx, dy);
+      if (dist < 4) {
+        npc.routeIdx = (idx + 1) % route.length;
+        npc.routePause = 0.6 + Math.random() * 2.2;
+        npc.isMoving = false;
+        continue;
+      }
+      const sp = npc.speed || 42;
+      const nx = dx / dist;
+      const ny = dy / dist;
+      const stepX = nx * sp * dt;
+      const stepY = ny * sp * dt;
+      const col = npc.collider;
+      const box = {
+        x: npc.x + stepX + col.offsetX,
+        y: npc.y + stepY + col.offsetY,
+        w: col.w,
+        h: col.h,
+      };
+      if (this.checkSolidCollision(box)) {
+        npc.routeIdx = (idx + 1) % route.length;
+        npc.routePause = 0.4;
+      } else {
+        npc.x += stepX;
+        npc.y += stepY;
+      }
+      npc.isMoving = true;
+      npc.direction =
+        Math.abs(nx) > Math.abs(ny) ? (nx > 0 ? 'right' : 'left') : ny > 0 ? 'down' : 'up';
+      npc.stepTimer += dt * 8;
     }
   }
 
@@ -1906,30 +2125,31 @@ export class GameEngine {
 
     this.moveCharacterWithCollision(this.player, dt);
     this.updateCompanion(dt);
+    this.updateNpcs(dt);
+    this.updateFragments(dt);
 
-    // Merchant interaction check
-    const merchant = this.npcs.find((n) => n.spriteType === 'merchant');
-    if (merchant) {
-      const distToMerchant = Math.hypot(this.player.x - merchant.x, this.player.y - merchant.y);
-      const wasNear = this.isNearMerchant;
-      this.isNearMerchant = distToMerchant < 75;
-
-      if (wasNear !== this.isNearMerchant && this.onInteractionChange) {
-        this.onInteractionChange({
-          nearMerchant: this.isNearMerchant,
-          isTalking: this.isTalkingToMerchant,
-          merchantName: merchant.name,
-          merchantTitle: merchant.title,
-          dialogue: merchant.dialogue,
-        });
+    // Quem é o NPC mais próximo do herói?
+    const px = this.player.x + 12;
+    const py = this.player.y + 20;
+    let near: NPC | null = null;
+    let nearD = 74;
+    for (const n of this.npcs) {
+      const d = Math.hypot(px - (n.x + n.width / 2), py - (n.y + n.height / 2));
+      if (d < nearD) {
+        nearD = d;
+        near = n;
       }
-
-      if (!this.isNearMerchant && this.isTalkingToMerchant) {
-        this.isTalkingToMerchant = false;
-        if (this.onInteractionChange) {
-          this.onInteractionChange({ nearMerchant: false, isTalking: false });
-        }
-      }
+    }
+    const nearId = near?.id ?? null;
+    if (nearId !== this.nearestNpcId) {
+      this.nearestNpcId = nearId;
+      this.isNearMerchant = near?.spriteType === 'merchant';
+      this.emitInteraction();
+    }
+    if (!near && this.talkingNpcId) {
+      this.talkingNpcId = null;
+      this.isTalkingToMerchant = false;
+      this.emitInteraction();
     }
 
     // Camera follow
@@ -2310,6 +2530,37 @@ export class GameEngine {
       ctx.beginPath();
       ctx.arc(fx, fy, 1.4, 0, Math.PI * 2);
       ctx.fill();
+    }
+
+    // 3.4 Fragmentos de notas (joias flutuantes)
+    for (const f of this.fragmentPickups) {
+      if (f.respawnAt > 0) continue;
+      const fx = Math.round(f.x - camX);
+      const fy = Math.round(f.y - camY + Math.sin(f.bob) * 3);
+      if (fx < -20 || fx > this.viewportW + 20 || fy < -20 || fy > this.viewportH + 20) continue;
+      const color = NOTE_COLORS[f.note];
+      // brilho
+      const glow = ctx.createRadialGradient(fx, fy, 1, fx, fy, 14);
+      glow.addColorStop(0, color + 'cc');
+      glow.addColorStop(1, color + '00');
+      ctx.fillStyle = glow;
+      ctx.beginPath();
+      ctx.arc(fx, fy, 14, 0, Math.PI * 2);
+      ctx.fill();
+      // sombra no chão
+      ctx.fillStyle = 'rgba(0,0,0,0.22)';
+      ctx.beginPath();
+      ctx.ellipse(fx, Math.round(f.y - camY) + 8, 7, 3, 0, 0, Math.PI * 2);
+      ctx.fill();
+      // joia (losango)
+      ctx.save();
+      ctx.translate(fx, fy);
+      ctx.rotate(Math.PI / 4);
+      ctx.fillStyle = color;
+      ctx.fillRect(-4, -4, 8, 8);
+      ctx.fillStyle = 'rgba(255,255,255,0.7)';
+      ctx.fillRect(-4, -4, 3, 3);
+      ctx.restore();
     }
 
     // 3.5 Chuva (atrás do shader de luz)
@@ -2873,13 +3124,49 @@ export class GameEngine {
       const frameW = 110;
       const frameH = 110;
       const sx = this.merchantFrame * frameW;
-
       ctx.fillStyle = 'rgba(0, 0, 0, 0.28)';
       ctx.beginPath();
       ctx.ellipse(cx + 32, cy + 62, 20, 8, 0, 0, Math.PI * 2);
       ctx.fill();
-
       ctx.drawImage(this.assets.merchantIdle, sx, 0, frameW, frameH, cx, cy, 64, 72);
+      return;
+    }
+
+    const sheetKey = NPC_SHEET[npc.spriteType];
+    const sheet = sheetKey ? (this.assets?.[sheetKey] as HTMLImageElement | undefined) : undefined;
+    if (sheet && sheet.complete && sheet.naturalWidth > 0) {
+      const m = NPC_ANIM;
+      const disp = 0.34;
+      const dispW = m.cw * disp;
+      const dispH = m.ch * disp;
+      const row = AKLES_DIR_ROW[npc.direction];
+      const col = npc.isMoving
+        ? Math.floor(npc.stepTimer * (m.fps / 8)) % m.cols
+        : Math.floor(this.timeElapsed * 2 + npc.x) % 2; // leve balanço parado
+      const dx = Math.round(cx + npc.width / 2 - dispW / 2);
+      const dy = Math.round(cy + npc.height - dispH * ((m.ch - 4) / m.ch));
+
+      ctx.fillStyle = 'rgba(0,0,0,0.28)';
+      ctx.beginPath();
+      ctx.ellipse(cx + npc.width / 2, cy + npc.height - 2, 11, 4.5, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.imageSmoothingEnabled = true;
+      ctx.drawImage(sheet, col * m.cw, row * m.ch, m.cw, m.ch, dx, dy, Math.round(dispW), Math.round(dispH));
+      ctx.imageSmoothingEnabled = false;
+
+      // marcador de conversa quando o herói está perto
+      if (this.nearestNpcId === npc.id && !this.talkingNpcId) {
+        const my = cy - 6 + Math.sin(this.timeElapsed * 5) * 2;
+        ctx.fillStyle = npc.accent ?? '#f59e0b';
+        ctx.beginPath();
+        ctx.arc(cx + npc.width / 2, my, 3, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#0f172a';
+        ctx.font = 'bold 8px monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText('E', cx + npc.width / 2, my + 3);
+      }
     }
   }
 

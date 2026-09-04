@@ -11,6 +11,7 @@ interface TouchControlsProps {
   onToggleWeapon: () => void;
   onToggleCatalog: () => void;
   onToggleQuests: () => void;
+  onToggleSheet: () => void;
 }
 
 const JOYSTICK_SIZE = 132;
@@ -23,7 +24,9 @@ const MAX_RADIUS = (JOYSTICK_SIZE - KNOB_SIZE) / 2;
 type Pos = { dx: number; dy: number };
 type Orientation = 'portrait' | 'landscape';
 type Layout = Record<string, Pos>;
-const HUD_LS_KEY = 'acordelot_hud_layout_v2';
+// v3 limpa deslocamentos antigos que podiam deixar botões fora da tela
+// depois da reorganização do HUD em paisagem.
+const HUD_LS_KEY = 'acordelot_hud_layout_v3';
 function loadFullLayout(): Record<Orientation, Layout> {
   try {
     const raw = localStorage.getItem(HUD_LS_KEY);
@@ -63,6 +66,7 @@ export const TouchControls: React.FC<TouchControlsProps> = ({
   onToggleWeapon,
   onToggleCatalog,
   onToggleQuests,
+  onToggleSheet,
 }) => {
   const baseRef = useRef<HTMLDivElement | null>(null);
   const originRef = useRef<{ x: number; y: number } | null>(null);
@@ -216,15 +220,16 @@ export const TouchControls: React.FC<TouchControlsProps> = ({
   const actionBtn =
     'pointer-events-auto flex items-center justify-center rounded-full border backdrop-blur-md shadow-xl active:scale-90 transition-transform select-none touch-none';
 
-  // Fileira de topo (mochila/síntese/partitura/arma/catálogo/missões): 6
+  // Fileira de topo (mochila/síntese/partitura/arma/catálogo/missões/ficha): 7
   // ícones em LINHA HORIZONTAL, à esquerda do widget de clima (que fica em
   // right-4, ~136px de largura) e acima da barra de vida. Antes isso era uma
   // coluna vertical na borda direita — ficava espremida/cortada em tela
   // curva de Android. O tamanho encolhe um pouco só em telas muito estreitas.
   const sideMenuTop = 'calc(14px + env(safe-area-inset-top))';
-  const sideMenuIcon = Math.max(28, Math.min(34, (viewportW - 430) / 6.2));
+  const sideMenuIcon = Math.max(28, Math.min(34, (viewportW - 430) / 7.2));
   const sideMenuStep = sideMenuIcon + 8;
-  const sideMenuRight = (i: number) => `calc(${Math.round(150 + i * sideMenuStep)}px + env(safe-area-inset-right))`;
+  // 190px reserva o widget de clima inteiro em celulares largos.
+  const sideMenuRight = (i: number) => `calc(${Math.round(190 + i * sideMenuStep)}px + env(safe-area-inset-right))`;
 
   // Botão arrastável: id próprio, posição própria, funciona em qualquer lugar da tela.
   const D: React.FC<{ id: string; className: string; title: string; onAction: () => void; style?: React.CSSProperties; children: React.ReactNode }> = ({
@@ -330,26 +335,28 @@ export const TouchControls: React.FC<TouchControlsProps> = ({
         />
       </div>
 
-      {/* Menu lateral direito — mochila / síntese / partituras / arma
-          (ficha não precisa de botão — abre pela miniatura do retrato) */}
-      <D id="btn_inv" className={`${actionBtn} absolute border-amber-400/50 bg-slate-950/80 text-amber-300`} title="Mochila" onAction={onToggleInventory} style={{ width: sideMenuIcon, height: sideMenuIcon, right: sideMenuRight(5), top: sideMenuTop }}>
+      {/* Menu superior completo — todos os acessos permanecem visíveis. */}
+      <D id="btn_inv" className={`${actionBtn} absolute border-amber-400/50 bg-slate-950/80 text-amber-300`} title="Mochila" onAction={onToggleInventory} style={{ width: sideMenuIcon, height: sideMenuIcon, right: sideMenuRight(6), top: sideMenuTop }}>
         <HudIcon name="backpack" className="w-[82%] h-[82%]" />
       </D>
-      <D id="btn_synth" className={`${actionBtn} absolute border-fuchsia-400/50 bg-slate-950/80 text-fuchsia-300`} title="Síntese de notas" onAction={onToggleSynth} style={{ width: sideMenuIcon, height: sideMenuIcon, right: sideMenuRight(4), top: sideMenuTop }}>
+      <D id="btn_synth" className={`${actionBtn} absolute border-fuchsia-400/50 bg-slate-950/80 text-fuchsia-300`} title="Síntese de notas" onAction={onToggleSynth} style={{ width: sideMenuIcon, height: sideMenuIcon, right: sideMenuRight(5), top: sideMenuTop }}>
         <HudIcon name="synthesis" className="w-[82%] h-[82%]" />
       </D>
-      <D id="btn_partitura" className={`${actionBtn} absolute border-amber-400/50 bg-slate-950/80 text-amber-300`} title="Síntese de Partituras" onAction={onTogglePartitura} style={{ width: sideMenuIcon, height: sideMenuIcon, right: sideMenuRight(3), top: sideMenuTop }}>
+      <D id="btn_partitura" className={`${actionBtn} absolute border-amber-400/50 bg-slate-950/80 text-amber-300`} title="Síntese de Partituras" onAction={onTogglePartitura} style={{ width: sideMenuIcon, height: sideMenuIcon, right: sideMenuRight(4), top: sideMenuTop }}>
         <HudIcon name="partitura" className="w-[82%] h-[82%]" />
       </D>
-      <D id="btn_weapon" className={`${actionBtn} absolute border-blue-400/50 bg-slate-950/80 text-blue-300`} title="Arma" onAction={onToggleWeapon} style={{ width: sideMenuIcon, height: sideMenuIcon, right: sideMenuRight(2), top: sideMenuTop }}>
+      <D id="btn_weapon" className={`${actionBtn} absolute border-blue-400/50 bg-slate-950/80 text-blue-300`} title="Arma" onAction={onToggleWeapon} style={{ width: sideMenuIcon, height: sideMenuIcon, right: sideMenuRight(3), top: sideMenuTop }}>
         <HudIcon name="weapon" className="w-[82%] h-[82%]" />
       </D>
       {/* Catálogo — botão temporário pra ver armas/equipamentos novos por tier */}
-      <D id="btn_catalog" className={`${actionBtn} absolute border-amber-400/50 bg-slate-950/80 text-amber-300`} title="Catálogo" onAction={onToggleCatalog} style={{ width: sideMenuIcon, height: sideMenuIcon, right: sideMenuRight(1), top: sideMenuTop }}>
+      <D id="btn_catalog" className={`${actionBtn} absolute border-amber-400/50 bg-slate-950/80 text-amber-300`} title="Catálogo" onAction={onToggleCatalog} style={{ width: sideMenuIcon, height: sideMenuIcon, right: sideMenuRight(2), top: sideMenuTop }}>
         <HudIcon name="catalog" className="w-[82%] h-[82%]" />
       </D>
-      <D id="btn_quests" className={`${actionBtn} absolute border-emerald-400/50 bg-slate-950/80 text-emerald-300`} title="Missões" onAction={onToggleQuests} style={{ width: sideMenuIcon, height: sideMenuIcon, right: sideMenuRight(0), top: sideMenuTop }}>
+      <D id="btn_quests" className={`${actionBtn} absolute border-emerald-400/50 bg-slate-950/80 text-emerald-300`} title="Missões" onAction={onToggleQuests} style={{ width: sideMenuIcon, height: sideMenuIcon, right: sideMenuRight(1), top: sideMenuTop }}>
         <HudIcon name="quests" className="w-[82%] h-[82%]" />
+      </D>
+      <D id="btn_sheet" className={`${actionBtn} absolute border-sky-400/50 bg-slate-950/80 text-sky-300`} title="Ficha do personagem" onAction={onToggleSheet} style={{ width: sideMenuIcon, height: sideMenuIcon, right: sideMenuRight(0), top: sideMenuTop }}>
+        <HudIcon name="party" className="w-[82%] h-[82%]" />
       </D>
 
       {/* Poções: cura + buff temporário — perto do joystick, como no layout de referência */}

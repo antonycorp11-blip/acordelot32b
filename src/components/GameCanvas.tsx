@@ -1173,6 +1173,10 @@ export const GameCanvas: React.FC = () => {
           onToggleWeapon={() => setShowWeapon((v) => !v)}
           onToggleCatalog={() => setShowCatalog((v) => !v)}
           onToggleQuests={() => setShowQuests((v) => !v)}
+          onToggleSheet={() => {
+            setSheetInitialTab('ficha');
+            setShowSheet((v) => !v);
+          }}
         />
       )}
 

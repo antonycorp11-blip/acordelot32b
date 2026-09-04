@@ -282,11 +282,27 @@ for (let r = 0; r < ROWS; r++) {
 fs.writeFileSync(path.join(OUT_DIR, `${CHAR_DIR}_${STATE}.png`), PNG.sync.write(sheet));
 console.log(`✓ ${CHAR_DIR}_${STATE}.png ${sheet.width}x${sheet.height} (${detectedCols}x${ROWS}, célula ${CW}x${CH}, escala ${scale.toFixed(3)}, ordem: ${ROW_NAMES.join(',')})`);
 
-// ícone (frame 0 da linha "down") pra botão de troca de personagem
-const icon = new PNG({ width: CW, height: CH });
-for (let y = 0; y < CH; y++) {
+// Retrato quadrado (cabeça + torso) para o botão de troca. Copiar a célula
+// alta inteira deixava o personagem no rodapé e o object-cover mostrava só
+// transparência dentro do círculo do HUD.
+let iconMinX = CW, iconMaxX = -1, iconMinY = CH, iconMaxY = -1;
+for (let y = 0; y < CH; y++) for (let x = 0; x < CW; x++) {
+  if (sheet.data[(y * sheet.width + x) * 4 + 3] <= 24) continue;
+  iconMinX = Math.min(iconMinX, x); iconMaxX = Math.max(iconMaxX, x);
+  iconMinY = Math.min(iconMinY, y); iconMaxY = Math.max(iconMaxY, y);
+}
+if (iconMaxX < 0) throw new Error(`${path.basename(SRC)}: retrato vazio`);
+const bodyH = iconMaxY - iconMinY + 1;
+const cropSize = Math.min(CW, Math.max(80, Math.round(bodyH * 0.56)));
+const iconCenterX = Math.round((iconMinX + iconMaxX) / 2);
+const cropX = Math.max(0, Math.min(CW - cropSize, iconCenterX - Math.floor(cropSize / 2)));
+const cropY = Math.max(0, Math.min(CH - cropSize, iconMinY - Math.round(cropSize * 0.08)));
+const icon = new PNG({ width: CW, height: CW });
+for (let y = 0; y < CW; y++) {
   for (let x = 0; x < CW; x++) {
-    const si = (y * sheet.width + x) * 4;
+    const sx = cropX + Math.min(cropSize - 1, Math.floor(x * cropSize / CW));
+    const sy = cropY + Math.min(cropSize - 1, Math.floor(y * cropSize / CW));
+    const si = (sy * sheet.width + sx) * 4;
     const ti = (y * CW + x) * 4;
     icon.data[ti] = sheet.data[si];
     icon.data[ti + 1] = sheet.data[si + 1];

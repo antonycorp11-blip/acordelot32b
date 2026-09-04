@@ -15,10 +15,8 @@ import {
   Check,
   Library,
   ListChecks,
-  Users,
 } from 'lucide-react';
 import type { GameEngine } from '../game/engine';
-import { CHARACTER_ROSTER } from '../game/engine';
 
 interface TouchControlsProps {
   engineRef: React.MutableRefObject<GameEngine | null>;
@@ -336,20 +334,6 @@ export const TouchControls: React.FC<TouchControlsProps> = ({
       </D>
       <D id="btn_quests" className={`${actionBtn} absolute w-11 h-11 border-emerald-400/50 bg-slate-950/80 text-emerald-300`} title="Missões" onAction={onToggleQuests} style={{ right: 'max(14px, env(safe-area-inset-right))', top: 'calc(388px + env(safe-area-inset-top))' }}>
         <ListChecks className="w-5 h-5" />
-      </D>
-      <D
-        id="btn_character"
-        className={`${actionBtn} absolute w-11 h-11 border-fuchsia-400/50 bg-slate-950/80 text-fuchsia-300`}
-        title="Trocar personagem"
-        onAction={() => {
-          const eng = engineRef.current;
-          if (!eng) return;
-          const idx = CHARACTER_ROSTER.indexOf(eng.activeCharacter);
-          eng.switchCharacter(CHARACTER_ROSTER[(idx + 1) % CHARACTER_ROSTER.length]);
-        }}
-        style={{ right: 'max(14px, env(safe-area-inset-right))', top: 'calc(442px + env(safe-area-inset-top))' }}
-      >
-        <Users className="w-5 h-5" />
       </D>
 
       {/* Poções: cura + buff temporário */}

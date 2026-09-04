@@ -1,23 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import {
-  Swords,
-  RefreshCw,
-  Sparkles,
-  Hand,
-  Backpack,
-  Music4,
-  FlaskConical,
-  Beaker,
-  Lock,
-  ScrollText,
-  Zap,
-  Settings,
-  Check,
-  Library,
-  ListChecks,
-} from 'lucide-react';
 import type { GameEngine, PlayerCharacterKey } from '../game/engine';
 import { CHARACTER_ROSTER, CHARACTER_PORTRAITS } from '../game/engine';
+import { HudIcon } from './HudIcon';
 
 interface TouchControlsProps {
   engineRef: React.MutableRefObject<GameEngine | null>;
@@ -291,7 +275,7 @@ export const TouchControls: React.FC<TouchControlsProps> = ({
         style={{ left: 'max(18px, env(safe-area-inset-left))', bottom: 'calc(158px + env(safe-area-inset-bottom))' }}
         title="Editar posição dos botões (arraste cada um)"
       >
-        {hudEdit ? <Check className="w-4 h-4" /> : <Settings className="w-4 h-4" />}
+        <HudIcon name="settings" className="w-7 h-7" />
       </button>
       {hudEdit && (
         <>
@@ -349,31 +333,31 @@ export const TouchControls: React.FC<TouchControlsProps> = ({
       {/* Menu lateral direito — mochila / síntese / partituras / arma
           (ficha não precisa de botão — abre pela miniatura do retrato) */}
       <D id="btn_inv" className={`${actionBtn} absolute border-amber-400/50 bg-slate-950/80 text-amber-300`} title="Mochila" onAction={onToggleInventory} style={{ width: sideMenuIcon, height: sideMenuIcon, right: sideMenuRight(5), top: sideMenuTop }}>
-        <Backpack className="w-5 h-5" />
+        <HudIcon name="backpack" className="w-[82%] h-[82%]" />
       </D>
       <D id="btn_synth" className={`${actionBtn} absolute border-fuchsia-400/50 bg-slate-950/80 text-fuchsia-300`} title="Síntese de notas" onAction={onToggleSynth} style={{ width: sideMenuIcon, height: sideMenuIcon, right: sideMenuRight(4), top: sideMenuTop }}>
-        <Music4 className="w-5 h-5" />
+        <HudIcon name="synthesis" className="w-[82%] h-[82%]" />
       </D>
       <D id="btn_partitura" className={`${actionBtn} absolute border-amber-400/50 bg-slate-950/80 text-amber-300`} title="Síntese de Partituras" onAction={onTogglePartitura} style={{ width: sideMenuIcon, height: sideMenuIcon, right: sideMenuRight(3), top: sideMenuTop }}>
-        <ScrollText className="w-5 h-5" />
+        <HudIcon name="partitura" className="w-[82%] h-[82%]" />
       </D>
       <D id="btn_weapon" className={`${actionBtn} absolute border-blue-400/50 bg-slate-950/80 text-blue-300`} title="Arma" onAction={onToggleWeapon} style={{ width: sideMenuIcon, height: sideMenuIcon, right: sideMenuRight(2), top: sideMenuTop }}>
-        <Swords className="w-5 h-5" />
+        <HudIcon name="weapon" className="w-[82%] h-[82%]" />
       </D>
       {/* Catálogo — botão temporário pra ver armas/equipamentos novos por tier */}
       <D id="btn_catalog" className={`${actionBtn} absolute border-amber-400/50 bg-slate-950/80 text-amber-300`} title="Catálogo" onAction={onToggleCatalog} style={{ width: sideMenuIcon, height: sideMenuIcon, right: sideMenuRight(1), top: sideMenuTop }}>
-        <Library className="w-5 h-5" />
+        <HudIcon name="catalog" className="w-[82%] h-[82%]" />
       </D>
       <D id="btn_quests" className={`${actionBtn} absolute border-emerald-400/50 bg-slate-950/80 text-emerald-300`} title="Missões" onAction={onToggleQuests} style={{ width: sideMenuIcon, height: sideMenuIcon, right: sideMenuRight(0), top: sideMenuTop }}>
-        <ListChecks className="w-5 h-5" />
+        <HudIcon name="quests" className="w-[82%] h-[82%]" />
       </D>
 
       {/* Poções: cura + buff temporário — perto do joystick, como no layout de referência */}
       <D id="btn_potion" className={`${actionBtn} absolute w-12 h-12 border-lime-400/60 bg-lime-950/85 text-lime-200`} title="Usar item de cura" onAction={() => engineRef.current?.useHealingItem()} style={{ left: 'calc(94px + env(safe-area-inset-left))', bottom: 'calc(200px + env(safe-area-inset-bottom))' }}>
-        <FlaskConical className="w-5 h-5" />
+        <HudIcon name="potion-heal" className="w-10 h-10" />
       </D>
       <D id="btn_buff" className={`${actionBtn} absolute w-12 h-12 border-fuchsia-400/60 bg-fuchsia-950/85 text-fuchsia-200`} title="Usar item de buff" onAction={() => engineRef.current?.useBuffItem()} style={{ left: 'calc(150px + env(safe-area-inset-left))', bottom: 'calc(170px + env(safe-area-inset-bottom))' }}>
-        <Beaker className="w-5 h-5" />
+        <HudIcon name="potion-buff" className="w-10 h-10" />
       </D>
 
       {/* Ataque básico — vira "Coletar" sozinho perto de um recurso, fora de luta */}
@@ -386,7 +370,7 @@ export const TouchControls: React.FC<TouchControlsProps> = ({
         onAction={() => engineRef.current?.primaryAction()}
         style={{ right: 'calc(66px + env(safe-area-inset-right))', bottom: 'calc(52px + env(safe-area-inset-bottom))' }}
       >
-        {collectMode ? <Hand className="w-7 h-7" /> : <Swords className="w-7 h-7" />}
+        <HudIcon name={collectMode ? 'collect' : 'attack'} className="w-12 h-12" />
       </D>
 
       {/* Troca de personagem estilo Genshin — colada bem em cima do anel de
@@ -411,20 +395,20 @@ export const TouchControls: React.FC<TouchControlsProps> = ({
 
       {/* Skills ao redor */}
       <D id="btn_spin" className={`${actionBtn} absolute w-[46px] h-[46px] border-indigo-400/50 bg-indigo-950/80 text-indigo-300`} title="Amplificação" onAction={() => engineRef.current?.triggerAction('spin')} style={{ right: 'calc(76px + env(safe-area-inset-right))', bottom: 'calc(126px + env(safe-area-inset-bottom))' }}>
-        <RefreshCw className="w-5 h-5" />
+        <HudIcon name="amplify" className="w-9 h-9" />
       </D>
       <D id="btn_cast" className={`${actionBtn} absolute w-[46px] h-[46px] border-cyan-400/50 bg-cyan-950/80 text-cyan-300`} title="Pulso Harmônico" onAction={() => engineRef.current?.triggerAction('cast')} style={{ right: 'calc(6px + env(safe-area-inset-right))', bottom: 'calc(52px + env(safe-area-inset-bottom))' }}>
-        <Sparkles className="w-5 h-5" />
+        <HudIcon name="cast" className="w-9 h-9" />
       </D>
       <D id="btn_resonance" className={`${actionBtn} absolute w-[46px] h-[46px] border-blue-400/50 bg-blue-950/80 text-blue-300`} title="Ressonância" onAction={() => engineRef.current?.activateResonance()} style={{ right: 'calc(146px + env(safe-area-inset-right))', bottom: 'calc(52px + env(safe-area-inset-bottom))' }}>
-        <Zap className="w-5 h-5" />
+        <HudIcon name="resonance" className="w-9 h-9" />
       </D>
       <div
         className={`absolute w-[46px] h-[46px] rounded-full border border-slate-600/50 bg-slate-900/75 text-slate-600 flex items-center justify-center pointer-events-none ${hudEdit ? 'outline outline-2 outline-dashed outline-amber-400/50 outline-offset-2' : ''}`}
         style={{ right: 'calc(76px + env(safe-area-inset-right))', bottom: 'calc(-4px + env(safe-area-inset-bottom))', transform: `translate(${getPos('btn_locked').dx}px, ${getPos('btn_locked').dy}px)` }}
         title="Habilidade em breve"
       >
-        <Lock className="w-4 h-4" />
+        <HudIcon name="locked" className="w-8 h-8 opacity-60 grayscale" />
       </div>
 
     </div>

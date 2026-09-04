@@ -36,8 +36,9 @@ import { PartituraScreen } from './PartituraScreen';
 import { WeaponScreen } from './WeaponScreen';
 import { CatalogScreen } from './CatalogScreen';
 import { QuestScreen } from './QuestScreen';
+import { HudIcon } from './HudIcon';
 import { publishMapToCode, getGhToken, setGhToken } from '../game/mapPersist';
-import { Backpack, Hand, User, CloudRain, Music4, FlaskConical, ScrollText, Swords, Zap, Library, ListChecks } from 'lucide-react';
+import { CloudRain } from 'lucide-react';
 
 interface PropPaletteItem {
   type: string;
@@ -1199,7 +1200,7 @@ export const GameCanvas: React.FC = () => {
             className="cursor-pointer w-12 h-12 rounded-full bg-slate-950/85 hover:bg-slate-800 text-amber-300 border border-amber-500/40 hover:border-amber-400/80 shadow-xl flex items-center justify-center backdrop-blur-md transition-all active:scale-95"
             title="Síntese de Partituras (P)"
           >
-            <ScrollText className="w-5 h-5" />
+            <HudIcon name="partitura" className="w-9 h-9" />
           </button>
           <button
             type="button"
@@ -1207,7 +1208,7 @@ export const GameCanvas: React.FC = () => {
             className="cursor-pointer w-12 h-12 rounded-full bg-slate-950/85 hover:bg-slate-800 text-blue-300 border border-blue-500/40 hover:border-blue-400/80 shadow-xl flex items-center justify-center backdrop-blur-md transition-all active:scale-95"
             title="Arma (U)"
           >
-            <Swords className="w-5 h-5" />
+            <HudIcon name="weapon" className="w-9 h-9" />
           </button>
           <button
             type="button"
@@ -1215,7 +1216,7 @@ export const GameCanvas: React.FC = () => {
             className="cursor-pointer w-12 h-12 rounded-full bg-slate-950/85 hover:bg-slate-800 text-amber-300 border border-amber-500/40 hover:border-amber-400/80 shadow-xl flex items-center justify-center backdrop-blur-md transition-all active:scale-95"
             title="Catálogo (K)"
           >
-            <Library className="w-5 h-5" />
+            <HudIcon name="catalog" className="w-9 h-9" />
           </button>
           <button
             type="button"
@@ -1223,7 +1224,7 @@ export const GameCanvas: React.FC = () => {
             className="cursor-pointer w-12 h-12 rounded-full bg-slate-950/85 hover:bg-slate-800 text-emerald-300 border border-emerald-500/40 hover:border-emerald-400/80 shadow-xl flex items-center justify-center backdrop-blur-md transition-all active:scale-95"
             title="Missões (M)"
           >
-            <ListChecks className="w-5 h-5" />
+            <HudIcon name="quests" className="w-9 h-9" />
           </button>
           {/* Troca de personagem estilo Genshin — desktop */}
           <div className="flex items-center gap-1 bg-slate-950/60 rounded-full p-1 backdrop-blur-md border border-slate-700/60">
@@ -1250,7 +1251,7 @@ export const GameCanvas: React.FC = () => {
             className="cursor-pointer w-12 h-12 rounded-full bg-slate-950/85 hover:bg-slate-800 text-fuchsia-300 border border-fuchsia-500/40 hover:border-fuchsia-400/80 shadow-xl flex items-center justify-center backdrop-blur-md transition-all active:scale-95"
             title="Síntese de notas (N)"
           >
-            <Music4 className="w-5 h-5" />
+            <HudIcon name="synthesis" className="w-9 h-9" />
           </button>
           <button
             type="button"
@@ -1261,7 +1262,7 @@ export const GameCanvas: React.FC = () => {
             className="cursor-pointer w-12 h-12 rounded-full bg-slate-950/85 hover:bg-slate-800 text-sky-300 border border-sky-500/40 hover:border-sky-400/80 shadow-xl flex items-center justify-center backdrop-blur-md transition-all active:scale-95"
             title="Ficha do personagem (C)"
           >
-            <User className="w-5 h-5" />
+            <HudIcon name="party" className="w-9 h-9" />
           </button>
           <button
             type="button"
@@ -1269,7 +1270,7 @@ export const GameCanvas: React.FC = () => {
             className="cursor-pointer w-12 h-12 rounded-full bg-slate-950/85 hover:bg-slate-800 text-amber-300 border border-amber-500/40 hover:border-amber-400/80 shadow-xl flex items-center justify-center backdrop-blur-md transition-all active:scale-95"
             title="Abrir mochila (I)"
           >
-            <Backpack className="w-5 h-5" />
+            <HudIcon name="backpack" className="w-9 h-9" />
           </button>
           <button
             type="button"
@@ -1277,7 +1278,7 @@ export const GameCanvas: React.FC = () => {
             className="cursor-pointer w-12 h-12 rounded-full bg-lime-950/85 hover:bg-lime-900 text-lime-300 border border-lime-500/50 hover:border-lime-400/80 shadow-xl flex items-center justify-center backdrop-blur-md transition-all active:scale-95"
             title="Usar item de cura (Q)"
           >
-            <FlaskConical className="w-5 h-5" />
+            <HudIcon name="potion-heal" className="w-10 h-10" />
           </button>
           <button
             type="button"
@@ -1285,7 +1286,7 @@ export const GameCanvas: React.FC = () => {
             className="cursor-pointer w-16 h-16 rounded-full bg-emerald-900/85 hover:bg-emerald-800 text-emerald-100 border border-emerald-400/60 shadow-xl flex flex-col items-center justify-center gap-0.5 backdrop-blur-md transition-all active:scale-90"
             title="Coletar recurso mais próximo (F)"
           >
-            <Hand className="w-6 h-6" />
+            <HudIcon name="collect" className="w-11 h-11" />
             <span className="text-[9px] font-bold">Coletar</span>
           </button>
         </div>

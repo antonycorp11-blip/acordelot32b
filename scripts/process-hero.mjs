@@ -4,9 +4,8 @@
  * Linhas na fonte: [frente, esquerda, direita, costas].
  * Saída (o que a engine espera): [frente(down), esquerda, costas(up), direita].
  *
- * Mantém a arte EXATAMENTE como está — só remove o fundo magenta e
- * reordena as linhas. Sem reescala, sem reancoragem, sem recorte por frame
- * (o artista já alinhou os pés na grade).
+ * Mantém a arte sem reescala, remove o fundo magenta, reordena as linhas
+ * e ancora o pé sólido de cada quadro no mesmo rodapé.
  *
  * Uso: node scripts/process-hero.mjs
  */
@@ -80,32 +79,10 @@ for (const cfg of SHEETS) {
   const exact = height / ROWS;
   const bounds = Array.from({ length: ROWS + 1 }, (_, i) => Math.round(i * exact));
 
-  // linha dos pés de cada linha-fonte (maior y com conteúdo SÓLIDO — ignora
-  // o esfumaçado de anti-aliasing / sombra que sobra abaixo das botas)
-  const footY = bounds.slice(0, ROWS).map((y0, r) => {
-    const y1 = bounds[r + 1];
-    let lo = y0;
-    for (let y = y0; y < y1; y++) {
-      let solid = 0;
-      for (let x = 0; x < width; x++) if (data[(y * width + x) * 4 + 3] > 170) solid++;
-      if (solid >= 6) lo = y; // linha com corpo de verdade
-    }
-    return lo;
-  });
-  // topo de cada linha-fonte
-  const topY = bounds.slice(0, ROWS).map((y0, r) => {
-    const y1 = bounds[r + 1];
-    for (let y = y0; y < y1; y++) {
-      for (let x = 0; x < width; x++) if (data[(y * width + x) * 4 + 3] > 40) return y;
-    }
-    return y0;
-  });
-
   // Célula de saída FIXA em todas as folhas. GUTTER transparente entre frames
   // (senão o filtro bilinear "vaza" o frame vizinho — meio de um, meio do outro).
   const CW = 156;
   const CH = 340; // folga extra no topo (evita cortar a cabeça em qualquer pose)
-  const FOOT_MARGIN = 1; // pés colados no rodapé da célula
   const A = (x, y) => data[(y * width + x) * 4 + 3];
 
   // colunas de cada linha-fonte via projeção vertical
@@ -139,7 +116,6 @@ for (const cfg of SHEETS) {
         Math.round(i * cw0), Math.round((i + 1) * cw0) - 1,
       ]);
     }
-    const rowFoot = footY[sr]; // linha dos pés (comum a todos os frames da linha)
     for (let ci = 0; ci < COLS; ci++) {
       const [bx0, bx1] = bands[ci];
       // bbox real do frame dentro da banda
@@ -149,14 +125,23 @@ for (const cfg of SHEETS) {
           if (A(x, y) > 30) { f = true; if (x < mnX) mnX = x; if (x > mxX) mxX = x; if (y < mnY) mnY = y; if (y > mxY) mxY = y; }
       if (!f) continue;
       const fw = mxX - mnX + 1;
+      // Pé real DESTE quadro. Usar o pé mais baixo da linha inteira deixava
+      // quadros laterais 15–25 px acima do chão quando outro quadro tinha
+      // capa/ruído mais baixo — era o “Akles flutuando” ao ir para a direita.
+      let frameFoot = mnY;
+      for (let y = mnY; y <= mxY; y++) {
+        let solid = 0;
+        for (let x = mnX; x <= mxX; x++) if (A(x, y) > 170) solid++;
+        if (solid >= 6) frameFoot = y;
+      }
       const destCx = ci * CW + Math.round(CW / 2);
       const frameCx = (mnX + mxX) / 2;
-      // âncora vertical: a linha dos pés da LINHA vai para o rodapé da célula
-      const destFoot = ri * CH + CH - FOOT_MARGIN;
+      // âncora vertical: o pé real deste quadro vai para o rodapé da célula
+      const destFoot = ri * CH + CH - 3;
       // não copia o esfumaçado abaixo da linha sólida dos pés
-      const yBottom = Math.min(mxY, rowFoot + 1);
+      const yBottom = Math.min(mxY, frameFoot + 1);
       for (let y = mnY; y <= yBottom; y++) {
-        const ty = destFoot - (rowFoot - y);
+        const ty = destFoot - (frameFoot - y);
         if (ty < ri * CH || ty >= (ri + 1) * CH) continue;
         for (let x = mnX; x <= mxX; x++) {
           if (A(x, y) === 0) continue;

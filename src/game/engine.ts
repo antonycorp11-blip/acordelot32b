@@ -108,27 +108,22 @@ const AKLES_DIR_ROW: Record<Direction, number> = { down: 0, left: 1, up: 2, righ
 // ---- Wins — classe da Voz (personagem temporária) ----
 // 3 folhas SEPARADAS (idle/walk/run são animações diferentes de verdade,
 // cada uma com sua própria arte — não a mesma reaproveitada 3x). Cada
-// célula processada em scripts/process-wins.mjs tem um tamanho de origem
-// diferente; o disp de cada estado é calibrado pra bater na MESMA altura
-// final na tela (~58px) apesar disso. cw/ch abaixo são só fallback — o
-// motor deriva o tamanho real da imagem já carregada (ver drawPlayer).
-const WINS_TARGET_H = 58;
+// O processador normaliza todas para células 156x340. A corrida da Wins é
+// a única folha com 9 quadros; as demais têm 10.
 const WINS_ANIM: Record<'idle' | 'walk' | 'run', AklesAnimMeta> = {
-  idle: { sheet: 'winsIdle', cw: 128, ch: 240, cols: 10, fps: 6, loop: true, disp: WINS_TARGET_H / 240, feetFrac: 1 },
-  walk: { sheet: 'winsWalk', cw: 124, ch: 209, cols: 10, fps: 10, loop: true, disp: WINS_TARGET_H / 209, feetFrac: 1 },
-  run: { sheet: 'winsRun', cw: 130, ch: 209, cols: 10, fps: 15, loop: true, disp: WINS_TARGET_H / 209, feetFrac: 1 },
+  idle: { sheet: 'winsIdle', cw: 156, ch: 340, cols: 10, fps: 6, loop: true, disp: HERO_DISP, feetFrac: 1 },
+  walk: { sheet: 'winsWalk', cw: 156, ch: 340, cols: 10, fps: 10, loop: true, disp: HERO_DISP, feetFrac: 1 },
+  run: { sheet: 'winsRun', cw: 156, ch: 340, cols: 9, fps: 15, loop: true, disp: HERO_DISP, feetFrac: 1 },
 };
 // ordem visual do sheet da Wins: 0=frente 1=esquerda 2=direita 3=costas
 const WINS_DIR_ROW: Record<Direction, number> = { down: 0, left: 1, right: 2, up: 3 };
 
 // ---- Huans — classe Cordas (personagem temporário) ----
-// Mesma lógica: 3 folhas separadas, disp calibrado por estado pra altura
-// final consistente (~58px).
-const HUANS_TARGET_H = 58;
+// Mesma lógica: 3 folhas separadas, células e escala normalizadas.
 const HUANS_ANIM: Record<'idle' | 'walk' | 'run', AklesAnimMeta> = {
-  idle: { sheet: 'huansIdle', cw: 91, ch: 211, cols: 10, fps: 6, loop: true, disp: HUANS_TARGET_H / 211, feetFrac: 1 },
-  walk: { sheet: 'huansWalk', cw: 87, ch: 199, cols: 10, fps: 11, loop: true, disp: HUANS_TARGET_H / 199, feetFrac: 1 },
-  run: { sheet: 'huansRun', cw: 118, ch: 181, cols: 10, fps: 17, loop: true, disp: HUANS_TARGET_H / 181, feetFrac: 1 },
+  idle: { sheet: 'huansIdle', cw: 156, ch: 340, cols: 10, fps: 6, loop: true, disp: HERO_DISP, feetFrac: 1 },
+  walk: { sheet: 'huansWalk', cw: 156, ch: 340, cols: 10, fps: 11, loop: true, disp: HERO_DISP, feetFrac: 1 },
+  run: { sheet: 'huansRun', cw: 156, ch: 340, cols: 10, fps: 17, loop: true, disp: HERO_DISP, feetFrac: 1 },
 };
 const HUANS_DIR_ROW: Record<Direction, number> = { down: 0, left: 1, right: 2, up: 3 };
 
@@ -6039,19 +6034,15 @@ export class GameEngine {
     const aSheet = assets?.[aMeta.sheet] as HTMLImageElement | undefined;
 
     if (aSheet && aSheet.complete && aSheet.naturalWidth > 0) {
-      // Wins/Huans: deriva cw/ch do tamanho REAL da imagem carregada em vez
-      // de um valor fixo no código — se o deploy servir uma versão do PNG
-      // diferente da que o código "acha" que é (deploy dessincronizado,
-      // cache de CDN etc.), evita cortar quadro errado (personagem
-      // gigante/esticado/parado, meio quadro de um + meio do outro).
-      const isGenChar = this.activeCharacter === 'wins' || this.activeCharacter === 'huans';
-      const effCw = isGenChar ? Math.floor(aSheet.naturalWidth / aMeta.cols) : aMeta.cw;
-      const effCh = isGenChar ? Math.floor(aSheet.naturalHeight / 4) : aMeta.ch;
+      const effCw = aMeta.cw;
+      const effCh = aMeta.ch;
 
       const dispScale = aMeta.disp ?? AKLES_DISP_SCALE;
       const dispW = effCw * dispScale;
       const dispH = effCh * dispScale;
-      const feetY = cy + 31;
+      // O centro de colisão fica acima da elipse de chão; +31 deixava as
+      // botas visualmente separadas da sombra (mais evidente de perfil).
+      const feetY = cy + 38;
       const feetFrac = aMeta.feetFrac ?? (effCh - 4) / effCh;
 
       const sheetRow = dirRowTable[char.direction];

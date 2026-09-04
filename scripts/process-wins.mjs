@@ -1,11 +1,8 @@
 /**
- * Wins (classe da Voz) — sheet de corrida 10 col x 4 lin, fundo magenta.
+ * Wins/Huans — sheets de 9 ou 10 colunas x 4 linhas, fundo magenta.
  * Ordem visual das linhas: 0=frente(down) 1=esquerda(left) 2=direita(right)
- * 3=costas(up). Chroma-key + despeckle na imagem inteira, depois recorta
- * cada linha no bbox UNIÃO das 10 colunas (mantém os frames alinhados),
- * e monta tudo numa única sheet com célula compartilhada (maior bbox das
- * 4 linhas), ancorada embaixo/centralizada — igual ao formato que o motor
- * já usa pro Akles (col*cw, linha*ch).
+ * 3=costas(up). Detecta as quatro linhas e os 9/10 quadros pela faixa das
+ * cabeças, preserva cabelo/capas, normaliza a escala e ancora pelos pés.
  * Uso: node scripts/process-wins.mjs <caminho-da-imagem-fonte> [pasta] [margem] [idle|walk|run]
  */
 import { PNG } from 'pngjs';
@@ -28,7 +25,7 @@ if (!SRC) {
 const OUT_DIR = path.resolve(`public/assets/characters/${CHAR_DIR}`);
 fs.mkdirSync(OUT_DIR, { recursive: true });
 
-const COLS = 10;
+const MAX_COLS = 10;
 const ROWS = 4;
 const ROW_NAMES = ['down', 'left', 'right', 'up'];
 
@@ -53,7 +50,7 @@ function chromaKey(png) {
     const r = data[i], g = data[i + 1], b = data[i + 2];
     const d = Math.abs(r - br) + Math.abs(g - bg) + Math.abs(b - bb);
     const magentaish = r > 140 && b > 110 && g < Math.min(r, b) - 25;
-    if (d < LOW || (magentaish && d < HIGH)) {
+    if (d < LOW || magentaish) {
       data[i + 3] = 0;
       data[i] = data[i + 1] = data[i + 2] = 0;
       continue;
@@ -159,142 +156,120 @@ function keepLargestComponent(png, x0, y0, w, h) {
 const raw = PNG.sync.read(fs.readFileSync(SRC));
 chromaKey(raw);
 despeckle(raw);
-erodeAlpha(raw, 2);
+erodeAlpha(raw, 1);
 
-const cellH = Math.floor(raw.height / ROWS);
 const A = (x, y) => raw.data[(y * raw.width + x) * 4 + 3];
+const CW = 156;
+const CH = 340;
+const TARGET_BODY_H = 224;
+const MAX_BODY_W = CW - 10;
 
-// O grid de origem nem sempre tem as 10 colunas com a MESMA largura, e em
-// poses dinâmicas (corrida) cabelo/capa de um frame às vezes encosta no
-// frame vizinho — não sobra nem um gap limpo pra separar por "zona vazia".
-// Em vez de exigir um gap perfeito, ancora cada fronteira na posição
-// uniforme esperada e desliza pra ACHAR O PONTO MAIS FINO (menos conteúdo)
-// numa janela ao redor — sempre devolve exatamente COLS bandas.
-function colBands(y0, y1) {
-  const counts = new Array(raw.width).fill(0);
-  for (let x = 0; x < raw.width; x++) {
-    let c = 0;
-    for (let y = y0; y < y1; y++) if (A(x, y) > 24) c++;
-    counts[x] = c;
-  }
-  const cellW = raw.width / COLS;
-  const search = Math.round(cellW * 0.12);
-  const bounds = [0];
-  for (let i = 1; i < COLS; i++) {
-    const guess = Math.round(i * cellW);
-    let best = guess;
-    let bestCount = Infinity;
-    for (let dx = -search; dx <= search; dx++) {
-      const x = guess + dx;
-      if (x < 1 || x >= raw.width - 1) continue;
-      if (counts[x] < bestCount) {
-        bestCount = counts[x];
-        best = x;
-      }
-    }
-    bounds.push(best);
-  }
-  bounds.push(raw.width);
+function detectRowBands() {
+  const counts = new Array(raw.height).fill(0);
+  for (let y = 0; y < raw.height; y++)
+    for (let x = 0; x < raw.width; x++) if (A(x, y) > 24) counts[y]++;
   const bands = [];
-  for (let i = 0; i < COLS; i++) bands.push([bounds[i], bounds[i + 1] - 1]);
+  let start = -1;
+  for (let y = 0; y <= raw.height; y++) {
+    const filled = y < raw.height && counts[y] > 8;
+    if (filled && start < 0) start = y;
+    if (!filled && start >= 0) {
+      if (y - start > 20) bands.push([start, y]);
+      start = -1;
+    }
+  }
+  while (bands.length > ROWS) {
+    let closest = 0;
+    for (let i = 1; i < bands.length - 1; i++)
+      if (bands[i + 1][0] - bands[i][1] < bands[closest + 1][0] - bands[closest][1]) closest = i;
+    bands.splice(closest, 2, [bands[closest][0], bands[closest + 1][1]]);
+  }
+  if (bands.length !== ROWS)
+    throw new Error(`${path.basename(SRC)}: detectou ${bands.length} linhas; esperado ${ROWS}`);
   return bands;
 }
 
-// bbox de UM frame isolado (célula bruta) — já filtrado pelo maior blob
-// conectado, então não precisa de margem: qualquer coisa que sobrou ali É o
-// personagem. Recorte por frame individual (não por linha inteira) evita o
-// "meio quadro" que dava quando o grid de origem não é perfeitamente
-// uniforme entre colunas. `buf` é opcional — lê de um snapshot alternativo
-// em vez de raw.data (usado pra comparar ANTES de mutar nada).
-function frameBBox(x0, y0, w, h, buf) {
-  const data = buf || raw.data;
-  const alphaAt = (x, y) => data[(y * raw.width + x) * 4 + 3];
-  let mnX = w, mxX = -1, mnY = h, mxY = -1;
-  for (let y = 0; y < h; y++) {
-    for (let x = 0; x < w; x++) {
-      if (alphaAt(x0 + x, y0 + y) > 24) {
-        if (x < mnX) mnX = x;
-        if (x > mxX) mxX = x;
-        if (y < mnY) mnY = y;
-        if (y > mxY) mxY = y;
-      }
+function rowFramesFromHeads(y0, y1) {
+  // Cabeças/cabelos ficam na faixa superior e nunca se encostam entre
+  // quadros, mesmo quando as capas da corrida se sobrepõem mais abaixo.
+  const headBottom = y0 + Math.round((y1 - y0) * 0.48);
+  const density = new Array(raw.width).fill(0);
+  for (let x = 0; x < raw.width; x++) {
+    let n = 0;
+    for (let y = y0; y < headBottom; y++) if (A(x, y) > 24) n++;
+    for (let dx = -4; dx <= 4; dx++) {
+      const tx = x + dx;
+      if (tx >= 0 && tx < raw.width) density[tx] += n;
     }
   }
-  return mxX >= 0 ? { mnX, mxX, mnY, mxY } : null;
+  const minDistance = Math.round((raw.width / MAX_COLS) * 0.62);
+  const candidates = density.map((score, x) => ({ x, score })).sort((a, b) => b.score - a.score);
+  const centers = [];
+  for (const candidate of candidates) {
+    if (candidate.score <= 0) break;
+    if (centers.every((x) => Math.abs(x - candidate.x) >= minDistance)) centers.push(candidate.x);
+    if (centers.length === MAX_COLS) break;
+  }
+  centers.sort((a, b) => a - b);
+  if (centers.length < 2)
+    throw new Error(`${path.basename(SRC)}: não foi possível detectar os quadros da linha`);
+
+  const bounds = [0];
+  for (let i = 0; i < centers.length - 1; i++) bounds.push(Math.round((centers[i] + centers[i + 1]) / 2));
+  bounds.push(raw.width);
+  return centers.map((_, i) => {
+    const x0 = bounds[i], x1 = bounds[i + 1] - 1;
+    keepLargestComponent(raw, x0, y0, x1 - x0 + 1, y1 - y0);
+    let minX = x1, maxX = -1, minY = y1, maxY = -1, pixels = 0;
+    for (let y = y0; y < y1; y++) for (let x = x0; x <= x1; x++) {
+      if (A(x, y) <= 24) continue;
+      pixels++; minX = Math.min(minX, x); maxX = Math.max(maxX, x);
+      minY = Math.min(minY, y); maxY = Math.max(maxY, y);
+    }
+    return { minX, maxX, minY, maxY, pixels };
+  });
 }
 
-// snapshot pré-filtro-de-componente (keepLargestComponent muta raw.data
-// destrutivamente) — usado só pra COMPARAR se a banda detectada realmente
-// captura o personagem inteiro antes de aplicar o filtro de verdade.
-const cleanSnapshot = Buffer.from(raw.data);
-
-const rowBands = [];
 const frames = [];
+let maxW = 1, maxH = 1;
+const rowBands = detectRowBands();
+let detectedCols = 0;
 for (let r = 0; r < ROWS; r++) {
-  const y0 = r * cellH, y1 = (r + 1) * cellH;
-  const uniformCellW = raw.width / COLS;
-  const uniformBands = Array.from({ length: COLS }, (_, i) => [Math.round(i * uniformCellW), Math.round((i + 1) * uniformCellW) - 1]);
-  const detected = colBands(y0, y1);
-  const bands = [];
-  for (let c = 0; c < COLS; c++) {
-    let [bx0, bx1] = detected[c] || uniformBands[c];
-    const [ux0, ux1] = uniformBands[c];
-    const detBox = frameBBox(bx0, y0, bx1 - bx0 + 1, cellH, cleanSnapshot);
-    const uniBox = frameBBox(ux0, y0, ux1 - ux0 + 1, cellH, cleanSnapshot);
-    const detW = detBox ? detBox.mxX - detBox.mnX + 1 : 0;
-    const uniW = uniBox ? uniBox.mxX - uniBox.mnX + 1 : 0;
-    // a banda "detectada" (fronteira mais fina) pode ter cortado o
-    // personagem ao meio numa pose sem gap nenhum entre frames (corrida) —
-    // se ela rendeu bem menos conteúdo que a divisão uniforme pra esse
-    // frame específico, usa a uniforme só pra ele (nunca frame vazio/cortado).
-    if (uniW > 0 && detW < uniW * 0.65) {
-      [bx0, bx1] = [ux0, ux1];
-    }
-    bands.push([bx0, bx1]);
-  }
-  rowBands.push(bands);
-  const row = [];
-  for (const [bx0, bx1] of bands) {
-    keepLargestComponent(raw, bx0, y0, bx1 - bx0 + 1, cellH);
-    row.push(frameBBox(bx0, y0, bx1 - bx0 + 1, cellH));
+  const [y0, y1] = rowBands[r];
+  const row = rowFramesFromHeads(y0, y1);
+  if (r === 0) detectedCols = row.length;
+  else if (row.length !== detectedCols)
+    throw new Error(`${path.basename(SRC)}: linha ${r} tem ${row.length} quadros; esperado ${detectedCols}`);
+  for (const b of row) {
+    if (!b) continue;
+    maxW = Math.max(maxW, b.maxX - b.minX + 1);
+    maxH = Math.max(maxH, b.maxY - b.minY + 1);
   }
   frames.push(row);
 }
-// pé comum da linha = pé mais "no chão" entre os 10 frames (o outro pé, no
-// ar durante o passo, fica acima dele naturalmente — sem isso o personagem
-// "bobbing" ficava ainda mais estranho, ancorado individualmente por frame).
-const rowFootY = frames.map((row) => Math.max(...row.filter(Boolean).map((b) => b.mxY)));
 
-let cw = 1, ch = 1;
+// Uma escala por folha, nunca por frame: o corpo não pulsa de tamanho.
+// Todos os personagens terminam com a mesma altura visual do Akles.
+const scale = Math.min(TARGET_BODY_H / maxH, MAX_BODY_W / maxW);
+const sheet = new PNG({ width: CW * detectedCols, height: CH * ROWS });
 for (let r = 0; r < ROWS; r++) {
-  for (const b of frames[r]) {
-    if (!b) continue;
-    cw = Math.max(cw, b.mxX - b.mnX + 1);
-    ch = Math.max(ch, rowFootY[r] - b.mnY + 1);
-  }
-}
-
-const sheet = new PNG({ width: cw * COLS, height: ch * ROWS });
-for (let r = 0; r < ROWS; r++) {
-  for (let c = 0; c < COLS; c++) {
+  for (let c = 0; c < detectedCols; c++) {
     const b = frames[r][c];
-    if (!b) continue;
-    const fw = b.mxX - b.mnX + 1;
-    const fh = b.mxY - b.mnY + 1;
-    const padX = Math.floor((cw - fw) / 2); // centralizado — por frame, não por linha
-    const destFootY = r * ch + ch - 1; // pé comum da linha = rodapé da célula
-    const dstOy = destFootY - (rowFootY[r] - b.mnY);
-    const srcOx = rowBands[r][c][0] + b.mnX;
-    const srcOy = r * cellH + b.mnY;
-    const dstOx = c * cw + padX;
-    for (let y = 0; y < fh; y++) {
-      const ty = dstOy + y;
-      if (ty < r * ch || ty >= (r + 1) * ch) continue;
-      for (let x = 0; x < fw; x++) {
-        const tx = dstOx + x;
-        if (tx < c * cw || tx >= (c + 1) * cw) continue;
-        const si = ((srcOy + y) * raw.width + (srcOx + x)) * 4;
-        const ti = (ty * sheet.width + tx) * 4;
+    if (!b) throw new Error(`${path.basename(SRC)} quadro ${r},${c} vazio`);
+    const fw = b.maxX - b.minX + 1;
+    const fh = b.maxY - b.minY + 1;
+    const dw = Math.max(1, Math.round(fw * scale));
+    const dh = Math.max(1, Math.round(fh * scale));
+    const dstX = c * CW + Math.floor((CW - dw) / 2);
+    const dstY = r * CH + CH - 2 - dh;
+
+    for (let dy = 0; dy < dh; dy++) {
+      const sy = b.minY + Math.min(fh - 1, Math.floor(dy / scale));
+      for (let dx = 0; dx < dw; dx++) {
+        const sx = b.minX + Math.min(fw - 1, Math.floor(dx / scale));
+        const si = (sy * raw.width + sx) * 4;
+        if (raw.data[si + 3] === 0) continue;
+        const ti = ((dstY + dy) * sheet.width + dstX + dx) * 4;
         sheet.data[ti] = raw.data[si];
         sheet.data[ti + 1] = raw.data[si + 1];
         sheet.data[ti + 2] = raw.data[si + 2];
@@ -305,14 +280,14 @@ for (let r = 0; r < ROWS; r++) {
 }
 
 fs.writeFileSync(path.join(OUT_DIR, `${CHAR_DIR}_${STATE}.png`), PNG.sync.write(sheet));
-console.log(`✓ ${CHAR_DIR}_${STATE}.png ${sheet.width}x${sheet.height} (célula ${cw}x${ch}, ordem: ${ROW_NAMES.join(',')})`);
+console.log(`✓ ${CHAR_DIR}_${STATE}.png ${sheet.width}x${sheet.height} (${detectedCols}x${ROWS}, célula ${CW}x${CH}, escala ${scale.toFixed(3)}, ordem: ${ROW_NAMES.join(',')})`);
 
 // ícone (frame 0 da linha "down") pra botão de troca de personagem
-const icon = new PNG({ width: cw, height: ch });
-for (let y = 0; y < ch; y++) {
-  for (let x = 0; x < cw; x++) {
+const icon = new PNG({ width: CW, height: CH });
+for (let y = 0; y < CH; y++) {
+  for (let x = 0; x < CW; x++) {
     const si = (y * sheet.width + x) * 4;
-    const ti = (y * cw + x) * 4;
+    const ti = (y * CW + x) * 4;
     icon.data[ti] = sheet.data[si];
     icon.data[ti + 1] = sheet.data[si + 1];
     icon.data[ti + 2] = sheet.data[si + 2];

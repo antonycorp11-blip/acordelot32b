@@ -3123,69 +3123,60 @@ export class GameEngine {
   }
 
   public ensureBossArena() {
-    // Região nova no espaço adicionado a leste do mapa antigo. Remove qualquer
-    // árvore/prop procedural de toda a península antes de montar o santuário.
-    const regionLeft = 144, left = 153, right = 182, top = 2, bottom = 22;
-    const clearX = regionLeft * TILE_SIZE, clearY = 46 * TILE_SIZE;
+    // Clareira natural na expansão leste. Remove apenas o cenário artificial
+    // anterior e objetos que bloqueiem o espaço imediato de combate.
+    const safeLeft = 161 * TILE_SIZE, safeRight = 176 * TILE_SIZE;
+    const safeTop = 7 * TILE_SIZE, safeBottom = 21 * TILE_SIZE;
     this.props = this.props.filter((p) => {
       if (p.id.startsWith('boss_arena_')) return false;
-      const overlapsNewRegion = p.x + p.w > clearX && p.x < WORLD_WIDTH && p.y < clearY && p.y + p.h > 0;
-      return !overlapsNewRegion;
+      const blocksFight = p.x + p.w > safeLeft && p.x < safeRight && p.y + p.h > safeTop && p.y < safeBottom;
+      return !blocksFight;
     });
 
-    // Reaplica o bioma após o mapa procedural para que nenhum rio, grama ou
-    // estrada antiga invada a expansão. O canal só abre na ponte da avenida.
-    for (let r = 1; r <= 44; r++) {
-      for (let c = regionLeft; c <= 182; c++) {
-        this.ground[r][c] = (r + c) % 5 === 0 ? TERRAIN_TILES.DARK_MOSS : TERRAIN_TILES.DARK_STONE;
+    // Garante um campo verde em toda a área do boss (sem piso preto) e mantém
+    // uma trilha curta ligada à avenida.
+    for (let r = 2; r <= 23; r++) {
+      for (let c = 150; c <= 182; c++) {
+        this.ground[r][c] = (r + c) % 7 === 0 ? TERRAIN_TILES.GRASS_FLOWER1 : TERRAIN_TILES.GRASS_BASE;
       }
-      if (r < 24 || r > 29) {
-        for (let c = 145; c <= 148; c++) {
-          this.ground[r][c] = c === 145 || c === 148 ? TERRAIN_TILES.WATER_SHALLOW : TERRAIN_TILES.WATER_DEEP;
-        }
-      }
+    }
+    for (let r = 20; r <= 29; r++) {
+      for (let c = 167; c <= 169; c++) this.ground[r][c] = TERRAIN_TILES.STONE_CENTER;
     }
 
-    const centerC = 168, centerR = 13;
-    for (let r = top; r <= bottom; r++) {
-      for (let c = left; c <= right; c++) {
-        const ring = Math.hypot((c - centerC) / 1.25, r - centerR);
-        this.ground[r][c] = ring > 7.4 && ring < 8.5
-          ? TERRAIN_TILES.DARK_MOSS
-          : ring < 5.2
-            ? ((r + c) % 2 ? TERRAIN_TILES.STONE_CENTER : TERRAIN_TILES.STONE_CENTER_VAR)
-            : TERRAIN_TILES.DARK_STONE;
-      }
-    }
-
-    // Ponte e avenida de chegada: todo o percurso é feito caminhando.
-    for (let r = 24; r <= 29; r++) {
-      for (let c = regionLeft; c < 166; c++) {
-        this.ground[r][c] = (r + c) % 2 ? TERRAIN_TILES.STONE_CENTER : TERRAIN_TILES.STONE_CENTER_VAR;
-      }
-    }
-    for (let r = bottom; r <= 29; r++) {
-      for (let c = 164; c <= 171; c++) {
-        this.ground[r][c] = (r + c) % 2 ? TERRAIN_TILES.STONE_CENTER : TERRAIN_TILES.STONE_CENTER_VAR;
-      }
-    }
-
-    const addArenaProp = (id: string, type: string, c: number, r: number, w: number, h: number, colliderW = .72) => {
+    const addNaturalProp = (id: string, type: string, c: number, r: number, w: number, h: number, collider: Rect) => {
       const x = c * TILE_SIZE, y = r * TILE_SIZE;
-      this.props.push({
-        id: `boss_arena_${id}`, type, x, y, w, h, sortY: y + h - 8,
-        collider: { x: x + w * (1 - colliderW) / 2, y: y + h * .78, w: w * colliderW, h: Math.max(18, h * .15) },
-      });
+      const prop: WorldProp = {
+        id: `boss_arena_${id}`, type, x, y, w, h, sortY: y + h - 5,
+        collider: { x: x + collider.x, y: y + collider.y, w: collider.w, h: collider.h },
+      };
+      this.attachHarvestData(prop);
+      this.props.push(prop);
     };
 
-    // Artes próprias do domínio: arquitetura musical, não armas ampliadas.
-    addArenaProp('organ_gate', 'arenaOrganGate', 161.4, .8, 430, 286, .82);
-    addArenaProp('piano_west', 'arenaGrandPiano', 154.5, 7.2, 230, 154);
-    addArenaProp('piano_east', 'arenaGrandPiano', 175.0, 7.2, 230, 154);
-    addArenaProp('obelisk_west', 'arenaCrystalObelisk', 154.2, 15.0, 210, 150);
-    addArenaProp('obelisk_east', 'arenaCrystalObelisk', 175.5, 15.0, 210, 150);
-    addArenaProp('corruption_west', 'arenaCorruptedPiano', 157.2, 18.3, 180, 120);
-    addArenaProp('corruption_east', 'arenaCorruptedPiano', 173.0, 18.3, 180, 120);
+    const crystals: Array<[number, number, 'spot_crystal_blue' | 'spot_crystal_red']> = [
+      [159,8,'spot_crystal_blue'],[177,8,'spot_crystal_blue'],
+      [157,13,'spot_crystal_red'],[179,13,'spot_crystal_red'],
+      [160,19,'spot_crystal_blue'],[176,19,'spot_crystal_blue'],
+    ];
+    crystals.forEach(([c,r,type], i) => addNaturalProp(`crystal_${i}`, type, c, r, 56, 60, { x: 12, y: 38, w: 32, h: 18 }));
+
+    const gold: Array<[number, number]> = [[155,6],[181,7],[154,18],[181,20],[163,23],[174,23]];
+    gold.forEach(([c,r], i) => addNaturalProp(`gold_${i}`, 'spot_gold', c, r, 60, 44, { x: 11, y: 20, w: 38, h: 22 }));
+
+    const trees: Array<[number, number, 'oak' | 'pine']> = [
+      [151,3,'oak'],[157,3,'pine'],[179,3,'oak'],[182,11,'pine'],
+      [151,14,'pine'],[153,23,'oak'],[180,25,'oak'],[158,26,'pine'],[178,27,'pine'],
+    ];
+    trees.forEach(([c,r,type], i) => addNaturalProp(`tree_${i}`, type, c, r, type === 'oak' ? 64 : 40, 80, type === 'oak' ? { x: 25, y: 66, w: 14, h: 8 } : { x: 14, y: 66, w: 12, h: 8 }));
+
+    const rocks: Array<[number, number, 'rockCluster' | 'rockPair' | 'rockMonolith']> = [
+      [154,10,'rockCluster'],[181,15,'rockPair'],[158,22,'rockMonolith'],[178,22,'rockCluster'],
+    ];
+    rocks.forEach(([c,r,type], i) => {
+      const size = type === 'rockMonolith' ? [24,40] : type === 'rockPair' ? [28,22] : [32,26];
+      addNaturalProp(`rock_${i}`, type, c, r, size[0], size[1], { x: 2, y: Math.max(5, size[1] - 12), w: size[0] - 4, h: 10 });
+    });
   }
 
   private syncFixedNpcPositions() {
@@ -6347,14 +6338,6 @@ export class GameEngine {
       ctx.drawImage(this.assets.wallMusical8, px, py, prop.w, prop.h);
     } else if (prop.type === 'wallGate' && this.assets?.wallGate) {
       ctx.drawImage(this.assets.wallGate, px, py, prop.w, prop.h);
-    } else if (prop.type === 'arenaOrganGate' && this.assets?.arenaOrganGate) {
-      ctx.drawImage(this.assets.arenaOrganGate, px, py, prop.w, prop.h);
-    } else if (prop.type === 'arenaGrandPiano' && this.assets?.arenaGrandPiano) {
-      ctx.drawImage(this.assets.arenaGrandPiano, px, py, prop.w, prop.h);
-    } else if (prop.type === 'arenaCrystalObelisk' && this.assets?.arenaCrystalObelisk) {
-      ctx.drawImage(this.assets.arenaCrystalObelisk, px, py, prop.w, prop.h);
-    } else if (prop.type === 'arenaCorruptedPiano' && this.assets?.arenaCorruptedPiano) {
-      ctx.drawImage(this.assets.arenaCorruptedPiano, px, py, prop.w, prop.h);
     }
 
     // Brilho + partículas nos nós de coleta (cristais, madeira, minério, ouro)

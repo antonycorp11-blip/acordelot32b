@@ -37,10 +37,6 @@ export interface LoadedAssets {
   bossOrganRageWalk: HTMLImageElement;
   bossOrganRageAttack: HTMLImageElement;
   bossOrganRageCast: HTMLImageElement;
-  arenaOrganGate: HTMLImageElement;
-  arenaGrandPiano: HTMLImageElement;
-  arenaCrystalObelisk: HTMLImageElement;
-  arenaCorruptedPiano: HTMLImageElement;
 
   // Props da Floresta Sombria
   darkDeadtree: HTMLImageElement;
@@ -213,10 +209,6 @@ const ASSET_PATHS: Record<keyof LoadedAssets, string> = {
   bossOrganRageWalk: '/assets/monsters/organ_sentinel/rage_walk.png',
   bossOrganRageAttack: '/assets/monsters/organ_sentinel/rage_attack.png',
   bossOrganRageCast: '/assets/monsters/organ_sentinel/rage_cast.png',
-  arenaOrganGate: '/assets/arena/organ_sanctum/organ_gate.png',
-  arenaGrandPiano: '/assets/arena/organ_sanctum/grand_piano.png',
-  arenaCrystalObelisk: '/assets/arena/organ_sanctum/crystal_obelisk.png',
-  arenaCorruptedPiano: '/assets/arena/organ_sanctum/corrupted_piano.png',
 
   // Props da Floresta Sombria
   darkDeadtree: '/assets/props/dark_deadtree.png',

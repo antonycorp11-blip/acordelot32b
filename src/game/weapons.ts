@@ -5,7 +5,7 @@
 // é feito por código a partir destes parâmetros configuráveis.
 // ============================================================================
 
-import type { StatBag } from './statTypes';
+import type { CharacterClassKey, StatBag } from './statTypes';
 
 export type WeaponTier = 1 | 2 | 3 | 4 | 5;
 
@@ -52,6 +52,8 @@ export interface WeaponDef {
   // arma sem arte própria — desenhada por código (formas simples), não por
   // ctx.drawImage. Usado pro cajado temporário da Wins / arco da Huans.
   procedural?: 'staff' | 'bow';
+  classKey?: CharacterClassKey; // ausente nas armas legadas = Teclas
+  catalogVisible?: boolean;
 }
 
 export const WEAPON_DEFS: Record<string, WeaponDef> = {};
@@ -78,6 +80,8 @@ WEAPON_DEFS.cajado_temporario = {
   maxLevel: 10,
   statBonus: { skillDmgPct: 5 },
   procedural: 'staff',
+  classKey: 'vocal',
+  catalogVisible: false,
   // mesma config visual da Acordelâmina T2 — flutuante, tucada nas costas
   // em repouso, sem tocar no chão nem nos pés.
   visual: {
@@ -118,6 +122,8 @@ WEAPON_DEFS.arco_temporario = {
   maxLevel: 10,
   statBonus: { critChancePct: 4 },
   procedural: 'bow',
+  classKey: 'cordas',
+  catalogVisible: false,
   // mesma config visual da Acordelâmina T2 — flutuante, tucada nas costas
   // em repouso, sem tocar no chão nem nos pés.
   visual: {
@@ -176,10 +182,11 @@ interface WeaponSpec {
   aklesSynergy?: string;
   /** T2 acordelamina_t2 usa os assets originais (weapons/), não os do catálogo. */
   legacyAsset?: boolean;
+  classKey?: CharacterClassKey;
 }
 
 function makeWeapon(spec: WeaponSpec): WeaponDef {
-  const { key, name, tier, slug, atk, stats, passive, aklesSynergy, legacyAsset } = spec;
+  const { key, name, tier, slug, atk, stats, passive, aklesSynergy, legacyAsset, classKey } = spec;
   return {
     key,
     name,
@@ -187,7 +194,8 @@ function makeWeapon(spec: WeaponSpec): WeaponDef {
     rarity: RARITY_BY_TIER[tier],
     spriteAsset: legacyAsset ? 'weaponAcordelaminaT2' : `weapon_${slug}`,
     spriteEnergizedAsset: legacyAsset ? 'weaponAcordelaminaT2Energized' : undefined,
-    img: legacyAsset ? '/assets/weapons/acordelamina_t2.png' : `/assets/catalogo/armas/${slug}.png`,
+    img: legacyAsset ? '/assets/weapons/acordelamina_t2.png' : classKey && classKey !== 'teclas' ? `/assets/catalogo/${classKey}/armas/${slug}.png` : `/assets/catalogo/armas/${slug}.png`,
+    classKey,
     baseAtk: atk,
     atkPerLevel: ATK_PER_LVL_BY_TIER[tier],
     maxLevel: 10,
@@ -282,8 +290,50 @@ const CATALOG_WEAPONS: WeaponSpec[] = [
   },
 ];
 
+const CLASS_WEAPON_NAMES: Record<'vocal' | 'cordas', Array<[WeaponTier, string]>> = {
+  vocal: [
+    [1, 'Cajado do Corista Jovem'], [1, 'Microfone Rústico'], [1, 'Bastão do Eco Inicial'], [1, 'Cajado da Voz Errante'],
+    [2, 'Microfone de Acordelot'], [2, 'Cajado do Solista'], [2, 'Bastão do Coral Azul'], [2, 'Microfone Harmônico'], [2, 'Cajado do Soprano Peregrino'],
+    [4, 'Grande Microfone do Maestro'], [4, 'Cajado da Ópera Real'], [4, 'Bastão da Catedral Sonora'], [4, 'Microfone do Virtuoso Coral'],
+    [5, 'Virtuose Vocal'], [5, 'Voz Celestial'], [5, 'Réquiem do Silêncio'],
+  ],
+  cordas: [
+    [1, 'Arco do Cordel Jovem'], [1, 'Lira Rústica'], [1, 'Violino de Caça'], [1, 'Alaúde de Madeira'],
+    [2, 'Arco do Violão Harmônico'], [2, 'Baixo Resonante'], [2, 'Lira de Acordelot'], [2, 'Violino Azul'], [2, 'Harpa do Peregrino'],
+    [3, 'Guitarra Celeste'], [3, 'Violoncelo Resonante'], [3, 'Harpa Lunar'], [3, 'Alaúde Real'],
+    [4, 'Concerto das Cordas'], [4, 'Harpa do Maestro'], [4, 'Baixo Magistral'], [4, 'Sinfonia do Luthier'],
+    [5, 'Virtuose das Cordas'], [5, 'Arco da Seresta Celestial'], [5, 'Réquiem do Violino'],
+  ],
+};
+
+function plainSlug(text: string): string {
+  return text.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
+}
+
+for (const classKey of ['vocal', 'cordas'] as const) {
+  for (const [tier, name] of CLASS_WEAPON_NAMES[classKey]) {
+    const slug = `${classKey}_${plainSlug(name)}`;
+    const vocal = classKey === 'vocal';
+    CATALOG_WEAPONS.push({
+      key: slug,
+      slug,
+      name,
+      tier,
+      classKey,
+      atk: (vocal ? 8 : 11) + tier * (vocal ? 8 : 11),
+      stats: vocal
+        ? { harmonicPowerPct: 2 + tier * 3, skillDmgPct: tier * 2, energyMaxPct: tier }
+        : { atkPct: 2 + tier * 2, critChancePct: 1 + tier * 2, atkSpeedPct: tier * 2 },
+    });
+  }
+}
+
 for (const spec of CATALOG_WEAPONS) {
   WEAPON_DEFS[spec.key] = makeWeapon(spec);
+}
+
+export function weaponClass(def: WeaponDef): CharacterClassKey {
+  return def.classKey ?? 'teclas';
 }
 
 // ---------------------------------------------------------------------------

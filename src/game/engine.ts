@@ -47,10 +47,11 @@ import {
   comboTrajectory,
   amplifyTrajectory,
   DIR_ANGLE_DEG,
+  weaponClass,
 } from './weapons';
 import { PASSIVE_DEFS } from './passives';
-import { EQUIP_SETS, EQUIP_PIECE_INDEX, EQUIP_SLOT_ORDER, EquipSlotKey, EquipSetDef, EquipPieceDef } from './catalogData';
-import { StatKey, StatBag, mergeStatBags, STATS_WITHOUT_EFFECT } from './statTypes';
+import { EQUIP_SETS, EQUIP_PIECE_INDEX, EQUIP_SLOT_ORDER, EquipSlotKey, EquipSetDef, EquipPieceDef, equipSetClass } from './catalogData';
+import { StatKey, StatBag, mergeStatBags, STATS_WITHOUT_EFFECT, CharacterClassKey } from './statTypes';
 import { DAILY_QUEST_POOL, QuestDef, QuestKind } from './quests';
 export { WEAPON_DEFS } from './weapons';
 export { PASSIVE_DEFS, PASSIVE_ORDER } from './passives';
@@ -73,6 +74,18 @@ export type { StatKey, StatBag } from './statTypes';
 export type TimeOfDay = 'day' | 'sunset' | 'night';
 
 export type AklesAction = 'chop' | 'mine' | 'attack' | 'spin' | 'cast';
+
+interface CombatZone {
+  kind: 'winsChorus' | 'huansRain';
+  x: number;
+  y: number;
+  radius: number;
+  life: number;
+  duration: number;
+  tickT: number;
+  entered: Record<string, number>;
+  marked: Set<string>;
+}
 
 // Geometria das sprite sheets do Akles (geradas por scripts/process-akles.mjs)
 interface AklesAnimMeta {
@@ -281,6 +294,14 @@ export interface PlayerStats {
   vitalidade: number;
   inteligencia: number;
   sorte: number;
+  harmonicPower: number;
+  defense: number;
+  critChance: number;
+  critDamage: number;
+  energy: number;
+  maxEnergy: number;
+  moveSpeedPct: number;
+  attackSpeedPct: number;
 }
 
 export type AttrKey = 'forca' | 'agilidade' | 'vitalidade' | 'inteligencia' | 'sorte';
@@ -1139,6 +1160,7 @@ export class GameEngine {
   // Combate: monstros, moeda PvE, projéteis
   enemies: Enemy[] = [];
   lightBeams: LightBeam[] = [];
+  combatZones: CombatZone[] = [];
   coins = 0; // claves musicais
   onCoinsChange?: (n: number) => void;
   playerHurtFlash = 0;
@@ -1166,6 +1188,9 @@ export class GameEngine {
   // A arma é 100% separada do personagem: nunca fica nas sheets dele. Trocar
   // de arma não exige trocar animação nenhuma — só o config visual muda.
   equippedWeaponKey = 'acordelamina_t2';
+  private weaponByCharacter: Record<PlayerCharacterKey, string> = {
+    akles: 'acordelamina_t2', wins: 'vocal_cajado_do_corista_jovem', huans: 'cordas_arco_do_cordel_jovem',
+  };
   // nível de cada arma é independente — trocar de arma não reseta progresso.
   weaponLevels: Record<string, number> = { acordelamina_t2: 1 };
   onWeaponChange?: () => void;
@@ -1204,8 +1229,9 @@ export class GameEngine {
   }
   // Troca a arma equipada (catálogo — sem gate de posse por enquanto).
   equipWeapon(key: string): boolean {
-    if (!WEAPON_DEFS[key] || key === this.equippedWeaponKey) return false;
+    if (!WEAPON_DEFS[key] || key === this.equippedWeaponKey || weaponClass(WEAPON_DEFS[key]) !== this.characterClassKey) return false;
     this.equippedWeaponKey = key;
+    this.weaponByCharacter[this.activeCharacter] = key;
     if (this.weaponLevels[key] == null) this.weaponLevels[key] = 1;
     this.syncEquipHpBonus();
     this.onWeaponChange?.();
@@ -1217,8 +1243,8 @@ export class GameEngine {
   onCharacterChange?: () => void;
   private static readonly CHARACTER_DEFAULT_WEAPON: Record<PlayerCharacterKey, string> = {
     akles: 'acordelamina_t2',
-    wins: 'cajado_temporario',
-    huans: 'arco_temporario',
+    wins: 'vocal_cajado_do_corista_jovem',
+    huans: 'cordas_arco_do_cordel_jovem',
   };
   private static readonly CHARACTER_IDENTITY: Record<PlayerCharacterKey, { name: string; className: string }> = {
     akles: { name: 'Akles', className: 'Cavaleiro Errante' },
@@ -1228,11 +1254,26 @@ export class GameEngine {
   get activeCharacterPortrait(): string {
     return CHARACTER_PORTRAITS[this.activeCharacter];
   }
+  get characterClassKey(): CharacterClassKey {
+    return this.activeCharacter === 'akles' ? 'teclas' : this.activeCharacter === 'wins' ? 'vocal' : 'cordas';
+  }
   switchCharacter(key: PlayerCharacterKey): boolean {
     if (key === this.activeCharacter) return false;
+    if (this.appliedEquipHpBonus) {
+      this.stats.maxHp -= this.appliedEquipHpBonus;
+      this.stats.hp = Math.min(this.stats.hp, this.stats.maxHp);
+      this.appliedEquipHpBonus = 0;
+    }
+    this.statsByCharacter[this.activeCharacter] = { ...this.stats };
+    this.piecesByCharacter[this.activeCharacter] = { ...this.equippedPieces };
     this.activeCharacter = key;
-    const defaultWeapon = GameEngine.CHARACTER_DEFAULT_WEAPON[key];
-    if (defaultWeapon) this.equipWeapon(defaultWeapon);
+    this.stats = { ...this.statsByCharacter[key] };
+    this.equippedPieces = { ...this.piecesByCharacter[key] };
+    this.equippedWeaponKey = this.weaponByCharacter[key] ?? GameEngine.CHARACTER_DEFAULT_WEAPON[key];
+    this.syncEquipHpBonus();
+    this.lightBeams = [];
+    this.combatZones = [];
+    this.player.actionState = 'idle';
     // miniatura, nome e classe seguem o personagem ativo — vida, nível e
     // poder já são os mesmos this.stats compartilhados, então já "seguem
     // junto" automaticamente (mesmo progresso de personagem, corpos
@@ -1263,6 +1304,13 @@ export class GameEngine {
   // Skill 3 — Pulso Harmônico usa a ação 'cast' (já existente)
   pulseCdT = 0;
   static readonly PULSE_COOLDOWN = 3.5;
+  skillCooldowns: Record<PlayerCharacterKey, [number, number, number]> = {
+    akles: [0, 0, 0], wins: [0, 0, 0], huans: [0, 0, 0],
+  };
+  hunterBuffT = 0;
+  hunterEnhancedBasics = 0;
+  hunterGuaranteedCrit = false;
+  hunterDashWindow = 0;
 
   // Passivas (todas Nível 1 por padrão — sem sistema de pontos ainda)
   passiveLevels: Record<string, number> = Object.fromEntries(
@@ -1292,6 +1340,11 @@ export class GameEngine {
     anel: null,
     aura: null,
     catalisador: null,
+  };
+  private piecesByCharacter: Record<PlayerCharacterKey, Record<EquipSlotKey, string | null>> = {
+    akles: { colar: null, anel: null, aura: null, catalisador: null },
+    wins: { colar: null, anel: null, aura: null, catalisador: null },
+    huans: { colar: null, anel: null, aura: null, catalisador: null },
   };
   pieceLevels: Record<string, number> = {};
   onEquipChange?: () => void;
@@ -1335,7 +1388,7 @@ export class GameEngine {
   }
   equipPiece(key: string): boolean {
     const entry = EQUIP_PIECE_INDEX[key];
-    if (!entry) return false;
+    if (!entry || equipSetClass(entry.set) !== this.characterClassKey) return false;
     this.equippedPieces[entry.piece.slot] = key;
     this.syncEquipHpBonus();
     this.onEquipChange?.();
@@ -1505,43 +1558,48 @@ export class GameEngine {
   get basicAtkMul() {
     return (
       1 +
-      this.passiveValue('afinacaoPermanente') +
-      this.passiveValue('forcaRessonante') +
-      this.passiveValue('maestriaDaLamina') +
+      (this.activeCharacter === 'akles' ? this.passiveValue('afinacaoPermanente') + this.passiveValue('forcaRessonante') + this.passiveValue('maestriaDaLamina') : 0) +
       (this.equipStat('atkPct') + this.equipStat('basicDmgPct')) / 100
     );
   }
   get skillDmgMul() {
     return (
       1 +
-      this.passiveValue('canalizacao') +
-      this.passiveValue('ressonanciaInterior') +
+      (this.activeCharacter === 'akles' ? this.passiveValue('canalizacao') + this.passiveValue('ressonanciaInterior') : 0) +
       (this.equipStat('atkPct') + this.equipStat('skillDmgPct')) / 100
     );
   }
   get critChanceBonus() {
-    return this.passiveValue('ouvidoAbsoluto') + this.equipStat('critChancePct') / 100;
+    return (this.activeCharacter === 'akles' ? this.passiveValue('ouvidoAbsoluto') : 0) + this.equipStat('critChancePct') / 100;
   }
   // multiplicador do dano crítico — base 1.6x + "Dano Crítico" de arma/set
   get critDmgMul() {
-    return 1.6 + this.equipStat('critDmgPct') / 100;
+    return this.stats.critDamage / 100 + this.equipStat('critDmgPct') / 100;
   }
   get moveSpeedMul() {
-    return 1 + this.passiveValue('corpoEmCompasso');
+    return (this.stats.moveSpeedPct / 100) * (1 + (this.activeCharacter === 'akles' ? this.passiveValue('corpoEmCompasso') : 0) + (this.activeCharacter === 'huans' && this.hunterBuffT > 0 ? 0.1 : 0));
   }
   get maxHpPassiveMul() {
     return 1 + this.passiveValue('harmoniaVital') + this.passiveValue('forcaRessonante');
   }
   get meleeAreaMul() {
-    return 1 + this.passiveValue('expansao') + this.equipStat('areaPct') / 100;
+    return 1 + (this.activeCharacter === 'akles' ? this.passiveValue('expansao') : 0) + this.equipStat('areaPct') / 100;
   }
   get cooldownMul() {
-    return Math.max(0.3, 1 - this.passiveValue('fluxoSonoro') - this.equipStat('cooldownReductionPct') / 100);
+    return Math.max(0.3, 1 - (this.activeCharacter === 'akles' ? this.passiveValue('fluxoSonoro') : 0) - this.equipStat('cooldownReductionPct') / 100);
   }
   // redutor de dano recebido — "DEF" + "Resistência" de arma/equipamentos
   // (cap em 65% de redução pra não anular o combate).
   get incomingDmgMul() {
-    return Math.max(0.35, 1 - (this.equipStat('defPct') + this.equipStat('resistPct')) / 100);
+    const baseDefReduction = this.stats.defense / (100 + this.stats.defense);
+    return Math.max(0.35, 1 - baseDefReduction - (this.equipStat('defPct') + this.equipStat('resistPct')) / 100);
+  }
+
+  get effectiveHarmonicPower(): number {
+    return this.stats.harmonicPower * (1 + this.equipStat('harmonicPowerPct') / 100);
+  }
+  get effectiveMaxEnergy(): number {
+    return this.stats.maxEnergy * (1 + this.equipStat('energyMaxPct') / 100);
   }
 
   // Ficha do personagem
@@ -1559,6 +1617,19 @@ export class GameEngine {
     vitalidade: 10,
     inteligencia: 5,
     sorte: 6,
+    harmonicPower: 10,
+    defense: 12,
+    critChance: 5,
+    critDamage: 150,
+    energy: 100,
+    maxEnergy: 100,
+    moveSpeedPct: 100,
+    attackSpeedPct: 100,
+  };
+  private statsByCharacter: Record<PlayerCharacterKey, PlayerStats> = {
+    akles: this.stats,
+    wins: { name: 'Wins', className: 'Vocal · Maga', level: 1, xp: 0, xpNext: 100, hp: 90, maxHp: 90, attrPoints: 0, forca: 9, agilidade: 7, vitalidade: 8, inteligencia: 18, sorte: 5, harmonicPower: 18, defense: 8, critChance: 5, critDamage: 150, energy: 120, maxEnergy: 120, moveSpeedPct: 100, attackSpeedPct: 95 },
+    huans: { name: 'Huans', className: 'Cordas · Caçador', level: 1, xp: 0, xpNext: 100, hp: 105, maxHp: 105, attrPoints: 0, forca: 16, agilidade: 10, vitalidade: 10, inteligencia: 8, sorte: 8, harmonicPower: 8, defense: 10, critChance: 8, critDamage: 150, energy: 100, maxEnergy: 100, moveSpeedPct: 108, attackSpeedPct: 108 },
   };
   onStatsChange?: (s: PlayerStats) => void;
 
@@ -1962,6 +2033,13 @@ export class GameEngine {
   triggerAction(action: AklesAction) {
     const busy: Array<CharacterState['actionState']> = ['chop', 'mine', 'attack', 'spin', 'cast'];
     if (busy.includes(this.player.actionState)) return;
+    if (this.activeCharacter !== 'akles' && (action === 'spin' || action === 'cast')) {
+      const slot = action === 'spin' ? 1 : 2;
+      const costs = this.activeCharacter === 'wins' ? [15, 28, 45] : [14, 20, 40];
+      const cds = this.activeCharacter === 'wins' ? [5, 11, 18] : [5, 9, 17];
+      if (this.skillCooldowns[this.activeCharacter][slot] > 0 || !this.spendEnergy(costs[slot])) return;
+      this.skillCooldowns[this.activeCharacter][slot] = cds[slot] * this.cooldownMul;
+    }
     if (action === 'attack') {
       // Compasso da Lâmina: encadeia o combo se apertado logo em seguida
       if (this.timeElapsed - this.lastAttackAt < 1.0) this.comboIndex = (this.comboIndex + 1) % 4;
@@ -3036,7 +3114,10 @@ export class GameEngine {
   }
 
   damagePlayer(n: number) {
-    if (this.playerInvuln > 0) return;
+    if (this.playerInvuln > 0) {
+      if (this.activeCharacter === 'huans' && this.hunterDashWindow > 0) this.hunterGuaranteedCrit = true;
+      return;
+    }
     this.lastCombatAt = this.timeElapsed;
     const s = this.stats;
     n = Math.max(1, Math.round(n * this.incomingDmgMul));
@@ -3064,12 +3145,15 @@ export class GameEngine {
     dmg: number,
     fromX: number,
     fromY: number,
-    opts: { crit?: boolean; isPulse?: boolean } = {},
+    opts: { crit?: boolean; isPulse?: boolean; skill?: boolean } = {},
   ) {
     if (e.state === 'dead') return;
     this.lastCombatAt = this.timeElapsed;
     // Impacto Harmônico (Amplificação) — inimigo "com a DEF reduzida"
     if (e.harmonicDebuffT && e.harmonicDebuffT > 0) dmg *= 1 + (e.harmonicDebuffPct || 0);
+    if (this.activeCharacter === 'wins' && opts.skill && e.resonantT && e.resonantT > 0) dmg *= 1.08;
+    if (this.activeCharacter === 'huans' && (e.preyMarks ?? 0) > 0) dmg *= 1 + (e.preyMarks ?? 0) * 0.02;
+    if (this.activeCharacter === 'huans') e.preyLastHitAt = this.timeElapsed;
     // Reverberação (Pulso Harmônico) — marca consumida pelo próximo golpe básico
     if (!opts.isPulse && e.reverbMarkHits && e.reverbMarkHits > 0) {
       dmg *= 1 + (e.reverbMarkPct || 0);
@@ -3175,7 +3259,82 @@ export class GameEngine {
       this.critCounter = 0;
       return true;
     }
-    return Math.random() < 0.05 + this.critChanceBonus;
+    if (this.activeCharacter === 'huans' && this.hunterGuaranteedCrit) {
+      this.hunterGuaranteedCrit = false;
+      return true;
+    }
+    return Math.random() < this.stats.critChance / 100 + this.critChanceBonus;
+  }
+
+  private spendEnergy(cost: number): boolean {
+    if (this.stats.energy + 0.001 < cost) return false;
+    this.stats.energy -= cost;
+    this.onStatsChange?.({ ...this.stats });
+    return true;
+  }
+
+  private facingVector(): [number, number] {
+    return this.player.direction === 'left' ? [-1, 0] : this.player.direction === 'right' ? [1, 0] : this.player.direction === 'up' ? [0, -1] : [0, 1];
+  }
+
+  private fireClassProjectile(kind: LightBeam['kind'], dmg: number, maxHits: number, speed = 440) {
+    const [dx, dy] = this.facingVector();
+    this.lightBeams.push({ x: this.player.x + 12 + dx * 16, y: this.player.y + 12 + dy * 12, vx: dx * speed, vy: dy * speed, life: 0, maxLife: 1.15, dmg, hitIds: [], kind, maxHits });
+  }
+
+  private applyVocalNote(e: Enemy) {
+    e.vocalNotes = Math.min(3, (e.vocalNotes ?? 0) + 1);
+    if (e.vocalNotes === 3) this.explodeVocalResonance(e);
+  }
+
+  private explodeVocalResonance(target: Enemy) {
+    target.vocalNotes = 0;
+    target.resonantT = 5;
+    const dmg = this.effectiveHarmonicPower * 0.6 * this.skillDmgMul;
+    for (const e of this.enemies) if (e.state !== 'dead' && Math.hypot(e.x - target.x, e.y - target.y) <= 46) this.damageEnemy(e, dmg, target.x, target.y, { skill: true });
+    this.stats.energy = Math.min(this.effectiveMaxEnergy, this.stats.energy + this.effectiveMaxEnergy * 0.04);
+    this.onStatsChange?.({ ...this.stats });
+  }
+
+  private applyPreyMarks(e: Enemy, count: number) {
+    e.preyMarks = Math.min(5, (e.preyMarks ?? 0) + count);
+    e.preyLastHitAt = this.timeElapsed;
+  }
+
+  private useWinsChorus() {
+    const [dx, dy] = this.facingVector();
+    this.combatZones.push({ kind: 'winsChorus', x: this.player.x + 12 + dx * 72, y: this.player.y + 16 + dy * 72, radius: 58 * this.meleeAreaMul, life: 0, duration: 5, tickT: 1, entered: {}, marked: new Set() });
+  }
+
+  private useWinsAria() {
+    const [dx, dy] = this.facingVector();
+    const cx = this.player.x + 12, cy = this.player.y + 16;
+    for (const e of this.enemies) {
+      if (e.state === 'dead') continue;
+      const ex = e.x + 8 - cx, ey = e.y - cy, dist = Math.hypot(ex, ey);
+      if (dist > 150 * this.meleeAreaMul || (ex * dx + ey * dy) / Math.max(1, dist) < 0.25) continue;
+      const notes = e.vocalNotes ?? 0;
+      this.damageEnemy(e, this.effectiveHarmonicPower * 3.2 * (1 + notes * 0.1) * this.skillDmgMul, cx, cy, { skill: true });
+      if (notes === 3) this.explodeVocalResonance(e); else e.vocalNotes = 0;
+    }
+  }
+
+  private useHunterStep() {
+    const [dx, dy] = this.facingVector();
+    for (let step = 0; step < 5; step++) {
+      const nx = this.player.x + dx * 18, ny = this.player.y + dy * 18;
+      if (this.checkSolidCollision({ x: nx, y: ny, w: 20, h: 14 })) break;
+      this.player.x = nx; this.player.y = ny;
+    }
+    this.playerInvuln = Math.max(this.playerInvuln, 0.35);
+    this.hunterDashWindow = 0.35;
+    this.hunterBuffT = 5;
+    this.hunterEnhancedBasics = 3;
+  }
+
+  private useHuansRain() {
+    const [dx, dy] = this.facingVector();
+    this.combatZones.push({ kind: 'huansRain', x: this.player.x + 12 + dx * 96, y: this.player.y + 16 + dy * 96, radius: 72 * this.meleeAreaMul, life: 0, duration: 1.21, tickT: 0, entered: {}, marked: new Set() });
   }
 
   private onComboHitLanded() {
@@ -3258,6 +3417,14 @@ export class GameEngine {
     if (this.resonanceCdT > 0) this.resonanceCdT = Math.max(0, this.resonanceCdT - dt);
     if (this.pulseCdT > 0) this.pulseCdT = Math.max(0, this.pulseCdT - dt);
     if (this.tempDmgBuffT > 0) this.tempDmgBuffT = Math.max(0, this.tempDmgBuffT - dt);
+    for (const char of ['wins', 'huans'] as const) for (let i = 0; i < 3; i++) this.skillCooldowns[char][i] = Math.max(0, this.skillCooldowns[char][i] - dt);
+    this.hunterBuffT = Math.max(0, this.hunterBuffT - dt);
+    this.hunterDashWindow = Math.max(0, this.hunterDashWindow - dt);
+    if (this.activeCharacter !== 'akles') {
+      const before = this.stats.energy;
+      this.stats.energy = Math.min(this.effectiveMaxEnergy, this.stats.energy + dt * 2.5 * (1 + this.equipStat('energyRegenPct') / 100));
+      if (Math.floor(before * 2) !== Math.floor(this.stats.energy * 2)) this.onStatsChange?.({ ...this.stats });
+    }
     // combo quebra se ficar muito tempo sem atacar
     if (this.comboIndex !== 0 || this.comboStacks !== 0) {
       if (this.timeElapsed - this.lastAttackAt > 1.2) {
@@ -3274,11 +3441,24 @@ export class GameEngine {
           e.harmonicDebuffPct = 0;
         }
       }
+      if (e.resonantT && e.resonantT > 0) e.resonantT = Math.max(0, e.resonantT - dt);
+      if (e.slowT && e.slowT > 0) e.slowT = Math.max(0, e.slowT - dt);
+      if (e.silenceT && e.silenceT > 0) e.silenceT = Math.max(0, e.silenceT - dt);
+      if ((e.preyMarks ?? 0) > 0 && this.timeElapsed - (e.preyLastHitAt ?? 0) > 6) e.preyMarks = 0;
     }
   }
 
   // Skill 1 — Ressonância: buff temporário (energiza a arma + acelera ataques)
   activateResonance(): boolean {
+    if (this.activeCharacter !== 'akles') {
+      const char = this.activeCharacter;
+      const cost = char === 'wins' ? 15 : 14;
+      if (this.skillCooldowns[char][0] > 0 || !this.spendEnergy(cost)) return false;
+      this.skillCooldowns[char][0] = 5 * this.cooldownMul;
+      if (char === 'wins') this.fireClassProjectile('winsNote', this.effectiveHarmonicPower * 1.35 * this.skillDmgMul, 99, 470);
+      else this.fireClassProjectile('huansArrow', (this.stats.forca + this.weaponAtk) * 1.5 * this.skillDmgMul, 2, 520);
+      return true;
+    }
     if (this.resonanceCdT > 0 || this.resonanceActive) return false;
     this.resonanceActive = true;
     this.resonanceT = GameEngine.RESONANCE_DURATION;
@@ -3337,7 +3517,22 @@ export class GameEngine {
         if (e.state === 'dead' || b.hitIds.includes(e.id)) continue;
         if (Math.hypot(e.x + 8 - b.x, e.y - b.y) < 24) {
           b.hitIds.push(e.id);
-          this.damageEnemy(e, b.dmg, b.x - b.vx * 0.1, b.y - b.vy * 0.1, { isPulse: true });
+          let dmg = b.dmg;
+          if (b.kind === 'winsNote') {
+            if ((e.resonantT ?? 0) > 0) dmg *= 1.2;
+            this.damageEnemy(e, dmg, b.x - b.vx * 0.1, b.y - b.vy * 0.1, { skill: true });
+            this.applyVocalNote(e);
+          } else if (b.kind === 'huansArrow') {
+            if ((e.preyMarks ?? 0) >= 5) dmg *= 1.2;
+            this.damageEnemy(e, dmg, b.x - b.vx * 0.1, b.y - b.vy * 0.1, { skill: true });
+            this.applyPreyMarks(e, 2);
+          } else if (b.kind === 'huansBasic') {
+            const crit = this.rollCritAgainst(e);
+            this.damageEnemy(e, crit ? dmg * this.critDmgMul : dmg, b.x, b.y, { crit });
+            this.applyPreyMarks(e, this.hunterEnhancedBasics > 0 ? 2 : 1);
+            if (this.hunterEnhancedBasics > 0) this.hunterEnhancedBasics--;
+          } else this.damageEnemy(e, dmg, b.x - b.vx * 0.1, b.y - b.vy * 0.1, { isPulse: b.kind !== 'winsBasic' });
+          if (b.maxHits && b.hitIds.length >= b.maxHits) dead = true;
         }
       }
       if (dead) {
@@ -3348,6 +3543,49 @@ export class GameEngine {
         }
         this.lightBeams.splice(i, 1);
       }
+    }
+  }
+
+  private rollCritAgainst(e: Enemy): boolean {
+    if (this.hunterGuaranteedCrit) { this.hunterGuaranteedCrit = false; return true; }
+    const markedBonus = this.activeCharacter === 'huans' && (e.preyMarks ?? 0) >= 5 ? 0.08 : 0;
+    return Math.random() < this.stats.critChance / 100 + this.critChanceBonus + markedBonus;
+  }
+
+  private updateCombatZones(dt: number) {
+    for (let i = this.combatZones.length - 1; i >= 0; i--) {
+      const z = this.combatZones[i];
+      z.life += dt; z.tickT -= dt;
+      const inside = this.enemies.filter((e) => e.state !== 'dead' && Math.hypot(e.x + 8 - z.x, e.y - z.y) <= z.radius);
+      if (z.kind === 'winsChorus') {
+        for (const e of inside) {
+          z.entered[e.id] = (z.entered[e.id] ?? 0) + dt;
+          e.slowT = 0.2; e.slowPct = 0.2;
+          if (!z.marked.has(e.id)) {
+            z.marked.add(e.id);
+            this.damageEnemy(e, this.effectiveHarmonicPower * 0.8 * this.skillDmgMul, z.x, z.y, { skill: true });
+            if (e.state !== 'dead') this.applyVocalNote(e);
+          }
+          if (z.entered[e.id] >= 3 && !(e.silenceT && e.silenceT > 0)) e.silenceT = 1;
+        }
+        if (z.tickT <= 0) {
+          z.tickT += 1;
+          for (const e of inside) this.damageEnemy(e, this.effectiveHarmonicPower * 0.35 * this.skillDmgMul, z.x, z.y, { skill: true });
+        }
+      } else if (z.tickT <= 0) {
+        z.tickT += 0.3;
+        const single = inside.length === 1;
+        for (const e of inside) {
+          const markedBefore = (e.preyMarks ?? 0) >= 5;
+          let dmg = (this.stats.forca + this.weaponAtk) * 2.8 / 5 * this.skillDmgMul;
+          if (markedBefore) dmg *= 1.25;
+          if (single) dmg *= 1.3;
+          this.damageEnemy(e, dmg, z.x, z.y, { skill: true });
+          e.slowT = 3; e.slowPct = 0.2;
+          if (!z.marked.has(e.id) && e.state !== 'dead') { z.marked.add(e.id); this.applyPreyMarks(e, 3); }
+        }
+      }
+      if (z.life >= z.duration) this.combatZones.splice(i, 1);
     }
   }
 
@@ -3430,7 +3668,7 @@ export class GameEngine {
 
       // aggro (só monstros hostis perseguem/atacam)
       if (def.hostile && dToPlayer < def.aggro) {
-        if (dToPlayer <= def.attackRange && e.attackCd <= 0) {
+        if (dToPlayer <= def.attackRange && e.attackCd <= 0 && !(e.silenceT && e.silenceT > 0)) {
           e.state = 'attack';
           e.stateTimer = 0;
           e.frame = 0;
@@ -3439,8 +3677,9 @@ export class GameEngine {
         }
         e.state = 'chase';
         const ang = Math.atan2(py - e.y, px - (e.x + 8));
-        const sx = Math.cos(ang) * def.speed * dt;
-        const sy = Math.sin(ang) * def.speed * dt;
+        const slowMul = e.slowT && e.slowT > 0 ? 1 - (e.slowPct ?? 0) : 1;
+        const sx = Math.cos(ang) * def.speed * slowMul * dt;
+        const sy = Math.sin(ang) * def.speed * slowMul * dt;
         if (!this.checkSolidCollision({ x: e.x + sx, y: e.y + sy, w: 16, h: 12 })) {
           e.x += sx;
           e.y += sy;
@@ -4021,8 +4260,9 @@ export class GameEngine {
       // Pulso Acelerado (passiva, só durante Ressonância) + Velocidade de
       // Ataque de arma/equipamentos (sempre ativa, qualquer ação)
       const atkSpeedMul =
-        1 +
+        this.stats.attackSpeedPct / 100 +
         this.equipStat('atkSpeedPct') / 100 +
+        (this.activeCharacter === 'huans' && this.hunterBuffT > 0 ? 0.2 : 0) +
         (act === 'attack' && this.resonanceActive ? this.passiveValue('pulsoAcelerado') : 0);
       this.player.actionTimer = (this.player.actionTimer || 0) + dt * meta.fps * atkSpeedMul;
       this.player.frame = Math.min(meta.cols - 1, Math.floor(this.player.actionTimer));
@@ -4038,14 +4278,28 @@ export class GameEngine {
         if (act === 'chop' || act === 'mine') this.applyHarvestHit();
         if (act === 'chop') this.applyMeleeHit(8 + this.stats.forca * 1.6 + this.stats.level, 46);
         if (act === 'attack') {
-          const crit = this.rollCrit();
-          let dmg = this.basicAttackDamage();
-          if (crit) dmg *= this.critDmgMul;
-          this.applyMeleeHit(dmg, 46, { crit });
-          this.onComboHitLanded();
+          if (this.activeCharacter === 'akles') {
+            const crit = this.rollCrit();
+            let dmg = this.basicAttackDamage();
+            if (crit) dmg *= this.critDmgMul;
+            this.applyMeleeHit(dmg, 46, { crit });
+            this.onComboHitLanded();
+          } else if (this.activeCharacter === 'wins') {
+            this.fireClassProjectile('winsBasic', this.effectiveHarmonicPower * 0.65 * (1 + this.equipStat('basicDmgPct') / 100), 1, 390);
+          } else {
+            this.fireClassProjectile('huansBasic', (this.stats.forca + this.weaponAtk) * this.basicAtkMul, 1, 500);
+          }
         }
-        if (act === 'spin') this.amplifyAttack(); // Skill 2 — Amplificação
-        if (act === 'cast') this.fireLightCannon(); // Skill 3 — Pulso Harmônico
+        if (act === 'spin') {
+          if (this.activeCharacter === 'akles') this.amplifyAttack();
+          else if (this.activeCharacter === 'wins') this.useWinsChorus();
+          else this.useHunterStep();
+        }
+        if (act === 'cast') {
+          if (this.activeCharacter === 'akles') this.fireLightCannon();
+          else if (this.activeCharacter === 'wins') this.useWinsAria();
+          else this.useHuansRain();
+        }
       }
 
       // Partículas de impacto nos frames centrais
@@ -4126,6 +4380,7 @@ export class GameEngine {
     this.updateFragments(dt);
     this.updateEnemies(dt);
     this.updateLightBeams(dt);
+    this.updateCombatZones(dt);
 
     // Quem é o NPC mais próximo do herói?
     const px = this.player.x + 12;
@@ -4565,6 +4820,28 @@ export class GameEngine {
       item.draw();
     }
 
+    // Marcas de combate visíveis: notas da Wins e presa do Huans.
+    for (const e of this.enemies) {
+      if (e.state === 'dead') continue;
+      const count = this.activeCharacter === 'wins' ? (e.vocalNotes ?? 0) : this.activeCharacter === 'huans' ? (e.preyMarks ?? 0) : 0;
+      if (count <= 0) continue;
+      const ex = Math.round(e.x + 8 - camX), ey = Math.round(e.y - 30 - camY);
+      ctx.save();
+      ctx.font = 'bold 9px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      for (let n = 0; n < count; n++) {
+        const mx = ex + (n - (count - 1) / 2) * 10;
+        ctx.fillStyle = this.activeCharacter === 'wins' ? '#d946ef' : '#fbbf24';
+        ctx.beginPath(); ctx.arc(mx, ey, 4, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#fff'; ctx.fillText(this.activeCharacter === 'wins' ? '♪' : '•', mx, ey);
+      }
+      if (this.activeCharacter === 'wins' && (e.resonantT ?? 0) > 0) {
+        ctx.strokeStyle = '#f0abfc'; ctx.beginPath(); ctx.arc(ex, ey + 20, 16, 0, Math.PI * 2); ctx.stroke();
+      }
+      ctx.restore();
+    }
+
     // 3. Atmosphere particles
     for (const p of this.particles) {
       const px = Math.round(p.x - camX);
@@ -4643,6 +4920,21 @@ export class GameEngine {
     this.renderGroundDrops(ctx, camX, camY);
 
     // 3.45 Canhão de Luz — feixe grosso e brilhante do Akles
+    for (const z of this.combatZones) {
+      const zx = Math.round(z.x - camX), zy = Math.round(z.y - camY);
+      const pulse = 0.78 + Math.sin(this.timeElapsed * 8) * 0.12;
+      ctx.save();
+      ctx.globalAlpha = Math.min(0.75, (z.duration - z.life) * 2);
+      ctx.fillStyle = z.kind === 'winsChorus' ? 'rgba(192,90,255,0.20)' : 'rgba(70,210,170,0.18)';
+      ctx.strokeStyle = z.kind === 'winsChorus' ? '#e879f9' : '#6ee7b7';
+      ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(zx, zy, z.radius * pulse, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+      if (z.kind === 'huansRain') {
+        ctx.strokeStyle = 'rgba(253,230,138,.8)';
+        for (let n = 0; n < 6; n++) { const ox = ((n * 29 + Math.floor(this.timeElapsed * 90)) % 100) / 100 * z.radius * 1.6 - z.radius * .8; ctx.beginPath(); ctx.moveTo(zx + ox, zy - z.radius); ctx.lineTo(zx + ox - 8, zy + z.radius * .55); ctx.stroke(); }
+      }
+      ctx.restore();
+    }
     for (const b of this.lightBeams) {
       const bx = Math.round(b.x - camX);
       const by = Math.round(b.y - camY);
@@ -4656,8 +4948,9 @@ export class GameEngine {
       // rastro longo
       const tl = 64 * grow;
       const g = ctx.createLinearGradient(-tl, 0, 10, 0);
+      const projectileColor = b.kind?.startsWith('wins') ? '230,140,255' : b.kind?.startsWith('huans') ? '110,231,183' : '150,215,255';
       g.addColorStop(0, 'rgba(90,170,255,0)');
-      g.addColorStop(0.6, `rgba(150,215,255,${0.4 * fade})`);
+      g.addColorStop(0.6, `rgba(${projectileColor},${0.4 * fade})`);
       g.addColorStop(1, `rgba(230,245,255,${0.9 * fade})`);
       ctx.fillStyle = g;
       ctx.beginPath();

@@ -219,6 +219,11 @@ export const TouchControls: React.FC<TouchControlsProps> = ({
 
   const actionBtn =
     'pointer-events-auto flex items-center justify-center rounded-full border backdrop-blur-md shadow-xl active:scale-90 transition-transform select-none touch-none';
+  const skillNames = activeChar === 'wins'
+    ? ['Nota Perfurante', 'Coro Dissonante', 'Ária do Clímax']
+    : activeChar === 'huans'
+      ? ['Flecha Resonante', 'Passo do Caçador', 'Chuva das Cordas']
+      : ['Ressonância', 'Amplificação', 'Pulso Harmônico'];
 
   // Fileira de topo (mochila/síntese/partitura/arma/catálogo/missões/ficha): 7
   // ícones em LINHA HORIZONTAL, à esquerda do widget de clima (que fica em
@@ -401,13 +406,13 @@ export const TouchControls: React.FC<TouchControlsProps> = ({
       })}
 
       {/* Skills ao redor */}
-      <D id="btn_spin" className={`${actionBtn} absolute w-[46px] h-[46px] border-indigo-400/50 bg-indigo-950/80 text-indigo-300`} title="Amplificação" onAction={() => engineRef.current?.triggerAction('spin')} style={{ right: 'calc(76px + env(safe-area-inset-right))', bottom: 'calc(126px + env(safe-area-inset-bottom))' }}>
+      <D id="btn_spin" className={`${actionBtn} absolute w-[46px] h-[46px] border-indigo-400/50 bg-indigo-950/80 text-indigo-300`} title={skillNames[1]} onAction={() => engineRef.current?.triggerAction('spin')} style={{ right: 'calc(76px + env(safe-area-inset-right))', bottom: 'calc(126px + env(safe-area-inset-bottom))' }}>
         <HudIcon name="amplify" className="w-9 h-9" />
       </D>
-      <D id="btn_cast" className={`${actionBtn} absolute w-[46px] h-[46px] border-cyan-400/50 bg-cyan-950/80 text-cyan-300`} title="Pulso Harmônico" onAction={() => engineRef.current?.triggerAction('cast')} style={{ right: 'calc(6px + env(safe-area-inset-right))', bottom: 'calc(52px + env(safe-area-inset-bottom))' }}>
+      <D id="btn_cast" className={`${actionBtn} absolute w-[46px] h-[46px] border-cyan-400/50 bg-cyan-950/80 text-cyan-300`} title={skillNames[2]} onAction={() => engineRef.current?.triggerAction('cast')} style={{ right: 'calc(6px + env(safe-area-inset-right))', bottom: 'calc(52px + env(safe-area-inset-bottom))' }}>
         <HudIcon name="cast" className="w-9 h-9" />
       </D>
-      <D id="btn_resonance" className={`${actionBtn} absolute w-[46px] h-[46px] border-blue-400/50 bg-blue-950/80 text-blue-300`} title="Ressonância" onAction={() => engineRef.current?.activateResonance()} style={{ right: 'calc(146px + env(safe-area-inset-right))', bottom: 'calc(52px + env(safe-area-inset-bottom))' }}>
+      <D id="btn_resonance" className={`${actionBtn} absolute w-[46px] h-[46px] border-blue-400/50 bg-blue-950/80 text-blue-300`} title={skillNames[0]} onAction={() => engineRef.current?.activateResonance()} style={{ right: 'calc(146px + env(safe-area-inset-right))', bottom: 'calc(52px + env(safe-area-inset-bottom))' }}>
         <HudIcon name="resonance" className="w-9 h-9" />
       </D>
       <div

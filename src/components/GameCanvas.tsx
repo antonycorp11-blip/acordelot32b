@@ -23,6 +23,7 @@ import {
   Save,
   Layers,
   X,
+  LogOut,
 } from 'lucide-react';
 import type { PlayerStats } from '../game/engine';
 import { GameEngine, InteractionState, SelectedPropInfo, TimeOfDay, CHARACTER_ROSTER, CHARACTER_PORTRAITS } from '../game/engine';
@@ -38,6 +39,8 @@ import { CatalogScreen } from './CatalogScreen';
 import { QuestScreen } from './QuestScreen';
 import { HudIcon } from './HudIcon';
 import { publishMapToCode, getGhToken, setGhToken } from '../game/mapPersist';
+import { saveWorldMapToCloud, syncWorldMapFromCloud } from '../game/worldMapSync';
+import { loadCloudSave, applySaveToEngine, setupAutoSave } from '../game/saveManager';
 import { CloudRain } from 'lucide-react';
 
 interface PropPaletteItem {
@@ -456,7 +459,12 @@ const PROP_CATALOG: PropPaletteItem[] = [
   },
 ];
 
-export const GameCanvas: React.FC = () => {
+export interface GameCanvasProps {
+  user?: any;
+  onLogout?: () => void;
+}
+
+export const GameCanvas: React.FC<GameCanvasProps> = ({ user, onLogout }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const engineRef = useRef<GameEngine | null>(null);
@@ -530,6 +538,19 @@ export const GameCanvas: React.FC = () => {
 
     const engine = new GameEngine(canvasRef.current);
     engineRef.current = engine;
+    syncWorldMapFromCloud(engine);
+
+    // Carrega save na nuvem se o jogador estiver autenticado
+    let autoSaveCleanup: (() => void) | null = null;
+    const userId = user?.id;
+    if (userId) {
+      loadCloudSave(userId).then((save) => {
+        if (save) {
+          applySaveToEngine(engine, save);
+        }
+      });
+      autoSaveCleanup = setupAutoSave(engine, userId, 30000);
+    }
     if ((import.meta as { env?: { DEV?: boolean } }).env?.DEV) {
       (window as unknown as { __game?: GameEngine }).__game = engine;
     }
@@ -630,6 +651,7 @@ export const GameCanvas: React.FC = () => {
     engine.start();
 
     return () => {
+      if (autoSaveCleanup) autoSaveCleanup();
       ro.disconnect();
       window.removeEventListener('keydown', onKey);
       engine.stop();
@@ -688,6 +710,7 @@ export const GameCanvas: React.FC = () => {
     const engine = engineRef.current;
     if (!engine) return;
     engine.saveMapToStorage(); // persistência local instantânea
+    saveWorldMapToCloud(engine.serializeMap()); // persistência em tempo real no Supabase
 
     // Publicar no código (commit no GitHub). Se não houver token, pede.
     if (!getGhToken()) {
@@ -1155,7 +1178,7 @@ export const GameCanvas: React.FC = () => {
       {/* Barra de vida + retrato + XP */}
       {!isEditMode && stats && (
         <PlayerHud
-          stats={stats}
+          stats={{ ...stats, maxEnergy: engineRef.current?.effectiveMaxEnergy ?? stats.maxEnergy }}
           onOpenSheet={() => { setSheetInitialTab('ficha'); setShowSheet(true); }}
           questObjective={engineRef.current?.activeQuestObjective ?? null}
           onOpenQuests={() => setShowQuests(true)}
@@ -1421,13 +1444,23 @@ export const GameCanvas: React.FC = () => {
         </div>
       )}
 
-      {/* Indicador do ciclo de dia/noite (sempre visível, topo direito) */}
+      {/* Indicador do ciclo de dia/noite + Logout (sempre visível, topo direito) */}
       {!isEditMode && (
         <div
-          className="absolute right-4 z-20"
+          className="absolute right-4 z-20 flex items-center gap-2"
           style={{ top: 'calc(12px + env(safe-area-inset-top))' }}
         >
           <DayCycleIndicator engine={engineRef.current} />
+          {onLogout && (
+            <button
+              type="button"
+              onClick={onLogout}
+              className="cursor-pointer bg-slate-900/85 hover:bg-red-950/85 text-slate-300 hover:text-red-300 border border-slate-700/80 hover:border-red-500/60 p-2 rounded-xl backdrop-blur-md shadow-lg transition-all active:scale-95"
+              title="Sair da Conta (Logout)"
+            >
+              <LogOut className="w-4 h-4" />
+            </button>
+          )}
         </div>
       )}
 

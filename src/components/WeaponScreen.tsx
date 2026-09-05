@@ -2,6 +2,7 @@ import React from 'react';
 import { X, Sword, ArrowUpCircle, CheckCircle2 } from 'lucide-react';
 import type { GameEngine, StatKey } from '../game/engine';
 import { ITEM_META, WEAPON_DEFS, STAT_LABELS } from '../game/engine';
+import { weaponClass } from '../game/weapons';
 
 function statLines(stats: Partial<Record<StatKey, number>>): string[] {
   return (Object.keys(stats) as StatKey[])
@@ -19,14 +20,19 @@ interface Props {
 /** Tela de Arma, em paisagem: lista de armas à esquerda, detalhe grande à direita. */
 export const WeaponScreen: React.FC<Props> = ({ open, onClose, engine, inventory }) => {
   const [, force] = React.useReducer((n) => n + 1, 0);
-  const weaponKeys = React.useMemo(() => Object.keys(WEAPON_DEFS), []);
+  const classKey = engine?.characterClassKey ?? 'teclas';
+  const weaponKeys = React.useMemo(() => Object.keys(WEAPON_DEFS).filter((key) => WEAPON_DEFS[key].catalogVisible !== false && weaponClass(WEAPON_DEFS[key]) === classKey), [classKey]);
   const [selected, setSelected] = React.useState(weaponKeys[0]);
+  React.useEffect(() => {
+    if (!weaponKeys.includes(selected)) setSelected(weaponKeys[0]);
+  }, [weaponKeys, selected]);
   if (!open || !engine) return null;
 
+  const safeSelected = weaponKeys.includes(selected) ? selected : weaponKeys[0];
   const equippedKey = engine.equippedWeaponKey;
-  const viewingEquipped = selected === equippedKey;
-  const def = WEAPON_DEFS[selected];
-  const level = engine.weaponLevels[selected] ?? 1;
+  const viewingEquipped = safeSelected === equippedKey;
+  const def = WEAPON_DEFS[safeSelected];
+  const level = engine.weaponLevels[safeSelected] ?? 1;
   const atk = def.baseAtk + def.atkPerLevel * (level - 1);
   const maxed = level >= def.maxLevel;
   const cost = !maxed ? def.upgradeCost(level) : null;
@@ -36,7 +42,7 @@ export const WeaponScreen: React.FC<Props> = ({ open, onClose, engine, inventory
     if (engine.upgradeWeapon()) force();
   };
   const doEquip = () => {
-    if (engine.equipWeapon(selected)) force();
+    if (engine.equipWeapon(safeSelected)) force();
   };
 
   return (
@@ -64,7 +70,7 @@ export const WeaponScreen: React.FC<Props> = ({ open, onClose, engine, inventory
                   type="button"
                   onClick={() => setSelected(k)}
                   className={`flex items-center gap-2 rounded-xl border p-2 transition-all text-left ${
-                    selected === k
+                    safeSelected === k
                       ? 'bg-blue-950/50 border-blue-400/70 ring-1 ring-blue-400/50'
                       : 'bg-slate-950/60 border-slate-800 hover:border-slate-600'
                   }`}

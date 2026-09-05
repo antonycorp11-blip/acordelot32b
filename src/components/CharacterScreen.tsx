@@ -32,6 +32,7 @@ import {
 } from 'lucide-react';
 import type { PlayerStats, AttrKey, GameEngine, PassiveGroup, EquipSlotKey, StatKey } from '../game/engine';
 import { PASSIVE_DEFS, PASSIVE_ORDER, EQUIP_SETS, EQUIP_SLOT_ORDER, EQUIP_SLOT_LABEL, STAT_LABELS } from '../game/engine';
+import { equipSetClass } from '../game/catalogData';
 import { ITEM_META } from '../game/engine';
 import type { ToolTier } from '../game/types';
 
@@ -176,17 +177,17 @@ const EquipamentosTab: React.FC<{ engine: GameEngine; inventory: Record<string, 
 
   const allPieces: PieceRow[] = React.useMemo(() => {
     const rows: PieceRow[] = [];
-    for (const set of EQUIP_SETS) {
+    for (const set of EQUIP_SETS.filter((s) => equipSetClass(s) === engine.characterClassKey)) {
       for (const slot of EQUIP_SLOT_ORDER) {
         const p = set.pieces[slot];
         rows.push({ key: p.key, slot, name: p.name, img: p.img, setName: set.name, setColor: set.color, setKey: set.key });
       }
     }
     return rows;
-  }, []);
+  }, [engine.characterClassKey]);
 
   const findEntry = (key: string) => {
-    for (const set of EQUIP_SETS) {
+    for (const set of EQUIP_SETS.filter((s) => equipSetClass(s) === engine.characterClassKey)) {
       for (const slot of EQUIP_SLOT_ORDER) {
         if (set.pieces[slot].key === key) return { set, piece: set.pieces[slot], slot };
       }
@@ -195,7 +196,10 @@ const EquipamentosTab: React.FC<{ engine: GameEngine; inventory: Record<string, 
   };
 
   const [selectedKey, setSelectedKey] = React.useState(allPieces.find((p) => p.slot === 'colar')!.key);
-  const selected = findEntry(selectedKey)!;
+  React.useEffect(() => {
+    if (!allPieces.some((p) => p.key === selectedKey)) setSelectedKey(allPieces.find((p) => p.slot === slotFilter)?.key ?? allPieces[0].key);
+  }, [allPieces, selectedKey, slotFilter]);
+  const selected = findEntry(selectedKey) ?? findEntry(allPieces[0].key)!;
   const piece = selected.piece;
   const set = selected.set;
   const slot = selected.slot;
@@ -454,6 +458,32 @@ const SKILL_GROUPS: Array<{ key: PassiveGroup; label: string; blurb: string; col
   { key: 'geral', label: 'Gerais', blurb: 'Passivas permanentes de Akles', color: '#fbbf24', icon: <Sparkles className="w-5 h-5" /> },
 ];
 const fmtPassive = (id: string, v: number) => (id === 'notaPerfeita' ? `crítico a cada ${v}` : `+${Math.round(v * 100)}%`);
+
+const CLASS_KITS = {
+  wins: [
+    ['Passiva · Ressonância Vocal', 'Skills aplicam até 3 Notas. Na terceira, explodem em área, restauram 4% da Energia e deixam o alvo Resonante por 5s.'],
+    ['Skill 1 · Nota Perfurante', '135% do Poder Harmônico · 15 Energia · 5s. Atravessa inimigos e aplica 1 Nota Vocal. +20% contra Resonante.'],
+    ['Skill 2 · Coro Dissonante', 'Área por 5s · 28 Energia · 11s. 80% inicial + 35%/s, lentidão de 20% e Silenciamento após 3s.'],
+    ['Skill 3 · Ária do Clímax', '320% do Poder Harmônico · 45 Energia · 18s. Grande onda frontal; consome Notas e ganha +10% de dano por Nota.'],
+  ],
+  huans: [
+    ['Passiva · Instinto do Caçador', 'Ataques e Skills aplicam até 5 Marcas da Presa: +2% de dano por marca e +8% de crítico contra Presa Marcada.'],
+    ['Skill 1 · Flecha Resonante', '150% do ATQ · 14 Energia · 5s. Atravessa 2 inimigos, aplica 2 marcas e causa +20% contra Presa Marcada.'],
+    ['Skill 2 · Passo do Caçador', '20 Energia · 9s. Desloca, esquiva e concede por 5s +20% ataque e +10% movimento; próximos 3 ataques aplicam 2 marcas.'],
+    ['Skill 3 · Chuva das Cordas', '280% do ATQ · 40 Energia · 17s. Múltiplos impactos, 3 marcas e lentidão; +25% contra marcada e +30% se houver só um alvo.'],
+  ],
+} as const;
+
+const ClassSkillsTab: React.FC<{ engine: GameEngine }> = ({ engine }) => {
+  const kit = CLASS_KITS[engine.activeCharacter as 'wins' | 'huans'];
+  return <div className="h-full overflow-y-auto grid grid-cols-1 sm:grid-cols-2 gap-3 p-1">{kit.map(([name, desc], i) => (
+    <div key={name} className="rounded-xl border border-violet-500/30 bg-slate-950/60 p-4">
+      <div className="w-10 h-10 rounded-full bg-violet-500/15 text-violet-300 flex items-center justify-center mb-2">{i === 0 ? <Sparkles className="w-5 h-5" /> : <Zap className="w-5 h-5" />}</div>
+      <p className="text-sm font-black text-slate-100">{name}</p>
+      <p className="mt-1 text-[11px] text-slate-400 leading-relaxed">{desc}</p>
+    </div>
+  ))}</div>;
+};
 
 // Mesmo layout da tela de Arma: lista à esquerda (todas as passivas, com a
 // cor do grupo), detalhe grande com nível/valor/descrição à direita.
@@ -778,7 +808,7 @@ export const CharacterScreen: React.FC<CharacterScreenProps> = ({
           )}
           {tab === 'ferramentas' && (engine ? <FerramentasTab engine={engine} /> : null)}
           {tab === 'equipamentos' && (engine ? <EquipamentosTab engine={engine} inventory={inventory ?? {}} /> : null)}
-          {tab === 'skills' && (engine ? <SkillsTab engine={engine} /> : null)}
+          {tab === 'skills' && (engine ? engine.activeCharacter === 'akles' ? <SkillsTab engine={engine} /> : <ClassSkillsTab engine={engine} /> : null)}
         </div>
 
         {/* Barra inferior de sub-abas — mantém tudo dentro da mesma tela */}

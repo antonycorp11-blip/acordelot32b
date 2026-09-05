@@ -161,6 +161,13 @@ export interface Enemy {
   harmonicDebuffPct?: number;
   reverbMarkHits?: number; // quantos dos próximos ataques básicos ganham bônus
   reverbMarkPct?: number;
+  vocalNotes?: number;
+  resonantT?: number;
+  preyMarks?: number;
+  preyLastHitAt?: number;
+  slowT?: number;
+  slowPct?: number;
+  silenceT?: number;
 }
 
 export interface LightBeam {
@@ -172,6 +179,8 @@ export interface LightBeam {
   maxLife: number;
   dmg: number;
   hitIds: string[];
+  kind?: 'aklesPulse' | 'winsNote' | 'winsBasic' | 'huansArrow' | 'huansBasic';
+  maxHits?: number;
 }
 
 export interface Butterfly {

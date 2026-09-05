@@ -5,7 +5,7 @@
 // peça — nunca passivas exclusivas nem bônus de 2/4 peças.
 // ============================================================================
 
-import type { StatBag } from './statTypes';
+import type { CharacterClassKey, StatBag } from './statTypes';
 
 export type EquipSlotKey = 'colar' | 'anel' | 'aura' | 'catalisador';
 export const EQUIP_SLOT_ORDER: EquipSlotKey[] = ['colar', 'anel', 'aura', 'catalisador'];
@@ -41,6 +41,7 @@ export interface EquipSetDef {
   bonus4Extra?: string; // efeito de texto que não é um StatKey numérico
   aklesExtra?: string; // bônus extra só com Akles (só o set Virtuose tem)
   identity: string;
+  classKey?: CharacterClassKey; // ausente nos sets legados = Teclas
 }
 
 const TIER_COLOR: Record<1 | 2 | 3 | 4 | 5, string> = {
@@ -241,6 +242,76 @@ export const EQUIP_SETS: EquipSetDef[] = [
     identity: 'Melhor conjunto pra personagens Teclas focados quase totalmente em Skills.',
   },
 ];
+
+type ClassSetSpec = { tier: 1 | 2 | 3 | 4 | 5; name: string; identity: string };
+
+const CLASS_SET_SPECS: Record<'vocal' | 'cordas', ClassSetSpec[]> = {
+  vocal: [
+    { tier: 1, name: 'Aprendiz Vocal', identity: 'Entrada equilibrada para Energia e Skills.' },
+    { tier: 1, name: 'Eco de Carvalho', identity: 'Sustentação e controle para a maga Vocal.' },
+    { tier: 2, name: 'Solista Solitário', identity: 'Burst e Poder Harmônico.' },
+    { tier: 2, name: 'Coral de Acordelot', identity: 'Recarga e controle de área.' },
+    { tier: 3, name: 'Diva Lunar', identity: 'Crítico mágico e finalização.' },
+    { tier: 3, name: 'Tenor Resonante', identity: 'Notas Vocais e regeneração.' },
+    { tier: 4, name: 'Maestro Vocal', identity: 'Skills frequentes de alto impacto.' },
+    { tier: 4, name: 'Ópera Real', identity: 'Grande área e explosões harmônicas.' },
+    { tier: 5, name: 'Virtuose Vocal', identity: 'Máximo burst da classe Vocal.' },
+    { tier: 5, name: 'Voz Celestial', identity: 'Controle, Energia e Poder Harmônico.' },
+  ],
+  cordas: [
+    { tier: 1, name: 'Aprendiz das Cordas', identity: 'Entrada equilibrada para o caçador.' },
+    { tier: 1, name: 'Lira de Carvalho', identity: 'Mobilidade e sobrevivência.' },
+    { tier: 2, name: 'Violinista Solitário', identity: 'Ataque básico e crítico.' },
+    { tier: 2, name: 'Violinista de Acordelot', identity: 'Velocidade e perseguição.' },
+    { tier: 3, name: 'Harpa Lunar', identity: 'Crítico para alvos prioritários.' },
+    { tier: 3, name: 'Baixo Resonante', identity: 'Marcação e cadência de ataques.' },
+    { tier: 4, name: 'Maestro das Cordas', identity: 'DPS sustentado e mobilidade.' },
+    { tier: 4, name: 'Luthier Real', identity: 'Skills e dano contra elites.' },
+    { tier: 5, name: 'Virtuose das Cordas', identity: 'Máximo dano crítico de alvo único.' },
+    { tier: 5, name: 'Sinfonia Celestial', identity: 'Chuva de flechas e perseguição.' },
+  ],
+};
+
+function plainSlug(text: string): string {
+  return text.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
+}
+
+function classSet(classKey: 'vocal' | 'cordas', spec: ClassSetSpec): EquipSetDef {
+  const setSlug = plainSlug(spec.name);
+  const p = (slot: EquipSlotKey, stats: StatBag): EquipPieceDef => ({
+    key: `${classKey}_${slot}_${setSlug}`,
+    slot,
+    name: `${EQUIP_SLOT_LABEL[slot]} ${spec.name}`,
+    img: `/assets/catalogo/${classKey}/equipamentos/${classKey}_${slot}_${setSlug}.png`,
+    stats,
+  });
+  const t = spec.tier;
+  const vocal = classKey === 'vocal';
+  return {
+    key: `${classKey}_${setSlug}`,
+    name: `Conjunto ${spec.name}`,
+    tier: t,
+    classKey,
+    color: TIER_COLOR[t],
+    pieces: {
+      colar: p('colar', { hpPct: 4 + t * 3, energyMaxPct: vocal ? 3 + t * 2 : 2 + t }),
+      anel: p('anel', vocal ? { harmonicPowerPct: 3 + t * 3, critChancePct: t } : { atkPct: 3 + t * 3, critChancePct: 2 + t * 2 }),
+      aura: p('aura', vocal ? { skillDmgPct: 4 + t * 3, areaPct: 2 + t * 2 } : { skillDmgPct: 2 + t * 2, atkSpeedPct: 3 + t * 2 }),
+      catalisador: p('catalisador', vocal ? { cooldownReductionPct: 2 + t * 2, energyRegenPct: 3 + t * 2 } : { basicDmgPct: 4 + t * 3, critDmgPct: 3 + t * 3 }),
+    },
+    bonus2: vocal ? { harmonicPowerPct: 3 + t * 2 } : { atkSpeedPct: 3 + t * 2 },
+    bonus4: vocal ? { skillDmgPct: 5 + t * 3, energyMaxPct: 2 + t * 2 } : { basicDmgPct: 5 + t * 3, critChancePct: 2 + t * 2 },
+    identity: spec.identity,
+  };
+}
+
+for (const classKey of ['vocal', 'cordas'] as const) {
+  for (const spec of CLASS_SET_SPECS[classKey]) EQUIP_SETS.push(classSet(classKey, spec));
+}
+
+export function equipSetClass(set: EquipSetDef): CharacterClassKey {
+  return set.classKey ?? 'teclas';
+}
 
 // index rápido: chave da peça -> {set, piece} — usado ao equipar/mostrar detalhe
 export const EQUIP_PIECE_INDEX: Record<string, { set: EquipSetDef; piece: EquipPieceDef }> = {};

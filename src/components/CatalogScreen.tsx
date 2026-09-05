@@ -2,6 +2,8 @@ import React from 'react';
 import { X, Library, Sword, CheckCircle2 } from 'lucide-react';
 import type { GameEngine } from '../game/engine';
 import { WEAPON_DEFS } from '../game/engine';
+import { weaponClass } from '../game/weapons';
+import { equipSetClass } from '../game/catalogData';
 import { EQUIP_SETS, EQUIP_SLOT_ORDER, STAT_LABELS } from '../game/engine';
 import type { StatKey } from '../game/engine';
 
@@ -36,8 +38,8 @@ export const CatalogScreen: React.FC<Props> = ({ open, onClose, engine }) => {
   const [tier, setTier] = React.useState<number>(2);
   if (!open || !engine) return null;
 
-  const weaponsInTier = Object.values(WEAPON_DEFS).filter((d) => d.tier === tier);
-  const setsInTier = EQUIP_SETS.filter((s) => s.tier === tier);
+  const weaponsInTier = Object.values(WEAPON_DEFS).filter((d) => d.tier === tier && d.catalogVisible !== false && weaponClass(d) === engine.characterClassKey);
+  const setsInTier = EQUIP_SETS.filter((s) => s.tier === tier && equipSetClass(s) === engine.characterClassKey);
   const equippedKey = engine.equippedWeaponKey;
 
   return (

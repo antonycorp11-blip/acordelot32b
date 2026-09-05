@@ -14,6 +14,7 @@ interface PlayerHudProps {
 export const PlayerHud: React.FC<PlayerHudProps> = ({ stats, onOpenSheet, questObjective, onOpenQuests, portraitSrc }) => {
   const hpPct = Math.max(0, Math.min(100, (stats.hp / stats.maxHp) * 100));
   const xpPct = Math.max(0, Math.min(100, (stats.xp / stats.xpNext) * 100));
+  const energyPct = Math.max(0, Math.min(100, (stats.energy / stats.maxEnergy) * 100));
 
   return (
     <div
@@ -59,6 +60,12 @@ export const PlayerHud: React.FC<PlayerHudProps> = ({ stats, onOpenSheet, questO
             className="h-full bg-gradient-to-r from-sky-500 to-cyan-300 transition-all duration-300"
             style={{ width: `${xpPct}%` }}
           />
+        </div>
+        <div className="mt-1 flex items-center gap-1">
+          <div className="flex-1 h-1.5 rounded-full bg-slate-950/80 border border-violet-900/80 overflow-hidden">
+            <div className="h-full bg-gradient-to-r from-violet-600 to-fuchsia-300 transition-all duration-200" style={{ width: `${energyPct}%` }} />
+          </div>
+          <span className="text-[8px] font-bold text-fuchsia-200 tabular-nums drop-shadow-[0_1px_2px_rgba(0,0,0,.9)]">{Math.round(stats.energy)}/{Math.round(stats.maxEnergy)}</span>
         </div>
 
         {/* Objetivo da missão diária ativa */}

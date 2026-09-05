@@ -335,6 +335,26 @@ export const CATALOG_EQUIP_SLUGS = [
 for (const slug of CATALOG_WEAPON_SLUGS) {
   ASSET_PATHS[`weapon_${slug}`] = `/assets/catalogo/armas/${slug}.png`;
 }
+const CLASS_CATALOG_WEAPON_SLUGS: Record<'vocal' | 'cordas', string[]> = {
+  vocal: [
+    'vocal_cajado_do_corista_jovem', 'vocal_microfone_rustico', 'vocal_bastao_do_eco_inicial', 'vocal_cajado_da_voz_errante',
+    'vocal_microfone_de_acordelot', 'vocal_cajado_do_solista', 'vocal_bastao_do_coral_azul', 'vocal_microfone_harmonico', 'vocal_cajado_do_soprano_peregrino',
+    'vocal_grande_microfone_do_maestro', 'vocal_cajado_da_opera_real', 'vocal_bastao_da_catedral_sonora', 'vocal_microfone_do_virtuoso_coral',
+    'vocal_virtuose_vocal', 'vocal_voz_celestial', 'vocal_requiem_do_silencio',
+  ],
+  cordas: [
+    'cordas_arco_do_cordel_jovem', 'cordas_lira_rustica', 'cordas_violino_de_caca', 'cordas_alaude_de_madeira',
+    'cordas_arco_do_violao_harmonico', 'cordas_baixo_resonante', 'cordas_lira_de_acordelot', 'cordas_violino_azul', 'cordas_harpa_do_peregrino',
+    'cordas_guitarra_celeste', 'cordas_violoncelo_resonante', 'cordas_harpa_lunar', 'cordas_alaude_real',
+    'cordas_concerto_das_cordas', 'cordas_harpa_do_maestro', 'cordas_baixo_magistral', 'cordas_sinfonia_do_luthier',
+    'cordas_virtuose_das_cordas', 'cordas_arco_da_seresta_celestial', 'cordas_requiem_do_violino',
+  ],
+};
+for (const classKey of ['vocal', 'cordas'] as const) {
+  for (const slug of CLASS_CATALOG_WEAPON_SLUGS[classKey]) {
+    ASSET_PATHS[`weapon_${slug}`] = `/assets/catalogo/${classKey}/armas/${slug}.png`;
+  }
+}
 for (const slug of CATALOG_EQUIP_SLUGS) {
   ASSET_PATHS[`equip_${slug}`] = `/assets/catalogo/equipamentos/${slug}.png`;
 }

@@ -20,6 +20,8 @@ export type StatKey =
   | 'energyRegenPct'
   | 'harmonicPowerPct';
 
+export type CharacterClassKey = 'teclas' | 'vocal' | 'cordas';
+
 export const STAT_LABELS: Record<StatKey, string> = {
   hpPct: 'HP Máximo',
   defPct: 'DEF',
@@ -40,7 +42,7 @@ export const STAT_LABELS: Record<StatKey, string> = {
 // Stats que ainda não têm um sistema (Energia Harmônica é um recurso que o
 // jogo não tem implementado) — mostrados normalmente na UI, mas sem efeito
 // de combate por enquanto.
-export const STATS_WITHOUT_EFFECT: Set<StatKey> = new Set(['energyMaxPct', 'energyRegenPct', 'harmonicPowerPct']);
+export const STATS_WITHOUT_EFFECT: Set<StatKey> = new Set();
 
 export type StatBag = Partial<Record<StatKey, number>>;
 

@@ -9,6 +9,21 @@ Acordelot é um RPG de fantasia e educação musical. A música não é apenas t
 
 O jogador deve aprender música enquanto explora, luta, coleta, cria itens e resolve problemas. A narrativa explica por que o conhecimento importa; as mecânicas ensinam como ele funciona.
 
+## Ciclo musical de progressão
+
+O ciclo central de crescimento do jogador segue a própria formação da música:
+
+1. O jogador **ressoa com os Ecos** em vez de simplesmente tratá-los como monstros.
+2. Uma ressonância bem-sucedida concede fragmentos da nota daquele Eco e Pó de Eco.
+3. Os fragmentos são sintetizados até formar notas inteiras.
+4. As 12 notas cromáticas formam o conjunto a partir do qual as escalas são construídas.
+5. O jogador percorre esse conjunto em tons e semitons para criar escalas. Exemplo da escala maior: `T–T–S–T–T–T–S`.
+6. Graus das escalas são combinados para formar acordes. A tríade fundamental usa os graus `1–3–5`.
+7. Cada acorde se manifesta visualmente como um pequeno cosmos ou constelação musical equipável.
+8. Os Acordes-Cosmos concedem atributos e permitem criar builds diferentes.
+
+Assim, a educação musical e a progressão de RPG são o mesmo sistema: o jogador não responde apenas qual é uma escala ou acorde; ele precisa construí-los e equipá-los.
+
 ## História antiga conhecida apenas pela produção
 
 O mundo nasceu sem som. Os humanos se comunicavam por escrita, símbolos e gestos.
@@ -110,4 +125,3 @@ O jogador deve:
 Ao avistar Dissonia, Akles escuta a melodia de Pippo tocar sem instrumento. Uma voz encoberta afirma:
 
 > Se você ainda se lembra dele, então o ciclo falhou.
-

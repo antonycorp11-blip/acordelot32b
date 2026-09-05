@@ -27,6 +27,7 @@ import {
   Smartphone,
   Settings,
   CloudRain,
+  Map as MapIcon,
 } from 'lucide-react';
 import type { PlayerStats } from '../game/engine';
 import { GameEngine, InteractionState, SelectedPropInfo, TimeOfDay, CHARACTER_ROSTER, CHARACTER_PORTRAITS, SHOP_ITEMS } from '../game/engine';
@@ -43,6 +44,7 @@ import { QuestScreen } from './QuestScreen';
 import { HudIcon } from './HudIcon';
 import { SettingsModal } from './SettingsModal';
 import { ChatBox } from './ChatBox';
+import { WorldMapScreen } from './WorldMapScreen';
 import { publishMapToCode, getGhToken, setGhToken } from '../game/mapPersist';
 import { saveWorldMapToCloud, syncWorldMapFromCloud } from '../game/worldMapSync';
 import { loadCloudSave, applySaveToEngine, setupAutoSave, saveToCloud } from '../game/saveManager';
@@ -507,6 +509,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
   const [showWeapon, setShowWeapon] = useState(false);
   const [showCatalog, setShowCatalog] = useState(false);
   const [showQuests, setShowQuests] = useState(false);
+  const [showWorldMap, setShowWorldMap] = useState(false);
   const [, setQuestTick] = useState(0);
   const [, setCharacterTick] = useState(0);
   // Skills agora é uma aba dentro da Ficha — abrir com esse atalho já cai nela
@@ -768,6 +771,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
       }
       if (e.code === 'KeyK') setShowCatalog((v) => !v);
       if (e.code === 'KeyM') setShowQuests((v) => !v);
+      if (e.code === 'KeyG') setShowWorldMap((v) => !v);
       if (e.code === 'KeyV') {
         const eng = engineRef.current;
         if (eng) {
@@ -1550,6 +1554,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
           onToggleWeapon={() => setShowWeapon((v) => !v)}
           onToggleCatalog={() => setShowCatalog((v) => !v)}
           onToggleQuests={() => setShowQuests((v) => !v)}
+          onToggleMap={() => setShowWorldMap((v) => !v)}
           onToggleSheet={() => {
             setSheetInitialTab('ficha');
             setShowSheet((v) => !v);
@@ -1579,6 +1584,14 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
       {/* HUD de coleta — desktop */}
       {!isEditMode && !isTouchDevice && (
         <div className="fixed bottom-6 right-6 z-30 flex items-end gap-3 pointer-events-auto">
+          <button
+            type="button"
+            onClick={() => setShowWorldMap((v) => !v)}
+            className="cursor-pointer w-12 h-12 rounded-full bg-slate-950/85 hover:bg-slate-800 text-cyan-300 border border-cyan-500/40 hover:border-cyan-400/80 shadow-xl flex items-center justify-center backdrop-blur-md transition-all active:scale-95"
+            title="Mapa do mundo (G)"
+          >
+            <MapIcon className="w-7 h-7" />
+          </button>
           <button
             type="button"
             onClick={() => setShowPartitura((v) => !v)}
@@ -1743,6 +1756,12 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
       <QuestScreen
         open={showQuests && !isEditMode}
         onClose={() => setShowQuests(false)}
+        engine={engineRef.current}
+      />
+
+      <WorldMapScreen
+        open={showWorldMap && !isEditMode}
+        onClose={() => setShowWorldMap(false)}
         engine={engineRef.current}
       />
 

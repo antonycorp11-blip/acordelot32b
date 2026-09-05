@@ -490,7 +490,7 @@ export const ENEMY_DEFS: Record<string, EnemyDef> = {
   },
   organ_sentinel: {
     sheet: 'bossOrganIdle', name: 'Sentinela do Órgão', hostile: true, boss: true,
-    cols: 8, cw: 160, ch: 240, disp: 0.68,
+    cols: 8, cw: 160, ch: 240, disp: 0.86,
     hp: 480, speed: 44, aggro: 430, attackRange: 185, touchDamage: 16, attackCd: 1.7,
     xp: 900, claveMin: 18, claveMax: 28, fragMin: 10, fragMax: 16, respawnSecs: 900,
   },
@@ -3123,37 +3123,96 @@ export class GameEngine {
   }
 
   private ensureBossArena() {
-    const left = 124, right = 142, top = 3, bottom = 24;
+    // Complexo isolado no extremo nordeste: salão murado, piso concêntrico,
+    // pianos monumentais e corredor próprio até a estrada principal.
+    const left = 116, right = 142, top = 2, bottom = 22;
     const minX = left * TILE_SIZE, maxX = (right + 1) * TILE_SIZE;
     const minY = top * TILE_SIZE, maxY = (bottom + 1) * TILE_SIZE;
     this.props = this.props.filter((p) => {
       if (p.id.startsWith('boss_arena_')) return false;
       const cx = p.x + p.w / 2, cy = p.y + p.h / 2;
-      return cx < minX || cx > maxX || cy < minY || cy > maxY;
+      const inArena = cx >= minX && cx <= maxX && cy >= minY && cy <= maxY;
+      const inApproach = cx >= 127 * TILE_SIZE && cx <= 132 * TILE_SIZE && cy >= maxY && cy <= 30 * TILE_SIZE;
+      return !inArena && !inApproach;
     });
+    const centerC = 129, centerR = 12;
     for (let r = top; r <= bottom; r++) {
       for (let c = left; c <= right; c++) {
-        const edge = r === top || c === left || c === right || (r === bottom && (c < 132 || c > 135));
-        this.ground[r][c] = edge ? TERRAIN_TILES.DARK_STONE : ((r + c) % 3 ? TERRAIN_TILES.STONE_CENTER : TERRAIN_TILES.STONE_CENTER_VAR);
+        const edge = r === top || c === left || c === right || (r === bottom && (c < 127 || c > 131));
+        const ring = Math.hypot((c - centerC) / 1.25, r - centerR);
+        this.ground[r][c] = edge || (ring > 5.5 && ring < 6.5)
+          ? TERRAIN_TILES.DARK_STONE
+          : ((r + c) % 3 ? TERRAIN_TILES.STONE_CENTER : TERRAIN_TILES.STONE_CENTER_VAR);
       }
     }
-    const pillars: Array<[number, number]> = [
-      [124,3],[133,3],[142,3],[124,10],[142,10],[124,18],[142,18],[124,24],[142,24],
+    // Caminho físico: o jogador chega andando pela avenida leste, sem TP.
+    for (let r = bottom; r <= 29; r++) {
+      for (let c = 127; c <= 131; c++) {
+        this.ground[r][c] = (r + c) % 2 ? TERRAIN_TILES.STONE_CENTER : TERRAIN_TILES.STONE_CENTER_VAR;
+      }
+    }
+
+    const towers: Array<[number, number]> = [
+      [116,2],[141,2],[116,8],[141,8],[116,15],[141,15],[116,21],[141,21],
     ];
-    for (let i = 0; i < pillars.length; i++) {
-      const [c, r] = pillars[i];
+    for (let i = 0; i < towers.length; i++) {
+      const [c, r] = towers[i];
       const p: WorldProp = {
-        id: `boss_arena_pillar_${i}`,
-        type: i % 2 ? 'wallMusical6' : 'wallMusical3',
+        id: `boss_arena_tower_${i}`,
+        type: 'wallMusical4',
         x: c * TILE_SIZE,
         y: r * TILE_SIZE,
-        w: 52,
-        h: 72,
-        sortY: r * TILE_SIZE + 68,
-        collider: { x: c * TILE_SIZE + 9, y: r * TILE_SIZE + 50, w: 34, h: 18 },
+        w: 44,
+        h: 150,
+        sortY: r * TILE_SIZE + 144,
+        collider: { x: c * TILE_SIZE + 5, y: r * TILE_SIZE + 123, w: 34, h: 22 },
       };
       this.props.push(p);
     }
+
+    const wallSegments: Array<[number, number]> = [
+      [117,2],[121,2],[125,2],[129,2],[133,2],[137,2],
+      [117,21],[121,21],[133,21],[137,21],
+    ];
+    for (let i = 0; i < wallSegments.length; i++) {
+      const [c, r] = wallSegments[i];
+      this.props.push({
+        id: `boss_arena_wall_${i}`,
+        type: i < 6 ? 'wallMusical5' : 'wallMusical3',
+        x: c * TILE_SIZE,
+        y: r * TILE_SIZE,
+        w: 126,
+        h: i < 6 ? 92 : 56,
+        sortY: r * TILE_SIZE + (i < 6 ? 88 : 52),
+        collider: { x: c * TILE_SIZE + 4, y: r * TILE_SIZE + (i < 6 ? 62 : 32), w: 118, h: 22 },
+      });
+    }
+
+    const pianos: Array<[number, number, 'arenaPianoMaster' | 'arenaPianoCrystal']> = [
+      [119,7,'arenaPianoMaster'], [135,7,'arenaPianoCrystal'],
+      [119,17,'arenaPianoCrystal'], [135,17,'arenaPianoMaster'],
+    ];
+    for (let i = 0; i < pianos.length; i++) {
+      const [c, r, art] = pianos[i];
+      this.props.push({
+        id: `boss_arena_piano_${i}`,
+        type: art,
+        x: c * TILE_SIZE,
+        y: r * TILE_SIZE,
+        w: 124,
+        h: 88,
+        sortY: r * TILE_SIZE + 82,
+        collider: { x: c * TILE_SIZE + 12, y: r * TILE_SIZE + 57, w: 100, h: 24 },
+      });
+    }
+
+    // Portal marca a entrada do salão sem bloquear o corredor central.
+    this.props.push({
+      id: 'boss_arena_gate', type: 'wallMusical7',
+      x: 127.4 * TILE_SIZE, y: 19.25 * TILE_SIZE,
+      w: 116, h: 130, sortY: 23.2 * TILE_SIZE,
+      collider: { x: 127.4 * TILE_SIZE, y: 22.5 * TILE_SIZE, w: 22, h: 18 },
+    });
   }
 
   private syncFixedNpcPositions() {
@@ -3476,7 +3535,7 @@ export class GameEngine {
     }
 
     // Boss da ascensão de Teclas, sozinho no centro da arena nordeste.
-    this.spawnEnemy('organ_sentinel', 133, 13, id++, 12);
+    this.spawnEnemy('organ_sentinel', 129, 12, id++, 12);
 
     // FLORESTA SOMBRIA — MUITOS monstros espalhados por toda a região
     const darkStartRow = DARK_START + 3;
@@ -6315,6 +6374,10 @@ export class GameEngine {
       ctx.drawImage(this.assets.wallMusical8, px, py, prop.w, prop.h);
     } else if (prop.type === 'wallGate' && this.assets?.wallGate) {
       ctx.drawImage(this.assets.wallGate, px, py, prop.w, prop.h);
+    } else if (prop.type === 'arenaPianoMaster' && this.assets?.arenaPianoMaster) {
+      ctx.drawImage(this.assets.arenaPianoMaster, px, py, prop.w, prop.h);
+    } else if (prop.type === 'arenaPianoCrystal' && this.assets?.arenaPianoCrystal) {
+      ctx.drawImage(this.assets.arenaPianoCrystal, px, py, prop.w, prop.h);
     }
 
     // Brilho + partículas nos nós de coleta (cristais, madeira, minério, ouro)

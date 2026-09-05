@@ -29,6 +29,14 @@ export interface LoadedAssets {
   monMaestro: HTMLImageElement;
   monColosso: HTMLImageElement;
   monDama: HTMLImageElement;
+  bossOrganIdle: HTMLImageElement;
+  bossOrganWalk: HTMLImageElement;
+  bossOrganAttack: HTMLImageElement;
+  bossOrganCast: HTMLImageElement;
+  bossOrganRageIdle: HTMLImageElement;
+  bossOrganRageWalk: HTMLImageElement;
+  bossOrganRageAttack: HTMLImageElement;
+  bossOrganRageCast: HTMLImageElement;
 
   // Props da Floresta Sombria
   darkDeadtree: HTMLImageElement;
@@ -193,6 +201,14 @@ const ASSET_PATHS: Record<keyof LoadedAssets, string> = {
   monMaestro: '/assets/monsters/maestro.png',
   monColosso: '/assets/monsters/colosso.png',
   monDama: '/assets/monsters/dama.png',
+  bossOrganIdle: '/assets/monsters/organ_sentinel/idle.png',
+  bossOrganWalk: '/assets/monsters/organ_sentinel/walk.png',
+  bossOrganAttack: '/assets/monsters/organ_sentinel/attack.png',
+  bossOrganCast: '/assets/monsters/organ_sentinel/cast.png',
+  bossOrganRageIdle: '/assets/monsters/organ_sentinel/rage_idle.png',
+  bossOrganRageWalk: '/assets/monsters/organ_sentinel/rage_walk.png',
+  bossOrganRageAttack: '/assets/monsters/organ_sentinel/rage_attack.png',
+  bossOrganRageCast: '/assets/monsters/organ_sentinel/rage_cast.png',
 
   // Props da Floresta Sombria
   darkDeadtree: '/assets/props/dark_deadtree.png',

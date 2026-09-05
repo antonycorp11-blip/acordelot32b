@@ -39,9 +39,8 @@ export const STAT_LABELS: Record<StatKey, string> = {
   harmonicPowerPct: 'Poder Harmônico',
 };
 
-// Stats que ainda não têm um sistema (Energia Harmônica é um recurso que o
-// jogo não tem implementado) — mostrados normalmente na UI, mas sem efeito
-// de combate por enquanto.
+// Mantém a API usada pelas telas para sinalizar atributos ainda sem efeito.
+// Todos os atributos atuais já participam dos cálculos do jogo.
 export const STATS_WITHOUT_EFFECT: Set<StatKey> = new Set();
 
 export type StatBag = Partial<Record<StatKey, number>>;

@@ -37,6 +37,7 @@ import {
   WORLD_HEIGHT,
   DARK_START,
   FADE_ROWS,
+  TERRAIN_TILES,
 } from './mapData';
 import { loadGameAssets, LoadedAssets } from './assetLoader';
 import { generateCharacterSprites, generateTrees, generateHouses } from './pixelArt';
@@ -217,6 +218,7 @@ export const ITEM_META: Record<string, ItemMeta> = {
   potion_basic: { name: 'Tônico de Combate', icon: '⚔️', weight: 0.25, buff: { label: '+20% ataque básico', duration: 300, kind: 'basic', value: .20 }, img: '/assets/ancient-ruins/Characters/NPC Merchant-icons-sword.png', desc: 'Aumenta o dano dos ataques básicos por 5 minutos.' },
   potion_shield: { name: 'Poção de Escudo', icon: '🛡️', weight: 0.25, buff: { label: 'Escudo 25%', duration: 300, kind: 'shield', value: .25 }, img: '/assets/ancient-ruins/Characters/NPC Merchant-icons-potion.png', desc: 'Reduz o dano recebido em 25% por 5 minutos.' },
   potion_farm: { name: 'Essência do Coletor', icon: '🌿', weight: 0.25, buff: { label: '+50% coleta', duration: 600, kind: 'farm', value: .50 }, img: '/assets/ancient-ruins/Characters/NPC Merchant-icons-potion.png', desc: 'Aumenta os recursos obtidos na coleta por 10 minutos.' },
+  ascension_keys: { name: 'Núcleo de Ascensão das Teclas', icon: '♬', weight: 0, img: '/assets/items/ascension_keys.png', desc: 'Relíquia garantida do Sentinela do Órgão. Necessária para ascender personagens da classe Teclas.' },
   clave: {
     name: 'Clave Musical',
     icon: '🎼',
@@ -458,6 +460,7 @@ interface EnemyDef {
   fragMin: number;
   fragMax: number;
   respawnSecs: number;
+  boss?: boolean;
 }
 export const ENEMY_DEFS: Record<string, EnemyDef> = {
   aranha: {
@@ -484,6 +487,12 @@ export const ENEMY_DEFS: Record<string, EnemyDef> = {
     sheet: 'monDama', name: 'Dama do Silêncio', hostile: true, cols: 5, cw: 120, ch: 140, disp: 0.56,
     hp: 55, speed: 68, aggro: 300, attackRange: 36, touchDamage: 18, attackCd: 1.1,
     xp: 55, claveMin: 3, claveMax: 5, fragMin: 3, fragMax: 6, respawnSecs: 70,
+  },
+  organ_sentinel: {
+    sheet: 'bossOrganIdle', name: 'Sentinela do Órgão', hostile: true, boss: true,
+    cols: 8, cw: 160, ch: 240, disp: 0.68,
+    hp: 480, speed: 44, aggro: 430, attackRange: 185, touchDamage: 16, attackCd: 1.7,
+    xp: 900, claveMin: 18, claveMax: 28, fragMin: 10, fragMax: 16, respawnSecs: 900,
   },
 };
 
@@ -2026,6 +2035,7 @@ export class GameEngine {
     }
 
     this.loadMapFromStorage();
+    this.ensureBossArena();
     this.rebuildColliderGrid();
     this.initHarvestables();
     this.initFragments();
@@ -3112,6 +3122,40 @@ export class GameEngine {
     }
   }
 
+  private ensureBossArena() {
+    const left = 124, right = 142, top = 3, bottom = 24;
+    const minX = left * TILE_SIZE, maxX = (right + 1) * TILE_SIZE;
+    const minY = top * TILE_SIZE, maxY = (bottom + 1) * TILE_SIZE;
+    this.props = this.props.filter((p) => {
+      if (p.id.startsWith('boss_arena_')) return false;
+      const cx = p.x + p.w / 2, cy = p.y + p.h / 2;
+      return cx < minX || cx > maxX || cy < minY || cy > maxY;
+    });
+    for (let r = top; r <= bottom; r++) {
+      for (let c = left; c <= right; c++) {
+        const edge = r === top || c === left || c === right || (r === bottom && (c < 132 || c > 135));
+        this.ground[r][c] = edge ? TERRAIN_TILES.DARK_STONE : ((r + c) % 3 ? TERRAIN_TILES.STONE_CENTER : TERRAIN_TILES.STONE_CENTER_VAR);
+      }
+    }
+    const pillars: Array<[number, number]> = [
+      [124,3],[133,3],[142,3],[124,10],[142,10],[124,18],[142,18],[124,24],[142,24],
+    ];
+    for (let i = 0; i < pillars.length; i++) {
+      const [c, r] = pillars[i];
+      const p: WorldProp = {
+        id: `boss_arena_pillar_${i}`,
+        type: i % 2 ? 'wallMusical6' : 'wallMusical3',
+        x: c * TILE_SIZE,
+        y: r * TILE_SIZE,
+        w: 52,
+        h: 72,
+        sortY: r * TILE_SIZE + 68,
+        collider: { x: c * TILE_SIZE + 9, y: r * TILE_SIZE + 50, w: 34, h: 18 },
+      };
+      this.props.push(p);
+    }
+  }
+
   private syncFixedNpcPositions() {
     const market = this.props.find((p) => p.id === 'b_bakery_front') ?? this.props.find((p) => p.type === 'bldgBakeryFront');
     const merchant = this.npcs.find((n) => n.id === 'npc_mercador_cidade');
@@ -3154,6 +3198,7 @@ export class GameEngine {
 
     // Load straight from customMapLayout.json
     this.loadMapFromStorage();
+    this.ensureBossArena();
     this.rebuildColliderGrid();
     this.initHarvestables();
     this.initFragments();
@@ -3378,6 +3423,7 @@ export class GameEngine {
       level: lvl,
       dmgMul,
       facingLeft: this.enemyRandom() < 0.5,
+      direction: 'down',
       state: 'idle',
       frame: 0,
       animTimer: this.enemyRandom() * 2,
@@ -3428,6 +3474,9 @@ export class GameEngine {
         if (this.spawnEnemy('eco_' + NOTE_KEY[i], c, r, id++)) break;
       }
     }
+
+    // Boss da ascensão de Teclas, sozinho no centro da arena nordeste.
+    this.spawnEnemy('organ_sentinel', 133, 13, id++, 12);
 
     // FLORESTA SOMBRIA — MUITOS monstros espalhados por toda a região
     const darkStartRow = DARK_START + 3;
@@ -3518,8 +3567,9 @@ export class GameEngine {
       opts.crit,
     );
     const kd = Math.atan2(e.y - fromY, e.x - fromX);
-    e.knockX = Math.cos(kd) * 90;
-    e.knockY = Math.sin(kd) * 90;
+    const knockForce = ENEMY_DEFS[e.kind]?.boss ? 18 : 90;
+    e.knockX = Math.cos(kd) * knockForce;
+    e.knockY = Math.sin(kd) * knockForce;
     for (let i = 0; i < 6; i++) this.addMiningSpark(e.x + 8, e.y);
     if (e.hp <= 0) {
       e.state = 'dead';
@@ -3532,6 +3582,10 @@ export class GameEngine {
       const frags = def.fragMin + Math.floor(Math.random() * (def.fragMax - def.fragMin + 1));
       // dropa no CHÃO — não vai direto pro inventário (igual madeira/pedra)
       if (claves > 0) this.spawnDropScattered(e.x + 8, e.y, 'clave', claves);
+      if (def.boss) {
+        this.spawnDrop(e.x + 8, e.y - 8, 'ascension_keys', 1);
+        this.onHarvestPopup?.('♬ Núcleo de Ascensão das Teclas!', e.x, e.y - 36);
+      }
       if (!e.hostile && e.note !== undefined) {
         // Eco dissipado: fragmentos DA SUA nota + poeira de eco
         this.spawnDropScattered(e.x + 8, e.y, 'frag_' + NOTE_KEY[e.note], frags, e.note);
@@ -4093,13 +4147,23 @@ export class GameEngine {
       if (e.state === 'attack') {
         e.stateTimer += dt;
         e.frame = Math.min(def.cols - 1, Math.floor(e.stateTimer * 10));
-        if (e.stateTimer > 0.25 && e.stateTimer - dt <= 0.25) {
-          if (dToPlayer < def.attackRange + 10)
+        const impactAt = def.boss ? .46 : .25;
+        if (e.stateTimer > impactAt && e.stateTimer - dt <= impactAt) {
+          if (def.boss) {
+            const raging = e.hp <= e.maxHp * .5;
+            const range = e.bossAttackMode === 'cast' ? 245 : 82;
+            if (dToPlayer < range) {
+              const modeMul = e.bossAttackMode === 'cast' ? .72 : 1;
+              this.damagePlayer(Math.round(def.touchDamage * e.dmgMul * modeMul * (raging ? 1.2 : 1)));
+              for (let i = 0; i < 14; i++) this.addMiningSpark(px + (Math.random() - .5) * 32, py + (Math.random() - .5) * 24);
+            }
+          } else if (dToPlayer < def.attackRange + 10) {
             this.damagePlayer(Math.round(def.touchDamage * e.dmgMul));
+          }
         }
-        if (e.stateTimer > 0.6) {
+        if (e.stateTimer > (def.boss ? .9 : .6)) {
           e.state = 'chase';
-          e.attackCd = def.attackCd;
+          e.attackCd = def.attackCd * (def.boss && e.hp <= e.maxHp * .5 ? .72 : 1);
         }
         continue;
       }
@@ -4113,6 +4177,11 @@ export class GameEngine {
           e.stateTimer = 0;
           e.frame = 0;
           e.facingLeft = px < e.x;
+          if (def.boss) {
+            e.bossAttackMode = dToPlayer <= 82 ? 'melee' : 'cast';
+            const dx = px - (e.x + 8), dy = py - e.y;
+            e.direction = Math.abs(dx) > Math.abs(dy) ? (dx < 0 ? 'left' : 'right') : (dy < 0 ? 'up' : 'down');
+          }
           continue;
         }
         e.state = 'chase';
@@ -4129,6 +4198,7 @@ export class GameEngine {
           e.y += sy;
         }
         e.facingLeft = Math.cos(ang) < 0;
+        if (def.boss) e.direction = Math.abs(Math.cos(ang)) > Math.abs(Math.sin(ang)) ? (Math.cos(ang) < 0 ? 'left' : 'right') : (Math.sin(ang) < 0 ? 'up' : 'down');
         e.frame = Math.floor(e.animTimer * 9) % def.cols;
         // contato direto
         if (dToPlayer < 22 && e.attackCd <= 0) {
@@ -6397,13 +6467,21 @@ export class GameEngine {
   drawEnemy(e: Enemy, camX: number, camY: number) {
     const ctx = this.ctx;
     const def = ENEMY_DEFS[e.kind];
-    const sheet = this.assets?.[def.sheet] as HTMLImageElement | undefined;
+    const ragingBoss = !!def.boss && e.hp <= e.maxHp * .5;
+    let sheetKey = def.sheet;
+    if (def.boss) {
+      const prefix = ragingBoss ? 'bossOrganRage' : 'bossOrgan';
+      const action = e.state === 'attack' ? (e.bossAttackMode === 'cast' ? 'Cast' : 'Attack') : (e.state === 'walk' || e.state === 'chase' ? 'Walk' : 'Idle');
+      sheetKey = `${prefix}${action}` as keyof LoadedAssets;
+    }
+    const sheet = this.assets?.[sheetKey] as HTMLImageElement | undefined;
     if (!sheet || !sheet.complete || !sheet.naturalWidth) return;
     const cx = Math.round(e.x - camX);
     const cy = Math.round(e.y - camY);
     const dispW = def.cw * def.disp;
     const dispH = def.ch * def.disp;
-    const row = (ENEMY_ROW as Record<string, number>)[e.state] ?? 0;
+    const bossDirRow: Record<Direction, number> = { down: 0, left: 1, right: 2, up: 3 };
+    const row = def.boss ? bossDirRow[e.direction ?? 'down'] : ((ENEMY_ROW as Record<string, number>)[e.state] ?? 0);
     const col = Math.min(def.cols - 1, Math.max(0, e.frame));
 
     if (e.state !== 'dead') {
@@ -6414,12 +6492,16 @@ export class GameEngine {
     }
 
     const dx = Math.round(cx + 8 - dispW / 2);
-    const dy = Math.round(cy - dispH * ((def.ch - 3) / def.ch) + 6);
+    const dy = Math.round(def.boss ? cy - dispH + 22 : cy - dispH * ((def.ch - 3) / def.ch) + 6);
     ctx.save();
     ctx.imageSmoothingEnabled = true;
+    if (ragingBoss) {
+      ctx.shadowColor = '#d946ef';
+      ctx.shadowBlur = 20 + Math.sin(this.timeElapsed * 5) * 6;
+    }
     if (e.hurtFlash > 0) ctx.filter = 'brightness(2.4) saturate(0.4)';
     if (e.state === 'dead') ctx.globalAlpha = Math.max(0, 1 - e.stateTimer / 0.8);
-    if (e.facingLeft) {
+    if (e.facingLeft && !def.boss) {
       ctx.translate(dx + dispW, dy);
       ctx.scale(-1, 1);
       ctx.drawImage(sheet, col * def.cw, row * def.ch, def.cw, def.ch, 0, 0, dispW, dispH);
@@ -6430,13 +6512,13 @@ export class GameEngine {
 
     // barra de vida + nível (nível sempre visível nos monstros hostis)
     if (e.hostile && e.state !== 'dead') {
-      const bw = 26;
+      const bw = def.boss ? 104 : 26;
       const bx = cx + 8 - bw / 2;
       const by = dy - 4;
       const hpFrac = Math.max(0, e.hp / e.maxHp);
 
       // etiqueta de nível acima da barra
-      const lvlText = `Lv ${e.level}`;
+      const lvlText = def.boss ? `${def.name} · Lv ${e.level}${ragingBoss ? ' · FÚRIA' : ''}` : `Lv ${e.level}`;
       ctx.font = 'bold 9px monospace';
       ctx.textAlign = 'center';
       const tw = ctx.measureText(lvlText).width + 8;
@@ -6452,7 +6534,7 @@ export class GameEngine {
       if (hpFrac < 1) {
         ctx.fillStyle = 'rgba(0,0,0,0.6)';
         ctx.fillRect(bx - 1, by - 1, bw + 2, 4);
-        ctx.fillStyle = '#f43f5e';
+        ctx.fillStyle = ragingBoss ? '#d946ef' : '#f43f5e';
         ctx.fillRect(bx, by, bw * hpFrac, 2);
       }
     }

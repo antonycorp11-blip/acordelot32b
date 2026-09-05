@@ -146,6 +146,8 @@ export interface Enemy {
   level: number;
   dmgMul: number; // multiplicador de dano derivado do nível
   facingLeft: boolean;
+  direction?: Direction;
+  bossAttackMode?: 'melee' | 'cast';
   state: 'idle' | 'walk' | 'chase' | 'attack' | 'hurt' | 'dead';
   frame: number;
   animTimer: number;

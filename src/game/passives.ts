@@ -2,8 +2,8 @@
 // PASSIVAS DE AKLES — 5 níveis de evolução cada. `values[i]` é o efeito no
 // nível i+1 (fração, ex.: 0.02 = +2%). `group` organiza a exibição na tela
 // (skill a que pertence, ou "geral"). O nível de cada passiva fica em
-// `engine.passiveLevels`; por ora todas começam no Nível 1 (ainda não há
-// sistema de pontos/gacha para evoluí-las — fica pronto pra quando tiver).
+// `engine.passiveLevels`; todas começam no Nível 1 e evoluem pela tela de
+// Skills, consumindo os materiais e requisitos definidos pelo personagem.
 // ============================================================================
 
 export type PassiveGroup = 'basico' | 'ressonancia' | 'amplificacao' | 'pulso' | 'geral';

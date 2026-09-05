@@ -40710,5 +40710,54 @@
     "x": 643,
     "y": 2145,
     "scale": 1.6
+  },
+  {
+    "id": "wallMusical4_copy_1788569746949_76",
+    "type": "wallMusical4",
+    "x": 1005,
+    "y": 2452,
+    "scale": 1.3
+  },
+  {
+    "id": "wallMusical4_copy_1788569769612_229",
+    "type": "wallMusical4",
+    "x": 1249,
+    "y": 2454,
+    "scale": 1.3
+  },
+  {
+    "id": "streetLantern_spawn_1788569796921_256",
+    "type": "streetLantern",
+    "x": 1021,
+    "y": 2731,
+    "scale": 1
+  },
+  {
+    "id": "streetLantern_copy_1788569804418_22",
+    "type": "streetLantern",
+    "x": 1236,
+    "y": 2733,
+    "scale": 1
+  },
+  {
+    "id": "bldgLodgeEast_spawn_1788569867101_536",
+    "type": "bldgLodgeEast",
+    "x": 902,
+    "y": 1877,
+    "scale": 1.3
+  },
+  {
+    "id": "lodgeWest_spawn_1788569887521_626",
+    "type": "lodgeWest",
+    "x": 1246,
+    "y": 1601,
+    "scale": 1
+  },
+  {
+    "id": "herbalistEast_spawn_1788569897217_252",
+    "type": "herbalistEast",
+    "x": 939,
+    "y": 1477,
+    "scale": 1
   }
 ]

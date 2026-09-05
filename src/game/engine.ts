@@ -3586,9 +3586,40 @@ export class GameEngine {
     return { dx, dy, x: tx, y: ty };
   }
 
+  private rangedBasicAim(maxRange: number): { dx: number; dy: number; x: number; y: number; targetId?: string } {
+    const origin = this.aimOrigin();
+    const candidates = this.enemies
+      .filter((e) => e.state !== 'dead')
+      .map((e) => ({ e, dist: Math.hypot(e.x + 8 - origin.x, e.y - origin.y) }))
+      .filter(({ dist }) => dist <= maxRange)
+      .sort((a, b) => {
+        // Huans mantém o foco na presa que já está marcando; Wins prefere o
+        // alvo mais próximo. Isso afeta somente o ataque básico.
+        if (this.activeCharacter === 'huans') {
+          const marks = (b.e.preyMarks ?? 0) - (a.e.preyMarks ?? 0);
+          if (marks !== 0) return marks;
+        }
+        return a.dist - b.dist;
+      });
+    const target = candidates[0]?.e;
+    if (!target) {
+      const [dx, dy] = this.facingVector();
+      return { dx, dy, x: origin.x + dx * maxRange, y: origin.y + dy * maxRange };
+    }
+    const rawX = target.x + 8 - origin.x;
+    const rawY = target.y - origin.y;
+    const len = Math.max(1, Math.hypot(rawX, rawY));
+    const dx = rawX / len, dy = rawY / len;
+    this.player.direction = Math.abs(dx) > Math.abs(dy) ? (dx < 0 ? 'left' : 'right') : (dy < 0 ? 'up' : 'down');
+    return { dx, dy, x: target.x + 8, y: target.y, targetId: target.id };
+  }
+
   private fireClassProjectile(kind: LightBeam['kind'], dmg: number, maxHits: number, speed = 440) {
-    const { dx, dy } = this.combatAim(kind?.startsWith('wins') ? 320 : 380);
-    this.lightBeams.push({ x: this.player.x + 12 + dx * 16, y: this.player.y + 12 + dy * 12, vx: dx * speed, vy: dy * speed, life: 0, maxLife: 1.15, dmg, hitIds: [], kind, maxHits });
+    const isBasic = kind === 'winsBasic' || kind === 'huansBasic';
+    const aim: { dx: number; dy: number; x: number; y: number; targetId?: string } = isBasic
+      ? this.rangedBasicAim(kind === 'winsBasic' ? 320 : 380)
+      : this.combatAim(kind?.startsWith('wins') ? 320 : 380);
+    this.lightBeams.push({ x: this.player.x + 12 + aim.dx * 16, y: this.player.y + 12 + aim.dy * 12, vx: aim.dx * speed, vy: aim.dy * speed, life: 0, maxLife: 1.15, dmg, hitIds: [], kind, maxHits, targetId: aim.targetId });
   }
 
   private applyVocalNote(e: Enemy) {
@@ -3829,13 +3860,28 @@ export class GameEngine {
     for (let i = this.lightBeams.length - 1; i >= 0; i--) {
       const b = this.lightBeams[i];
       b.life += dt;
+      if (b.targetId && (b.kind === 'winsBasic' || b.kind === 'huansBasic')) {
+        const target = this.enemies.find((e) => e.id === b.targetId && e.state !== 'dead');
+        if (target) {
+          const tx = target.x + 8 - b.x, ty = target.y - b.y;
+          const len = Math.max(1, Math.hypot(tx, ty));
+          const speed = Math.max(1, Math.hypot(b.vx, b.vy));
+          const turn = Math.min(1, dt * 7);
+          b.vx += (tx / len * speed - b.vx) * turn;
+          b.vy += (ty / len * speed - b.vy) * turn;
+          const adjustedSpeed = Math.max(1, Math.hypot(b.vx, b.vy));
+          b.vx = b.vx / adjustedSpeed * speed;
+          b.vy = b.vy / adjustedSpeed * speed;
+        }
+      }
       b.x += b.vx * dt;
       b.y += b.vy * dt;
       // a luz atravessa a vegetação; só o tempo de vida e os inimigos a param
       let dead = b.life >= b.maxLife;
       for (const e of this.enemies) {
         if (e.state === 'dead' || b.hitIds.includes(e.id)) continue;
-        if (Math.hypot(e.x + 8 - b.x, e.y - b.y) < 24) {
+        const hitRadius = b.kind === 'winsBasic' || b.kind === 'huansBasic' ? 30 : 24;
+        if (Math.hypot(e.x + 8 - b.x, e.y - b.y) < hitRadius) {
           b.hitIds.push(e.id);
           let dmg = b.dmg;
           if (b.kind === 'winsNote') {
@@ -5139,7 +5185,7 @@ export class GameEngine {
       // costas (direção 'up', o jogador vê as costas dele) ela é o que fica
       // visível ali montada nas costas, então vai NA FRENTE. Golpeando,
       // sempre na frente pra dar pra ver o combo.
-      const swinging = this.player.actionState === 'attack' || this.player.actionState === 'spin';
+      const swinging = this.activeCharacter === 'akles' && (this.player.actionState === 'attack' || this.player.actionState === 'spin');
       const backVisible = this.player.direction === 'up';
       renderables.push({
         sortY: this.player.y + (swinging || backVisible ? 40 : 6),
@@ -6421,7 +6467,7 @@ export class GameEngine {
     let wx: number;
     let wy: number;
 
-    if (act === 'attack') {
+    if (act === 'attack' && this.activeCharacter === 'akles') {
       const meta = AKLES_ANIM.attack;
       const p = Math.min(1, (this.player.actionTimer || 0) / meta.cols);
       const f = comboTrajectory(this.comboIndex, p, baseAngle);
@@ -6457,13 +6503,30 @@ export class GameEngine {
     // tamanho na tela mesmo entre sprites de fontes com resoluções bem
     // diferentes (ex.: 125x420 vs 474x783). Largura segue a proporção.
     const aspect = isProcedural ? 0.16 : (img!.naturalWidth || 100) / (img!.naturalHeight || 300);
-    const dispH = v.scale * scaleMul;
+    const classSizeMul = this.activeCharacter === 'wins' ? 1.35 : this.activeCharacter === 'huans' ? 1.45 : 1;
+    const dispH = v.scale * scaleMul * classSizeMul;
     const dispW = dispH * aspect;
     const rad = (angleDeg * Math.PI) / 180;
 
     ctx.save();
     ctx.translate(wx, wy);
     ctx.rotate(rad + Math.PI / 2 + (spinDeg * Math.PI) / 180);
+    const rangedShotGlow = this.activeCharacter !== 'akles' && act === 'attack';
+    if (rangedShotGlow) {
+      const shotProgress = Math.min(1, Math.max(0, (this.player.actionTimer || 0) / AKLES_ANIM.attack.cols));
+      const pulse = Math.max(0.25, Math.sin(shotProgress * Math.PI));
+      const glowColor = this.activeCharacter === 'wins' ? 'rgba(192,132,252,0.95)' : 'rgba(250,204,21,0.95)';
+      ctx.save();
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.globalAlpha = pulse * 0.75;
+      ctx.fillStyle = glowColor;
+      ctx.shadowColor = glowColor;
+      ctx.shadowBlur = 16 + pulse * 16;
+      ctx.beginPath();
+      ctx.arc(0, -dispH * 0.18, Math.max(7, dispW * 0.8) * (0.8 + pulse * 0.5), 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
     if (def.procedural === 'staff') {
       // cajado temporário: sem arte própria — cabo + orbe desenhados por
       // código. Mesma convenção de eixo local que a espada (local -Y aponta

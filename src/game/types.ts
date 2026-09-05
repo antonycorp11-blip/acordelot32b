@@ -181,6 +181,7 @@ export interface LightBeam {
   hitIds: string[];
   kind?: 'aklesPulse' | 'winsNote' | 'winsBasic' | 'huansArrow' | 'huansBasic';
   maxHits?: number;
+  targetId?: string;
 }
 
 export interface Butterfly {

@@ -1,4 +1,4 @@
-import { supabase } from '../lib/supabaseClient';
+import { supabase, supabaseAnonKey, supabaseUrl } from '../lib/supabaseClient';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 
 export interface RoomInfo {
@@ -75,6 +75,9 @@ class NetworkManager {
   private localUserId: string | null = null;
   private presentPlayerIds = new Set<string>();
   private peers = new Map<string, PeerConnection>();
+  private presenceSynced = false;
+  private accessToken: string | null = null;
+  private roomHeartbeatTimer: number | null = null;
 
   public onRemotePlayerUpdate?: (player: RemotePlayerState) => void;
   public onRemotePlayerLeave?: (playerId: string) => void;
@@ -225,7 +228,11 @@ class NetworkManager {
         console.warn('[NetworkManager] Erro ao listar salas:', error);
         return [];
       }
-      return (data || []) as RoomInfo[];
+      const cutoff = Date.now() - 10 * 60_000;
+      const rooms = (data || []) as RoomInfo[];
+      const stale = rooms.filter((room) => room.updated_at && new Date(room.updated_at).getTime() < cutoff);
+      for (const room of stale) void supabase.from('acordelot_online_rooms').delete().eq('id', room.id);
+      return rooms.filter((room) => !stale.includes(room) && room.player_count > 0);
     } catch (err) {
       console.warn('[NetworkManager] Falha na busca de salas:', err);
       return [];
@@ -335,6 +342,14 @@ class NetworkManager {
     this.disconnectFromRoom();
     this.currentRoomId = roomId;
     this.localUserId = user.id;
+    this.presenceSynced = false;
+    void supabase.auth.getSession().then(({ data }) => { this.accessToken = data.session?.access_token ?? null; });
+    if (this.roomHeartbeatTimer !== null) window.clearInterval(this.roomHeartbeatTimer);
+    this.roomHeartbeatTimer = window.setInterval(() => {
+      if (this.currentRoomId === roomId) {
+        void supabase.from('acordelot_online_rooms').update({ updated_at: new Date().toISOString() }).eq('id', roomId);
+      }
+    }, 3 * 60_000);
 
     const userName = user?.user_metadata?.username || user?.email?.split('@')[0] || 'Aventureiro';
 
@@ -378,6 +393,7 @@ class NetworkManager {
 
     // 3. Ouve sincronização de presença (quem entra / sai da sala)
     ch.on('presence', { event: 'sync' }, () => {
+      this.presenceSynced = true;
       const state = ch.presenceState();
       const allMembers: RemotePlayerState[] = [];
       const presentIds = new Set<string>();
@@ -413,6 +429,9 @@ class NetworkManager {
         this.presentPlayerIds.delete(key);
         this.closePeer(key);
         this.onRemotePlayerLeave?.(key);
+        // Quem permanece também confirma a saída no registro persistente. Isso
+        // cobre celulares que encerram o navegador antes do próprio DELETE.
+        void this.removePlayerFromRoomRecord(roomId, key);
       }
     });
 
@@ -518,6 +537,11 @@ class NetworkManager {
   async disconnectFromRoom(userId?: string) {
     const leavingRoomId = this.currentRoomId;
     const leavingChannel = this.channel;
+    const leavingUserId = userId ?? this.localUserId;
+    const wasLastPresentPlayer = this.presenceSynced && this.presentPlayerIds.size === 0;
+    if (this.roomHeartbeatTimer !== null) window.clearInterval(this.roomHeartbeatTimer);
+    this.roomHeartbeatTimer = null;
+    if (leavingRoomId && leavingUserId && wasLastPresentPlayer) this.deleteRoomWithKeepalive(leavingRoomId);
     this.currentRoomId = null;
     this.channel = null;
     this.localUserId = null;
@@ -526,36 +550,51 @@ class NetworkManager {
     this.lastBroadcastPayload = '';
     this.lastMoveBroadcast = 0;
     this.lastRelayBroadcast = 0;
+    this.presenceSynced = false;
 
-    if (leavingRoomId && userId) {
-      // Remove do banco de dados se aplicável
-      try {
-        const { data: room } = await supabase
-          .from('acordelot_online_rooms')
-          .select('*')
-          .eq('id', leavingRoomId)
-          .maybeSingle();
-
-        if (room) {
-          const players = (room.players || []) as any[];
-          const filtered = players.filter((p) => p.user_id !== userId);
-          if (filtered.length <= 0) {
-            await supabase.from('acordelot_online_rooms').delete().eq('id', leavingRoomId);
-          } else {
-            await supabase
-              .from('acordelot_online_rooms')
-              .update({
-                players: filtered,
-                player_count: filtered.length,
-                updated_at: new Date().toISOString(),
-              })
-              .eq('id', leavingRoomId);
-          }
-        }
-      } catch {}
+    if (leavingChannel) {
+      try { await leavingChannel.untrack(); } catch {}
     }
 
+    if (leavingRoomId && leavingUserId) await this.removePlayerFromRoomRecord(leavingRoomId, leavingUserId);
+
     if (leavingChannel) await leavingChannel.unsubscribe();
+  }
+
+  private deleteRoomWithKeepalive(roomId: string) {
+    const token = this.accessToken;
+    if (!token) return;
+    void fetch(`${supabaseUrl}/rest/v1/acordelot_online_rooms?id=eq.${encodeURIComponent(roomId)}`, {
+      method: 'DELETE',
+      keepalive: true,
+      headers: {
+        apikey: supabaseAnonKey,
+        Authorization: `Bearer ${token}`,
+        Prefer: 'return=minimal',
+      },
+    }).catch(() => {});
+  }
+
+  private async removePlayerFromRoomRecord(roomId: string, userId: string) {
+    try {
+      const { data: room } = await supabase
+        .from('acordelot_online_rooms')
+        .select('players')
+        .eq('id', roomId)
+        .maybeSingle();
+      if (!room) return;
+      const players = (room.players || []) as any[];
+      const filtered = players.filter((player) => player.user_id !== userId);
+      if (filtered.length === 0) {
+        await supabase.from('acordelot_online_rooms').delete().eq('id', roomId);
+      } else if (filtered.length !== players.length) {
+        await supabase.from('acordelot_online_rooms').update({
+          players: filtered,
+          player_count: filtered.length,
+          updated_at: new Date().toISOString(),
+        }).eq('id', roomId);
+      }
+    } catch {}
   }
 
   getCurrentRoomId() {

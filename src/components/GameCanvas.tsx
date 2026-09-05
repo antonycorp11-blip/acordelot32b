@@ -872,9 +872,17 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
       );
     }, 80);
 
+    const handlePageExit = () => {
+      void networkManager.disconnectFromRoom(user?.id);
+    };
+    window.addEventListener('pagehide', handlePageExit);
+    window.addEventListener('beforeunload', handlePageExit);
+
     return () => {
       clearInterval(interval);
-      networkManager.disconnectFromRoom(user?.id);
+      window.removeEventListener('pagehide', handlePageExit);
+      window.removeEventListener('beforeunload', handlePageExit);
+      void networkManager.disconnectFromRoom(user?.id);
       networkManager.onRemotePlayerUpdate = undefined;
       networkManager.onRemotePlayerLeave = undefined;
       networkManager.onRoomPresenceSync = undefined;

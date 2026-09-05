@@ -1,6 +1,19 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../lib/supabaseClient';
-import { Volume2, VolumeX, Mail, Lock, Sparkles, UserPlus, LogIn, ArrowRight, Eye, EyeOff } from 'lucide-react';
+import {
+  Volume2,
+  VolumeX,
+  Mail,
+  Lock,
+  Sparkles,
+  UserPlus,
+  LogIn,
+  ArrowRight,
+  Eye,
+  EyeOff,
+  Smartphone,
+  RotateCcw,
+} from 'lucide-react';
 
 interface LoginScreenProps {
   onLoginSuccess: (user: any) => void;
@@ -16,12 +29,14 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
   // Escolha aleatória inicial do vídeo visual
   const [currentVideoIdx, setCurrentVideoIdx] = useState(() => Math.floor(Math.random() * VIDEOS.length));
   const [isAudioMuted, setIsAudioMuted] = useState(false);
-  const [hasInteracted, setHasInteracted] = useState(false);
+  const [, setHasInteracted] = useState(false);
 
   // Estados de animação de entrada
   const [showLogo, setShowLogo] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [isTransitioningToGame, setIsTransitioningToGame] = useState(false);
+  const [waitingForLandscape, setWaitingForLandscape] = useState(false);
+  const [authedUser, setAuthedUser] = useState<any>(null);
 
   // Formulário de autenticação
   const [mode, setMode] = useState<'login' | 'register'>('login');
@@ -86,6 +101,23 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
       window.removeEventListener('keydown', handleFirstGesture);
     };
   }, []);
+
+  // Monitora se o usuário virou o celular após o login
+  useEffect(() => {
+    if (!waitingForLandscape || !authedUser) return;
+    const checkOrientation = () => {
+      if (window.innerWidth > window.innerHeight) {
+        setWaitingForLandscape(false);
+        onLoginSuccess(authedUser);
+      }
+    };
+    window.addEventListener('resize', checkOrientation);
+    window.addEventListener('orientationchange', checkOrientation);
+    return () => {
+      window.removeEventListener('resize', checkOrientation);
+      window.removeEventListener('orientationchange', checkOrientation);
+    };
+  }, [waitingForLandscape, authedUser, onLoginSuccess]);
 
   // Próximo vídeo aleatório ao finalizar o atual
   const handleVideoEnded = () => {
@@ -157,25 +189,19 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
           return;
         }
 
-        if (data.session && data.user) {
-          // Confirmado automaticamente
-          setSuccessMsg('Conta criada com sucesso! Entrando no mundo...');
-          setTimeout(() => triggerGameEntry(data.user), 900);
+        // Login direto e imediato sem confirmação de e-mail
+        const loginRes = await supabase.auth.signInWithPassword({
+          email: cleanEmail,
+          password,
+        });
+
+        if (loginRes.data.user) {
+          triggerGameEntry(loginRes.data.user);
         } else if (data.user) {
-          // Caso precise de confirmação por email ou já logou
-          setSuccessMsg('Conta criada! Entrando...');
-          // Tenta logar diretamente
-          const loginRes = await supabase.auth.signInWithPassword({
-            email: cleanEmail,
-            password,
-          });
-          if (loginRes.data.user) {
-            triggerGameEntry(loginRes.data.user);
-          } else {
-            setSuccessMsg('Conta criada! Faça login com suas credenciais.');
-            setMode('login');
-            setLoading(false);
-          }
+          triggerGameEntry(data.user);
+        } else {
+          setErrorMsg(loginRes.error?.message || 'Conta criada, por favor faça login.');
+          setLoading(false);
         }
       }
     } catch (err: any) {
@@ -184,8 +210,9 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
     }
   };
 
-  // Efeito de transição suave: tela preta cinemática e entrada no jogo
+  // Efeito de transição: tela preta cinemática e checagem de orientação horizontal
   const triggerGameEntry = (user: any) => {
+    setAuthedUser(user);
     setIsTransitioningToGame(true);
 
     // Fade out suave do áudio
@@ -201,10 +228,15 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
       }, 70);
     }
 
-    // Após 950ms de tela preta, entrega o controle para o GameCanvas
-    setTimeout(() => {
-      onLoginSuccess(user);
-    }, 1000);
+    // Se estiver em modo retrato (vertical), pede para virar
+    const isPortrait = window.innerHeight > window.innerWidth;
+    if (isPortrait) {
+      setWaitingForLandscape(true);
+    } else {
+      setTimeout(() => {
+        onLoginSuccess(user);
+      }, 1000);
+    }
   };
 
   const currentVideo = VIDEOS[currentVideoIdx];
@@ -413,23 +445,51 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
         </div>
       </div>
 
-      {/* TELA PRETA CINEMÁTICA DE TRANSIÇÃO APÓS O LOGIN */}
+      {/* TELA PRETA CINEMÁTICA / AVISO DE GIRAR TELA APÓS O LOGIN */}
       <div
-        className={`fixed inset-0 z-50 bg-black flex flex-col items-center justify-center pointer-events-none transition-opacity duration-1000 ease-in-out ${
+        className={`fixed inset-0 z-50 bg-black flex flex-col items-center justify-center pointer-events-none transition-opacity duration-700 ease-in-out px-6 text-center ${
           isTransitioningToGame ? 'opacity-100 pointer-events-auto' : 'opacity-0'
         }`}
       >
         <img
           src="/assets/login/logo.png"
           alt="Acordelot"
-          className="w-44 mb-6 animate-pulse opacity-90"
+          className="w-48 sm:w-56 mb-5 drop-shadow-[0_0_25px_rgba(245,158,11,0.5)] animate-pulse"
         />
-        <div className="flex items-center gap-3">
-          <div className="w-4 h-4 border-2 border-amber-400 border-t-transparent rounded-full animate-spin" />
-          <span className="text-sm font-semibold text-amber-300 tracking-wider">
-            Sintonizando o Mundo de Acordelot…
-          </span>
-        </div>
+
+        {waitingForLandscape ? (
+          <div className="flex flex-col items-center max-w-sm animate-fadeIn">
+            {/* Ícone de rotação com animação */}
+            <div className="relative my-4 flex items-center justify-center">
+              <div className="w-16 h-24 border-3 border-amber-400/90 rounded-2xl flex items-center justify-center shadow-[0_0_30px_rgba(245,158,11,0.4)] animate-bounce">
+                <Smartphone className="w-8 h-8 text-amber-400" />
+              </div>
+              <RotateCcw className="absolute -top-2 -right-3 w-6 h-6 text-amber-300 animate-spin" />
+            </div>
+
+            <h2 className="text-lg font-bold text-amber-300 tracking-wide mt-2">
+              Gire o celular para a horizontal
+            </h2>
+            <p className="text-xs text-slate-400 mt-1.5 leading-relaxed">
+              O mundo de Acordelot foi afinado para ser jogado com a tela deitada.
+            </p>
+
+            <button
+              type="button"
+              onClick={() => onLoginSuccess(authedUser)}
+              className="mt-6 cursor-pointer px-5 py-2 rounded-full bg-slate-900/90 hover:bg-slate-800 text-xs font-semibold text-slate-300 border border-slate-700 transition-all active:scale-95 shadow-lg"
+            >
+              Continuar assim mesmo →
+            </button>
+          </div>
+        ) : (
+          <div className="flex items-center gap-3">
+            <div className="w-5 h-5 border-2 border-amber-400 border-t-transparent rounded-full animate-spin" />
+            <span className="text-sm font-semibold text-amber-300 tracking-wider">
+              Sintonizando o Mundo de Acordelot…
+            </span>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -30,7 +30,7 @@ export interface AcordelotSaveData {
     ownedAxes: ToolTier[];
     ownedPicks: ToolTier[];
   };
-  passives: Record<string, number>;
+  passives: Record<string, unknown>;
   quests: {
     date: string;
     daily: Array<{ id: string; accepted: boolean; progress: number; claimed: boolean }>;
@@ -105,7 +105,11 @@ export function serializeEngineSave(engine: GameEngine, userId: string): Omit<Ac
       ownedAxes: [...engine.ownedAxes],
       ownedPicks: [...engine.ownedPicks],
     },
-    passives: { ...(anyEngine.passiveLevels || {}) },
+    passives: {
+      ...(anyEngine.passiveLevels || {}),
+      __classLevels: { ...(anyEngine.classPassiveLevels || {}) },
+      __skillLevels: { ...(anyEngine.skillLevels || {}) },
+    },
     quests: {
       date: new Date().toISOString().slice(0, 10),
       daily: dailyQuests,
@@ -288,7 +292,10 @@ export function applySaveToEngine(engine: GameEngine, save: Partial<AcordelotSav
 
   // 8. Passivas
   if (save.passives && anyEngine.passiveLevels) {
-    anyEngine.passiveLevels = { ...anyEngine.passiveLevels, ...save.passives };
+    const legacy = Object.fromEntries(Object.entries(save.passives).filter(([key]) => !key.startsWith('__')));
+    anyEngine.passiveLevels = { ...anyEngine.passiveLevels, ...legacy };
+    if (save.passives.__classLevels && anyEngine.classPassiveLevels) anyEngine.classPassiveLevels = { ...anyEngine.classPassiveLevels, ...(save.passives.__classLevels as object) };
+    if (save.passives.__skillLevels && anyEngine.skillLevels) anyEngine.skillLevels = { ...anyEngine.skillLevels, ...(save.passives.__skillLevels as object) };
   }
 
   // 9. Missões diárias

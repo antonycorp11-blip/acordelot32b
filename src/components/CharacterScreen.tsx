@@ -31,7 +31,7 @@ import {
   Layers,
 } from 'lucide-react';
 import type { PlayerStats, AttrKey, GameEngine, PassiveGroup, EquipSlotKey, StatKey } from '../game/engine';
-import { PASSIVE_DEFS, PASSIVE_ORDER, EQUIP_SETS, EQUIP_SLOT_ORDER, EQUIP_SLOT_LABEL, STAT_LABELS } from '../game/engine';
+import { PASSIVE_DEFS, PASSIVE_ORDER, CLASS_PASSIVE_DEFS, EQUIP_SETS, EQUIP_SLOT_ORDER, EQUIP_SLOT_LABEL, STAT_LABELS } from '../game/engine';
 import { equipSetClass } from '../game/catalogData';
 import { ITEM_META } from '../game/engine';
 import type { ToolTier } from '../game/types';
@@ -94,6 +94,7 @@ const ATTRS: Array<[AttrKey, string, string, string]> = [
   ['inteligencia', 'Inteligência', '📖', 'dano do Canhão de Luz'],
   ['sorte', 'Sorte', '🍀', 'chance de drops raros'],
 ];
+const RESONANCE_ATTR: [AttrKey, string, string, string] = ['ressonancia', 'Ressonância Máxima', '🎼', '+8 de Energia para usar mais Skills'];
 
 // ============================================================================
 // Aba: FERRAMENTAS (machado / picareta)
@@ -474,6 +475,104 @@ const CLASS_KITS = {
   ],
 } as const;
 
+type SkillInfo = { key: string; name: string; kind: string; explanation: string; damage: string; cooldown: string; cost: string; attributes: string[]; passiveIds: string[] };
+const SKILLS_BY_CHARACTER: Record<'akles' | 'wins' | 'huans', SkillInfo[]> = {
+  akles: [
+    { key: 'basic', name: 'Compasso da Lâmina', kind: 'Ataque Básico', explanation: 'Combo próximo de quatro golpes. Mantém Ritmo Crescente e aproveita crítico, velocidade e ATQ.', damage: 'ATQ + Força + arma', cooldown: 'Velocidade de Ataque', cost: 'Sem custo', attributes: ['Dano Básico', 'ATQ', 'Chance/Dano Crítico'], passiveIds: PASSIVE_ORDER.filter((id) => PASSIVE_DEFS[id].group === 'basico') },
+    { key: 'skill1', name: 'Ressonância', kind: 'Skill 1', explanation: 'Energiza a arma durante 6 segundos, acelerando o combate e ativando efeitos de Ressonância.', damage: 'Buff ofensivo', cooldown: '14s', cost: 'Sem custo', attributes: ['Velocidade de Ataque', 'Duração', 'Redução de Recarga'], passiveIds: PASSIVE_ORDER.filter((id) => PASSIVE_DEFS[id].group === 'ressonancia') },
+    { key: 'skill2', name: 'Amplificação', kind: 'Skill 2', explanation: 'Amplia somente a arma do Akles e desfere um golpe frontal em área.', damage: 'Força × 220% + arma × 130%', cooldown: 'Animação de ataque', cost: 'Sem custo', attributes: ['Área', 'Dano Básico/Skill', 'Redução de DEF'], passiveIds: PASSIVE_ORDER.filter((id) => PASSIVE_DEFS[id].group === 'amplificacao') },
+    { key: 'skill3', name: 'Pulso Harmônico', kind: 'Skill 3', explanation: 'Dispara o grande feixe harmônico progressivo na direção escolhida pelo jogador.', damage: '14 + Inteligência × 250% + nível × 2', cooldown: '3,5s', cost: 'Sem custo', attributes: ['Dano de Skill', 'Inteligência', 'Alcance'], passiveIds: PASSIVE_ORDER.filter((id) => PASSIVE_DEFS[id].group === 'pulso') },
+    { key: 'general', name: 'Maestrias Gerais', kind: 'Passivas', explanation: 'Atributos permanentes que afetam todo o kit do Akles.', damage: '—', cooldown: 'Sempre ativo', cost: 'Passivo', attributes: ['HP', 'ATQ', 'Movimento', 'Crítico', 'Dano'], passiveIds: PASSIVE_ORDER.filter((id) => PASSIVE_DEFS[id].group === 'geral') },
+  ],
+  wins: [
+    { key: 'general', name: 'Ressonância Vocal', kind: 'Passiva', explanation: 'Skills aplicam até 3 Notas. A terceira explode em área, recupera Energia e deixa o alvo Resonante.', damage: '60% do Poder Harmônico', cooldown: 'Automática em 3 Notas', cost: 'Sem custo', attributes: ['Explosão em área', 'Recuperação de Energia', 'Dano recebido por Resonante'], passiveIds: ['winsRessonanciaVocal'] },
+    { key: 'skill1', name: 'Nota Perfurante', kind: 'Skill 1', explanation: 'Onda vocal em linha reta que atravessa inimigos e aplica 1 Nota Vocal.', damage: '135% do Poder Harmônico', cooldown: '5s', cost: '15 Energia', attributes: ['Perfuração', '1 Nota Vocal', 'Bônus contra Resonante'], passiveIds: ['winsNotaPerfurante'] },
+    { key: 'skill2', name: 'Coro Dissonante', kind: 'Skill 2', explanation: 'Cria uma área por 5 segundos, causa dano periódico, lentidão e Silenciamento.', damage: '80% inicial + 35%/s', cooldown: '11s', cost: '28 Energia', attributes: ['Área 5s', 'Lentidão', 'Silêncio após 3s'], passiveIds: ['winsCoroDissonante'] },
+    { key: 'skill3', name: 'Ária do Clímax', kind: 'Skill 3', explanation: 'Grande finalizador frontal. Consome Notas e aumenta o dano para cada Nota acumulada.', damage: '320% do Poder Harmônico', cooldown: '18s', cost: '45 Energia', attributes: ['Grande área frontal', 'Dano por Nota', 'Explosão com 3 Notas'], passiveIds: ['winsAriaClimax'] },
+  ],
+  huans: [
+    { key: 'general', name: 'Instinto do Caçador', kind: 'Passiva', explanation: 'Ataques aplicam até 5 Marcas da Presa. Cada marca aumenta o dano; 5 marcas concedem crítico.', damage: '+2% por Marca', cooldown: 'Expira após 6s sem atacar', cost: 'Sem custo', attributes: ['Dano por Marca', 'Chance Crítica', 'Presa Marcada'], passiveIds: ['huansInstinto'] },
+    { key: 'skill1', name: 'Flecha Resonante', kind: 'Skill 1', explanation: 'Flecha veloz que atravessa até 2 inimigos e aplica 2 Marcas da Presa.', damage: '150% do ATQ', cooldown: '5s', cost: '14 Energia', attributes: ['Perfura 2 alvos', '2 Marcas', 'Bônus contra Presa'], passiveIds: ['huansFlecha'] },
+    { key: 'skill2', name: 'Passo do Caçador', kind: 'Skill 2', explanation: 'Deslocamento na direção escolhida, com esquiva e preparação dos próximos ataques.', damage: 'Mobilidade / buff', cooldown: '9s', cost: '20 Energia', attributes: ['Velocidade de Ataque', 'Velocidade de Movimento', 'Crítico ao esquivar'], passiveIds: ['huansPasso'] },
+    { key: 'skill3', name: 'Chuva das Cordas', kind: 'Skill 3', explanation: 'Chuva de flechas na área escolhida. Concentra o dano quando existe apenas um alvo.', damage: '280% do ATQ', cooldown: '17s', cost: '40 Energia', attributes: ['3 Marcas', 'Lentidão', '+30% em alvo único'], passiveIds: ['huansChuva'] },
+  ],
+};
+
+const UnifiedSkillsTab: React.FC<{ engine: GameEngine }> = ({ engine }) => {
+  const [, refresh] = React.useReducer((n) => n + 1, 0);
+  const character = engine.activeCharacter;
+  const skills = SKILLS_BY_CHARACTER[character];
+  const [skillKey, setSkillKey] = React.useState(skills[0].key);
+  const skill = skills.find((item) => item.key === skillKey) ?? skills[0];
+  const slot = skill.key.startsWith('skill') ? Number(skill.key.slice(-1)) - 1 : null;
+  const skillLevel = slot === null ? 0 : engine.getSkillLevel(slot);
+  const baseEnergy = character === 'wins' ? [15, 28, 45] : character === 'huans' ? [14, 20, 40] : [0, 0, 0];
+  const shownCost = slot !== null && baseEnergy[slot] ? `${engine.skillEnergyCost(baseEnergy[slot], slot)} Energia` : skill.cost;
+  const skillCost = slot === null ? null : engine.skillUpgradeCost(slot);
+  const skillRequirement = slot === null ? null : engine.skillUpgradeRequirement(slot);
+  const [passiveId, setPassiveId] = React.useState(skill.passiveIds[0]);
+  React.useEffect(() => { setSkillKey(SKILLS_BY_CHARACTER[character][0].key); }, [character]);
+  React.useEffect(() => { setPassiveId(skill.passiveIds[0]); }, [skill.key]);
+
+  const aklesDef = PASSIVE_DEFS[passiveId];
+  const classDef = CLASS_PASSIVE_DEFS[passiveId];
+  const passive = aklesDef ?? classDef;
+  const level = passive ? engine.getAnyPassiveLevel(passiveId) : 0;
+  const values = passive?.values ?? [0, 0, 0, 0, 0];
+  const formatValue = (value: number) => aklesDef && passiveId === 'notaPerfeita' ? `a cada ${value} ataques` : `+${Math.round(value * 1000) / 10}%`;
+  const cost = passive ? engine.passiveUpgradeCost(passiveId) : null;
+  const canUpgrade = passive ? engine.canUpgradePassive(passiveId) : false;
+  const upgrade = () => { if (engine.upgradePassive(passiveId)) refresh(); };
+
+  return (
+    <div className="h-full min-h-0 grid grid-cols-[180px_minmax(0,1fr)_280px] gap-3">
+      <div className="overflow-y-auto space-y-1.5 pr-1">
+        {skills.map((item) => <button key={item.key} type="button" onClick={() => setSkillKey(item.key)} className={`w-full text-left rounded-xl border p-2.5 ${item.key === skill.key ? 'border-amber-400 bg-amber-500/10' : 'border-slate-800 bg-slate-950/60'}`}>
+          <p className="text-[9px] uppercase font-black tracking-wider text-amber-300">{item.kind}</p><p className="text-[11px] font-bold text-white">{item.name}</p>
+        </button>)}
+      </div>
+
+      <div className="min-w-0 overflow-y-auto rounded-2xl border border-slate-800 bg-slate-950/55 p-4">
+        <p className="text-[10px] font-black uppercase tracking-[.18em] text-cyan-300">{skill.kind}</p>
+        <h4 className="text-xl font-black text-white mt-1">{skill.name}</h4>
+        <p className="text-[11px] leading-relaxed text-slate-300 mt-2">{skill.explanation}</p>
+        <div className="grid grid-cols-3 gap-2 mt-4">
+          {[['Dano', `${skill.damage}${slot !== null ? ` · +${(skillLevel - 1) * 10}%` : ''}`], ['Recarga', skill.cooldown], ['Custo', shownCost]].map(([label, value]) => <div key={label} className="rounded-xl border border-slate-800 bg-slate-900/70 p-2"><p className="text-[8px] uppercase font-bold text-slate-500">{label}</p><p className="text-[10px] font-bold text-slate-100 mt-1">{value}</p></div>)}
+        </div>
+        <p className="text-[9px] uppercase font-black tracking-wider text-slate-500 mt-4 mb-2">Atributos e efeitos da Skill</p>
+        <div className="grid grid-cols-2 gap-2">{skill.attributes.map((attr) => <div key={attr} className="rounded-lg border border-cyan-500/20 bg-cyan-500/5 px-2 py-1.5 text-[10px] font-semibold text-cyan-100">✦ {attr}</div>)}</div>
+        {slot !== null && <div className="mt-4 rounded-xl border border-emerald-500/25 bg-emerald-500/5 p-2.5">
+          <div className="flex items-center justify-between"><p className="text-[10px] font-black text-emerald-200">Nível da Skill {skillLevel}/5</p><p className="text-[9px] text-slate-400">Dano +10% por nível</p></div>
+          {skillRequirement && skillLevel < 5 && <p className={`mt-1.5 text-[9px] font-bold ${skillRequirement.met ? 'text-emerald-300' : 'text-rose-300'}`}>Requisito: {skillRequirement.label} {skillRequirement.current}/{skillRequirement.required}</p>}
+          <div className="flex flex-wrap gap-1 mt-2">{skillCost ? Object.entries(skillCost).map(([key, qty]) => <span key={key} className={`rounded-md border px-1.5 py-1 text-[8px] ${(engine.inventory[key] || 0) >= qty ? 'border-emerald-500/30 text-emerald-200' : 'border-rose-500/30 text-rose-200'}`}>{ITEM_META[key]?.icon} {engine.inventory[key] || 0}/{qty}</span>) : <span className="text-[9px] text-amber-300">Nível máximo</span>}</div>
+          <button type="button" disabled={slot === null || !engine.canUpgradeSkill(slot)} onClick={() => { if (slot !== null && engine.upgradeSkill(slot)) refresh(); }} className={`mt-2 w-full rounded-lg py-1.5 text-[9px] font-black ${slot !== null && engine.canUpgradeSkill(slot) ? 'bg-emerald-500 text-slate-950' : 'bg-slate-800 text-slate-500'}`}>APRIMORAR SKILL</button>
+          {character !== 'akles' && skillLevel < 5 && <p className="mt-1.5 text-[8px] text-slate-500">Ao subir: o dano aumenta e o consumo passa para {engine.skillEnergyCost(baseEnergy[slot], slot) + Math.ceil(baseEnergy[slot] * .08)} de Ressonância.</p>}
+        </div>}
+        <p className="text-[9px] uppercase font-black tracking-wider text-slate-500 mt-4 mb-2">Passivas vinculadas</p>
+        <div className="space-y-1.5">{skill.passiveIds.map((id) => { const def = PASSIVE_DEFS[id] ?? CLASS_PASSIVE_DEFS[id]; const lvl = engine.getAnyPassiveLevel(id); return <button key={id} type="button" onClick={() => setPassiveId(id)} className={`w-full rounded-lg border px-2.5 py-2 text-left flex justify-between ${id === passiveId ? 'border-violet-400 bg-violet-500/10' : 'border-slate-800 bg-slate-900/60'}`}><span className="text-[10px] font-bold text-slate-100">{def.name}</span><span className="text-[9px] text-violet-300">Nv. {lvl}/5</span></button>; })}</div>
+      </div>
+
+      <div className="overflow-y-auto rounded-2xl border border-violet-500/30 bg-slate-950/70 p-3">
+        {passive && <>
+          <p className="text-[9px] uppercase font-black tracking-wider text-violet-300">Passiva selecionada</p>
+          <h5 className="text-base font-black text-white mt-1">{passive.name}</h5>
+          <p className="text-[10px] leading-relaxed text-slate-400 mt-1.5">{passive.desc}</p>
+          <div className="mt-3 rounded-xl border border-slate-800 bg-slate-900/70 p-2.5">
+            <div className="flex justify-between"><span className="text-[9px] text-slate-500">Atributo da passiva</span><span className="text-[10px] font-black text-violet-200">Nv. {level}/5</span></div>
+            <p className="text-[11px] font-bold text-white mt-1">{'attribute' in passive ? passive.attribute : passive.desc}</p>
+            <div className="flex gap-1 mt-2">{values.map((value, i) => <div key={i} className={`flex-1 rounded-md border py-1 text-center ${i < level ? 'border-violet-400/60 bg-violet-500/15' : 'border-slate-800 opacity-45'}`}><p className="text-[7px] text-slate-500">{i + 1}</p><p className="text-[8px] font-bold text-slate-200">{formatValue(value)}</p></div>)}</div>
+            {level < 5 && <p className="text-[9px] text-emerald-300 mt-2">Próximo: {formatValue(values[level])}</p>}
+            {level === 5 && passive.level5Bonus && <p className="text-[9px] text-amber-300 mt-2">★ {passive.level5Bonus}</p>}
+          </div>
+          <p className="text-[9px] uppercase font-black tracking-wider text-slate-500 mt-3 mb-1.5">Itens para aprimorar</p>
+          <div className="space-y-1">{cost ? Object.entries(cost).map(([key, qty]) => <div key={key} className="flex items-center justify-between rounded-lg bg-slate-900/70 border border-slate-800 px-2 py-1.5"><span className="text-[9px] text-slate-300">{ITEM_META[key]?.icon} {ITEM_META[key]?.name ?? key}</span><span className={`text-[9px] font-bold ${(engine.inventory[key] || 0) >= qty ? 'text-emerald-300' : 'text-rose-300'}`}>{engine.inventory[key] || 0}/{qty}</span></div>) : <p className="text-[10px] text-amber-300">Nível máximo alcançado.</p>}</div>
+          <button type="button" disabled={!canUpgrade} onClick={upgrade} className={`w-full mt-3 rounded-xl py-2 text-[11px] font-black ${canUpgrade ? 'bg-violet-500 text-white hover:bg-violet-400' : 'bg-slate-800 text-slate-500'}`}>{level >= 5 ? 'PASSIVA NO MÁXIMO' : 'APRIMORAR PASSIVA'}</button>
+        </>}
+      </div>
+    </div>
+  );
+};
+
 const AKLES_ACTIVE_KIT = [
   ['Skill 1 · Ressonância', '6s de arma energizada e ataques acelerados · Recarga 14s. As passivas ampliam duração, dano, crítico e redução de recarga.'],
   ['Skill 2 · Amplificação', 'A Acordelâmina cresce e golpeia uma área frontal de 92px. Escala com Força, nível, ATQ da arma, dano básico e dano de Skill.'],
@@ -694,6 +793,12 @@ const FichaTab: React.FC<{
   const hasPoints = stats.attrPoints > 0;
   const xpPct = Math.min(100, (stats.xp / stats.xpNext) * 100);
   const hpPct = Math.max(0, Math.min(100, (stats.hp / stats.maxHp) * 100));
+  const shownAttrs = engine?.activeCharacter === 'wins'
+    ? [RESONANCE_ATTR, ['inteligencia', 'Poder Harmônico', '🎤', '+2 PH por ponto'] as [AttrKey, string, string, string], ...ATTRS.filter(([key]) => !['inteligencia'].includes(key))]
+    : engine?.activeCharacter === 'huans'
+      ? [ATTRS.find(([key]) => key === 'agilidade')!, ...ATTRS.filter(([key]) => key !== 'agilidade')]
+      : ATTRS;
+  const attrValue = (key: AttrKey) => key === 'ressonancia' ? stats.maxEnergy : stats[key];
 
   return (
     <div className="flex gap-3 h-full">
@@ -768,14 +873,14 @@ const FichaTab: React.FC<{
           </div>
         )}
         <div className="grid grid-cols-1 gap-1.5">
-          {ATTRS.map(([key, label, icon, hint]) => (
+          {shownAttrs.map(([key, label, icon, hint]) => (
             <div key={key} className="flex items-center gap-2 bg-slate-950/60 border border-slate-800 rounded-lg pl-2.5 pr-1.5 py-1.5">
               <span className="text-[13px] w-5 text-center">{icon}</span>
               <div className="flex-1 min-w-0">
                 <span className="text-[12px] text-slate-200 font-semibold">{label}</span>
                 <span className="text-[10px] text-slate-500 ml-1.5">{hint}</span>
               </div>
-              <span className="text-sm font-bold text-slate-100 tabular-nums w-7 text-right">{stats[key]}</span>
+              <span className="text-sm font-bold text-slate-100 tabular-nums w-9 text-right">{attrValue(key)}</span>
               <button
                 type="button"
                 onClick={() => onSpend(key)}
@@ -847,7 +952,7 @@ export const CharacterScreen: React.FC<CharacterScreenProps> = ({
           )}
           {tab === 'ferramentas' && (engine ? <FerramentasTab engine={engine} /> : null)}
           {tab === 'equipamentos' && (engine ? <EquipamentosTab engine={engine} inventory={inventory ?? {}} /> : null)}
-          {tab === 'skills' && (engine ? engine.activeCharacter === 'akles' ? <SkillsTab engine={engine} /> : <ClassSkillsTab engine={engine} /> : null)}
+          {tab === 'skills' && (engine ? <UnifiedSkillsTab engine={engine} /> : null)}
         </div>
 
         {/* Barra inferior de sub-abas — mantém tudo dentro da mesma tela */}

@@ -315,7 +315,7 @@ export interface PlayerStats {
   attackSpeedPct: number;
 }
 
-export type AttrKey = 'forca' | 'agilidade' | 'vitalidade' | 'inteligencia' | 'sorte';
+export type AttrKey = 'forca' | 'agilidade' | 'vitalidade' | 'inteligencia' | 'sorte' | 'ressonancia';
 
 export function inventoryWeight(inv: Record<string, number>): number {
   let w = 0;
@@ -370,6 +370,26 @@ export const HARVEST_DEFS: Record<string, HarvestDef> = {
   dark_bigrock: { kind: 'rock', maxHp: 6, drop: 'stone', dropMin: 3, dropMax: 5, respawnSecs: 35 },
   dark_deadtree: { kind: 'tree', maxHp: 3, drop: 'wood', dropMin: 1, dropMax: 3, respawnSecs: 25 },
   dark_bigpine: { kind: 'tree', maxHp: 5, drop: 'wood', dropMin: 3, dropMax: 6, respawnSecs: 34 },
+};
+
+export const CLASS_PASSIVE_DEFS: Record<string, {
+  character: 'wins' | 'huans';
+  group: 'geral' | 'skill1' | 'skill2' | 'skill3';
+  name: string;
+  desc: string;
+  attribute: string;
+  values: [number, number, number, number, number];
+  format: 'percent';
+  level5Bonus: string;
+}> = {
+  winsRessonanciaVocal: { character: 'wins', group: 'geral', name: 'Ressonância Vocal', desc: 'A terceira Nota explode em área. Também aumenta a recuperação de Energia e o dano recebido por alvos Resonantes.', attribute: 'Dano da explosão', values: [.60,.66,.72,.78,.84], format: 'percent', level5Bonus: 'Resonante passa a amplificar em 12% todas as Skills da Wins.' },
+  winsNotaPerfurante: { character: 'wins', group: 'skill1', name: 'Afinação Perfurante', desc: 'Aumenta o dano adicional da Nota Perfurante contra inimigos Resonantes.', attribute: 'Bônus contra Resonante', values: [.20,.23,.26,.29,.32], format: 'percent', level5Bonus: 'A onda deixa um eco visual adicional no alvo atingido.' },
+  winsCoroDissonante: { character: 'wins', group: 'skill2', name: 'Palco Dissonante', desc: 'Aumenta a redução de movimento aplicada pelo Coro Dissonante.', attribute: 'Lentidão', values: [.20,.22,.24,.26,.28], format: 'percent', level5Bonus: 'O Silenciamento dura 1,4 segundo.' },
+  winsAriaClimax: { character: 'wins', group: 'skill3', name: 'Clímax Ascendente', desc: 'Aumenta o bônus de dano recebido pela Ária para cada Nota Vocal consumida.', attribute: 'Dano por Nota', values: [.10,.11,.12,.13,.14], format: 'percent', level5Bonus: 'Consumir 3 Notas devolve 6% da Energia máxima.' },
+  huansInstinto: { character: 'huans', group: 'geral', name: 'Instinto do Caçador', desc: 'Cada Marca da Presa aumenta o dano contra o alvo. Com 5 marcas, também aumenta o crítico.', attribute: 'Dano por Marca', values: [.02,.0225,.025,.0275,.03], format: 'percent', level5Bonus: 'Presa Marcada concede +12% de Chance Crítica.' },
+  huansFlecha: { character: 'huans', group: 'skill1', name: 'Ponta Predatória', desc: 'Aumenta o dano adicional da Flecha Resonante contra uma Presa Marcada.', attribute: 'Bônus contra Presa', values: [.20,.23,.26,.29,.32], format: 'percent', level5Bonus: 'O primeiro alvo atingido recebe uma marca adicional.' },
+  huansPasso: { character: 'huans', group: 'skill2', name: 'Passo Implacável', desc: 'Aumenta a Velocidade de Ataque concedida após o deslocamento.', attribute: 'Velocidade de Ataque', values: [.20,.22,.24,.26,.28], format: 'percent', level5Bonus: 'O bônus de movimento sobe para 14%.' },
+  huansChuva: { character: 'huans', group: 'skill3', name: 'Cerco da Presa', desc: 'Aumenta o dano da Chuva das Cordas contra uma Presa Marcada.', attribute: 'Bônus contra Presa', values: [.25,.28,.31,.34,.37], format: 'percent', level5Bonus: 'Contra alvo único, o bônus total sobe para 46%.' },
 };
 
 // ---- MONSTROS DISSONANTES + ECOS MUSICAIS ----
@@ -1404,6 +1424,9 @@ export class GameEngine {
   skillCooldowns: Record<PlayerCharacterKey, [number, number, number]> = {
     akles: [0, 0, 0], wins: [0, 0, 0], huans: [0, 0, 0],
   };
+  skillLevels: Record<PlayerCharacterKey, [number, number, number]> = {
+    akles: [1, 1, 1], wins: [1, 1, 1], huans: [1, 1, 1],
+  };
   hunterBuffT = 0;
   hunterEnhancedBasics = 0;
   hunterGuaranteedCrit = false;
@@ -1412,6 +1435,9 @@ export class GameEngine {
   // Passivas (todas Nível 1 por padrão — sem sistema de pontos ainda)
   passiveLevels: Record<string, number> = Object.fromEntries(
     Object.keys(PASSIVE_DEFS).map((k) => [k, 1]),
+  );
+  classPassiveLevels: Record<string, number> = Object.fromEntries(
+    Object.keys(CLASS_PASSIVE_DEFS).map((k) => [k, 1]),
   );
   getPassiveLevel(id: string): number {
     return this.passiveLevels[id] ?? 0;
@@ -1425,6 +1451,94 @@ export class GameEngine {
   setPassiveLevel(id: string, level: number) {
     if (!PASSIVE_DEFS[id]) return;
     this.passiveLevels[id] = Math.max(0, Math.min(5, Math.round(level)));
+    this.saveSkillProgression();
+  }
+  getAnyPassiveLevel(id: string): number {
+    return PASSIVE_DEFS[id] ? this.getPassiveLevel(id) : (this.classPassiveLevels[id] ?? 1);
+  }
+  classPassiveValue(id: string): number {
+    const def = CLASS_PASSIVE_DEFS[id];
+    if (!def) return 0;
+    return def.values[Math.max(0, Math.min(4, this.getAnyPassiveLevel(id) - 1))];
+  }
+  passiveUpgradeCost(id: string): Record<string, number> | null {
+    if (!PASSIVE_DEFS[id] && !CLASS_PASSIVE_DEFS[id]) return null;
+    const level = this.getAnyPassiveLevel(id);
+    if (level >= 5) return null;
+    return { clave: 10 * level, eco_dust: 2 * level, crystal_blue_raw: level };
+  }
+  canUpgradePassive(id: string): boolean {
+    const cost = this.passiveUpgradeCost(id);
+    return !!cost && Object.entries(cost).every(([key, qty]) => (this.inventory[key] || 0) >= qty);
+  }
+  upgradePassive(id: string): boolean {
+    if (!this.canUpgradePassive(id)) return false;
+    const cost = this.passiveUpgradeCost(id)!;
+    for (const [key, qty] of Object.entries(cost)) {
+      this.inventory[key] = Math.max(0, (this.inventory[key] || 0) - qty);
+      if (!this.inventory[key]) delete this.inventory[key];
+    }
+    if (PASSIVE_DEFS[id]) this.passiveLevels[id] = this.getAnyPassiveLevel(id) + 1;
+    else this.classPassiveLevels[id] = this.getAnyPassiveLevel(id) + 1;
+    this.saveSkillProgression();
+    this.onInventoryChange?.({ ...this.inventory });
+    this.onHarvestPopup?.('✦ Passiva aprimorada!', this.player.x, this.player.y - 20);
+    return true;
+  }
+  getSkillLevel(slot: number, character: PlayerCharacterKey = this.activeCharacter) {
+    return this.skillLevels[character][Math.max(0, Math.min(2, slot))] ?? 1;
+  }
+  skillRankMul(slot: number) {
+    return 1 + (this.getSkillLevel(slot) - 1) * .10;
+  }
+  skillEnergyCost(base: number, slot: number) {
+    return Math.ceil(base * (1 + (this.getSkillLevel(slot) - 1) * .08));
+  }
+  skillUpgradeCost(slot: number): Record<string, number> | null {
+    const level = this.getSkillLevel(slot);
+    if (level >= 5) return null;
+    return { clave: 15 * level, eco_dust: 3 * level, crystal_blue_raw: 2 * level };
+  }
+  skillUpgradeRequirement(slot: number): { label: string; current: number; required: number; met: boolean } {
+    const next = this.getSkillLevel(slot) + 1;
+    if (this.activeCharacter === 'wins') {
+      const required = [0, 0, 130, 145, 160, 180][next];
+      return { label: 'Ressonância Máxima', current: this.stats.maxEnergy, required, met: this.stats.maxEnergy >= required };
+    }
+    if (this.activeCharacter === 'huans') {
+      const required = [0, 0, 12, 15, 19, 24][next];
+      return { label: 'Agilidade', current: this.stats.agilidade, required, met: this.stats.agilidade >= required };
+    }
+    const current = slot === 2 ? this.stats.inteligencia : this.stats.forca;
+    const required = [0, 0, 10, 13, 17, 22][next];
+    return { label: slot === 2 ? 'Inteligência' : 'Força', current, required, met: current >= required };
+  }
+  canUpgradeSkill(slot: number): boolean {
+    const cost = this.skillUpgradeCost(slot);
+    return !!cost && this.skillUpgradeRequirement(slot).met && Object.entries(cost).every(([key, qty]) => (this.inventory[key] || 0) >= qty);
+  }
+  upgradeSkill(slot: number): boolean {
+    if (!this.canUpgradeSkill(slot)) return false;
+    const cost = this.skillUpgradeCost(slot)!;
+    for (const [key, qty] of Object.entries(cost)) {
+      this.inventory[key] = Math.max(0, (this.inventory[key] || 0) - qty);
+      if (!this.inventory[key]) delete this.inventory[key];
+    }
+    this.skillLevels[this.activeCharacter][slot] += 1;
+    this.saveSkillProgression();
+    this.onInventoryChange?.({ ...this.inventory });
+    return true;
+  }
+  private saveSkillProgression() {
+    try { localStorage.setItem('acordelot_skill_progress_v1', JSON.stringify({ akles: this.passiveLevels, classes: this.classPassiveLevels, skills: this.skillLevels })); } catch {}
+  }
+  private loadSkillProgression() {
+    try {
+      const parsed = JSON.parse(localStorage.getItem('acordelot_skill_progress_v1') || '{}');
+      for (const key of Object.keys(PASSIVE_DEFS)) if (parsed.akles?.[key]) this.passiveLevels[key] = Math.max(1, Math.min(5, parsed.akles[key]));
+      for (const key of Object.keys(CLASS_PASSIVE_DEFS)) if (parsed.classes?.[key]) this.classPassiveLevels[key] = Math.max(1, Math.min(5, parsed.classes[key]));
+      for (const char of CHARACTER_ROSTER) if (Array.isArray(parsed.skills?.[char])) this.skillLevels[char] = parsed.skills[char].map((n: number) => Math.max(1, Math.min(5, n))) as [number, number, number];
+    } catch {}
   }
 
   // ---- Equipamentos (Colar / Anel / Aura / Catalisador) ----
@@ -1674,7 +1788,8 @@ export class GameEngine {
     return this.stats.critDamage / 100 + this.equipStat('critDmgPct') / 100;
   }
   get moveSpeedMul() {
-    return (this.stats.moveSpeedPct / 100) * (1 + (this.activeCharacter === 'akles' ? this.passiveValue('corpoEmCompasso') : 0) + (this.activeCharacter === 'huans' && this.hunterBuffT > 0 ? 0.1 : 0));
+    const hunterMove = this.getAnyPassiveLevel('huansPasso') >= 5 ? .14 : .10;
+    return (this.stats.moveSpeedPct / 100) * (1 + (this.activeCharacter === 'akles' ? this.passiveValue('corpoEmCompasso') : 0) + (this.activeCharacter === 'huans' && this.hunterBuffT > 0 ? hunterMove : 0));
   }
   get maxHpPassiveMul() {
     return 1 + this.passiveValue('harmoniaVital') + this.passiveValue('forcaRessonante');
@@ -1767,7 +1882,14 @@ export class GameEngine {
   spendAttrPoint(attr: AttrKey): boolean {
     const s = this.stats;
     if (s.attrPoints <= 0) return false;
-    s[attr] += 1;
+    if (attr === 'ressonancia') {
+      s.maxEnergy += 8;
+      s.energy = Math.min(s.maxEnergy, s.energy + 8);
+    } else {
+      s[attr] += 1;
+      if (this.activeCharacter === 'wins' && attr === 'inteligencia') s.harmonicPower += 2;
+      if (this.activeCharacter === 'huans' && attr === 'agilidade') s.attackSpeedPct += 1;
+    }
     s.attrPoints -= 1;
     if (attr === 'vitalidade') {
       s.maxHp += 5;
@@ -1856,6 +1978,7 @@ export class GameEngine {
     this.initFragments();
     this.initEnemies();
     this.loadTools();
+    this.loadSkillProgression();
     this.loadOrRollDailyQuests();
 
     // Passivas permanentes de HP (Harmonia Vital / Força Ressonante)
@@ -2170,7 +2293,8 @@ export class GameEngine {
     if (busy.includes(this.player.actionState)) return;
     if (this.activeCharacter !== 'akles' && (action === 'spin' || action === 'cast')) {
       const slot = action === 'spin' ? 1 : 2;
-      const costs = this.activeCharacter === 'wins' ? [15, 28, 45] : [14, 20, 40];
+      const bases = this.activeCharacter === 'wins' ? [15, 28, 45] : [14, 20, 40];
+      const costs = bases.map((base, index) => this.skillEnergyCost(base, index));
       const cds = this.activeCharacter === 'wins' ? [5, 11, 18] : [5, 9, 17];
       if (this.skillCooldowns[this.activeCharacter][slot] > 0 || !this.spendEnergy(costs[slot])) return;
       this.skillCooldowns[this.activeCharacter][slot] = cds[slot] * this.cooldownMul;
@@ -3300,8 +3424,8 @@ export class GameEngine {
     // Impacto Harmônico (Amplificação) — inimigo "com a DEF reduzida"
     if (!opts.networkFinal) {
       if (e.harmonicDebuffT && e.harmonicDebuffT > 0) dmg *= 1 + (e.harmonicDebuffPct || 0);
-      if (this.activeCharacter === 'wins' && opts.skill && e.resonantT && e.resonantT > 0) dmg *= 1.08;
-      if (this.activeCharacter === 'huans' && (e.preyMarks ?? 0) > 0) dmg *= 1 + (e.preyMarks ?? 0) * 0.02;
+      if (this.activeCharacter === 'wins' && opts.skill && e.resonantT && e.resonantT > 0) dmg *= 1 + (.08 + (this.getAnyPassiveLevel('winsRessonanciaVocal') - 1) * .01);
+      if (this.activeCharacter === 'huans' && (e.preyMarks ?? 0) > 0) dmg *= 1 + (e.preyMarks ?? 0) * this.classPassiveValue('huansInstinto');
       if (this.activeCharacter === 'huans') e.preyLastHitAt = this.timeElapsed;
     }
     // Reverberação (Pulso Harmônico) — marca consumida pelo próximo golpe básico
@@ -3475,9 +3599,10 @@ export class GameEngine {
   private explodeVocalResonance(target: Enemy) {
     target.vocalNotes = 0;
     target.resonantT = 5;
-    const dmg = this.effectiveHarmonicPower * 0.6 * this.skillDmgMul;
+    const dmg = this.effectiveHarmonicPower * this.classPassiveValue('winsRessonanciaVocal') * this.skillDmgMul;
     for (const e of this.enemies) if (e.state !== 'dead' && Math.hypot(e.x - target.x, e.y - target.y) <= 46) this.damageEnemy(e, dmg, target.x, target.y, { skill: true });
-    this.stats.energy = Math.min(this.effectiveMaxEnergy, this.stats.energy + this.effectiveMaxEnergy * 0.04);
+    const energyPct = .04 + (this.getAnyPassiveLevel('winsRessonanciaVocal') - 1) * .005;
+    this.stats.energy = Math.min(this.effectiveMaxEnergy, this.stats.energy + this.effectiveMaxEnergy * energyPct);
     this.onStatsChange?.({ ...this.stats });
   }
 
@@ -3501,7 +3626,8 @@ export class GameEngine {
       const ex = e.x + 8 - cx, ey = e.y - cy, dist = Math.hypot(ex, ey);
       if (dist > 150 * this.meleeAreaMul || (ex * dx + ey * dy) / Math.max(1, dist) < 0.25) continue;
       const notes = e.vocalNotes ?? 0;
-      this.damageEnemy(e, this.effectiveHarmonicPower * 3.2 * (1 + notes * 0.1) * this.skillDmgMul, cx, cy, { skill: true });
+      this.damageEnemy(e, this.effectiveHarmonicPower * 3.2 * (1 + notes * this.classPassiveValue('winsAriaClimax')) * this.skillDmgMul * this.skillRankMul(2), cx, cy, { skill: true });
+      if (notes === 3 && this.getAnyPassiveLevel('winsAriaClimax') >= 5) this.stats.energy = Math.min(this.effectiveMaxEnergy, this.stats.energy + this.effectiveMaxEnergy * .06);
       if (notes === 3) this.explodeVocalResonance(e); else e.vocalNotes = 0;
     }
   }
@@ -3517,7 +3643,7 @@ export class GameEngine {
     }
     this.playerInvuln = Math.max(this.playerInvuln, 0.35);
     this.hunterDashWindow = 0.35;
-    this.hunterBuffT = 5;
+    this.hunterBuffT = 5 + (this.getSkillLevel(1) - 1) * .5;
     this.hunterEnhancedBasics = 3;
     this.spriteVfx.push({ sheet: 'vfxHuansStep', x: (startX + this.player.x + 12) / 2, y: (startY + this.player.y + 14) / 2, angle: Math.atan2(dy, dx), life: 0, duration: .55, width: 135, height: 68 });
   }
@@ -3646,11 +3772,11 @@ export class GameEngine {
   activateResonance(): boolean {
     if (this.activeCharacter !== 'akles') {
       const char = this.activeCharacter;
-      const cost = char === 'wins' ? 15 : 14;
+      const cost = this.skillEnergyCost(char === 'wins' ? 15 : 14, 0);
       if (this.skillCooldowns[char][0] > 0 || !this.spendEnergy(cost)) return false;
       this.skillCooldowns[char][0] = 5 * this.cooldownMul;
-      if (char === 'wins') this.fireClassProjectile('winsNote', this.effectiveHarmonicPower * 1.35 * this.skillDmgMul, 99, 470);
-      else this.fireClassProjectile('huansArrow', (this.stats.forca + this.weaponAtk) * 1.5 * this.skillDmgMul, 2, 520);
+      if (char === 'wins') this.fireClassProjectile('winsNote', this.effectiveHarmonicPower * 1.35 * this.skillDmgMul * this.skillRankMul(0), 99, 470);
+      else this.fireClassProjectile('huansArrow', (this.stats.forca + this.weaponAtk) * 1.5 * this.skillDmgMul * this.skillRankMul(0), 2, 520);
       return true;
     }
     if (this.resonanceCdT > 0 || this.resonanceActive) return false;
@@ -3713,13 +3839,13 @@ export class GameEngine {
           b.hitIds.push(e.id);
           let dmg = b.dmg;
           if (b.kind === 'winsNote') {
-            if ((e.resonantT ?? 0) > 0) dmg *= 1.2;
+            if ((e.resonantT ?? 0) > 0) dmg *= 1 + this.classPassiveValue('winsNotaPerfurante');
             this.damageEnemy(e, dmg, b.x - b.vx * 0.1, b.y - b.vy * 0.1, { skill: true });
             this.applyVocalNote(e);
           } else if (b.kind === 'huansArrow') {
-            if ((e.preyMarks ?? 0) >= 5) dmg *= 1.2;
+            if ((e.preyMarks ?? 0) >= 5) dmg *= 1 + this.classPassiveValue('huansFlecha');
             this.damageEnemy(e, dmg, b.x - b.vx * 0.1, b.y - b.vy * 0.1, { skill: true });
-            this.applyPreyMarks(e, 2);
+            this.applyPreyMarks(e, this.getAnyPassiveLevel('huansFlecha') >= 5 && b.hitIds.length === 1 ? 3 : 2);
           } else if (b.kind === 'huansBasic') {
             const crit = this.rollCritAgainst(e);
             this.damageEnemy(e, crit ? dmg * this.critDmgMul : dmg, b.x, b.y, { crit });
@@ -3742,7 +3868,8 @@ export class GameEngine {
 
   private rollCritAgainst(e: Enemy): boolean {
     if (this.hunterGuaranteedCrit) { this.hunterGuaranteedCrit = false; return true; }
-    const markedBonus = this.activeCharacter === 'huans' && (e.preyMarks ?? 0) >= 5 ? 0.08 : 0;
+    const markedBonus = this.activeCharacter === 'huans' && (e.preyMarks ?? 0) >= 5
+      ? .08 + (this.getAnyPassiveLevel('huansInstinto') - 1) * .01 : 0;
     return Math.random() < this.stats.critChance / 100 + this.critChanceBonus + markedBonus;
   }
 
@@ -3754,26 +3881,26 @@ export class GameEngine {
       if (z.kind === 'winsChorus') {
         for (const e of inside) {
           z.entered[e.id] = (z.entered[e.id] ?? 0) + dt;
-          e.slowT = 0.2; e.slowPct = 0.2;
+          e.slowT = 0.2; e.slowPct = this.classPassiveValue('winsCoroDissonante');
           if (!z.marked.has(e.id)) {
             z.marked.add(e.id);
-            this.damageEnemy(e, this.effectiveHarmonicPower * 0.8 * this.skillDmgMul, z.x, z.y, { skill: true });
+            this.damageEnemy(e, this.effectiveHarmonicPower * 0.8 * this.skillDmgMul * this.skillRankMul(1), z.x, z.y, { skill: true });
             if (e.state !== 'dead') this.applyVocalNote(e);
           }
-          if (z.entered[e.id] >= 3 && !(e.silenceT && e.silenceT > 0)) e.silenceT = 1;
+          if (z.entered[e.id] >= 3 && !(e.silenceT && e.silenceT > 0)) e.silenceT = this.getAnyPassiveLevel('winsCoroDissonante') >= 5 ? 1.4 : 1;
         }
         if (z.tickT <= 0) {
           z.tickT += 1;
-          for (const e of inside) this.damageEnemy(e, this.effectiveHarmonicPower * 0.35 * this.skillDmgMul, z.x, z.y, { skill: true });
+          for (const e of inside) this.damageEnemy(e, this.effectiveHarmonicPower * 0.35 * this.skillDmgMul * this.skillRankMul(1), z.x, z.y, { skill: true });
         }
       } else if (z.tickT <= 0) {
         z.tickT += 0.3;
         const single = inside.length === 1;
         for (const e of inside) {
           const markedBefore = (e.preyMarks ?? 0) >= 5;
-          let dmg = (this.stats.forca + this.weaponAtk) * 2.8 / 5 * this.skillDmgMul;
-          if (markedBefore) dmg *= 1.25;
-          if (single) dmg *= 1.3;
+          let dmg = (this.stats.forca + this.weaponAtk) * 2.8 / 5 * this.skillDmgMul * this.skillRankMul(2);
+          if (markedBefore) dmg *= 1 + this.classPassiveValue('huansChuva');
+          if (single) dmg *= 1 + (this.getAnyPassiveLevel('huansChuva') >= 5 ? .46 : .30);
           this.damageEnemy(e, dmg, z.x, z.y, { skill: true });
           e.slowT = 3; e.slowPct = 0.2;
           if (!z.marked.has(e.id) && e.state !== 'dead') { z.marked.add(e.id); this.applyPreyMarks(e, 3); }
@@ -4459,7 +4586,7 @@ export class GameEngine {
       const atkSpeedMul =
         this.stats.attackSpeedPct / 100 +
         this.equipStat('atkSpeedPct') / 100 +
-        (this.activeCharacter === 'huans' && this.hunterBuffT > 0 ? 0.2 : 0) +
+        (this.activeCharacter === 'huans' && this.hunterBuffT > 0 ? this.classPassiveValue('huansPasso') : 0) +
         (act === 'attack' && this.resonanceActive ? this.passiveValue('pulsoAcelerado') : 0);
       this.player.actionTimer = (this.player.actionTimer || 0) + dt * meta.fps * atkSpeedMul;
       this.player.frame = Math.min(meta.cols - 1, Math.floor(this.player.actionTimer));
@@ -5026,28 +5153,6 @@ export class GameEngine {
       item.draw();
     }
 
-    // Marcas de combate visíveis: notas da Wins e presa do Huans.
-    for (const e of this.enemies) {
-      if (e.state === 'dead') continue;
-      const count = this.activeCharacter === 'wins' ? (e.vocalNotes ?? 0) : this.activeCharacter === 'huans' ? (e.preyMarks ?? 0) : 0;
-      if (count <= 0) continue;
-      const ex = Math.round(e.x + 8 - camX), ey = Math.round(e.y - 30 - camY);
-      ctx.save();
-      ctx.font = 'bold 9px sans-serif';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      for (let n = 0; n < count; n++) {
-        const mx = ex + (n - (count - 1) / 2) * 10;
-        ctx.fillStyle = this.activeCharacter === 'wins' ? '#d946ef' : '#fbbf24';
-        ctx.beginPath(); ctx.arc(mx, ey, 4, 0, Math.PI * 2); ctx.fill();
-        ctx.fillStyle = '#fff'; ctx.fillText(this.activeCharacter === 'wins' ? '♪' : '•', mx, ey);
-      }
-      if (this.activeCharacter === 'wins' && (e.resonantT ?? 0) > 0) {
-        ctx.strokeStyle = '#f0abfc'; ctx.beginPath(); ctx.arc(ex, ey + 20, 16, 0, Math.PI * 2); ctx.stroke();
-      }
-      ctx.restore();
-    }
-
     // 3. Atmosphere particles
     for (const p of this.particles) {
       const px = Math.round(p.x - camX);
@@ -5174,6 +5279,26 @@ export class GameEngine {
 
     // 4. Lighting Shader Pass
     this.renderLightingShader(ctx, camX, camY);
+
+    // Marcas e debuffs são HUD de combate: desenhados depois da iluminação
+    // para continuarem legíveis durante noite, chuva e efeitos de Skills.
+    for (const e of this.enemies) {
+      if (e.state === 'dead') continue;
+      const count = this.activeCharacter === 'wins' ? (e.vocalNotes ?? 0) : this.activeCharacter === 'huans' ? (e.preyMarks ?? 0) : 0;
+      if (count <= 0 && !(e.resonantT && e.resonantT > 0)) continue;
+      const ex = Math.round(e.x + 8 - camX), ey = Math.round(e.y - 30 - camY);
+      ctx.save(); ctx.font = 'bold 9px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      const badgeW = Math.max(36, count * 12 + 10);
+      ctx.fillStyle = 'rgba(2,6,23,.9)'; ctx.beginPath(); ctx.roundRect(ex - badgeW / 2, ey - 8, badgeW, 16, 7); ctx.fill();
+      for (let n = 0; n < count; n++) {
+        const mx = ex + (n - (count - 1) / 2) * 11;
+        ctx.fillStyle = this.activeCharacter === 'wins' ? '#d946ef' : '#fbbf24'; ctx.beginPath(); ctx.arc(mx, ey, 5, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#fff'; ctx.fillText(this.activeCharacter === 'wins' ? '♪' : '•', mx, ey);
+      }
+      if (this.activeCharacter === 'wins' && (e.resonantT ?? 0) > 0) { ctx.font = 'bold 8px sans-serif'; ctx.fillStyle = '#f0abfc'; ctx.fillText(`RESSONANTE +${8 + (this.getAnyPassiveLevel('winsRessonanciaVocal') - 1)}%`, ex, ey + 13); }
+      else if (this.activeCharacter === 'huans' && count >= 5) { ctx.font = 'bold 8px sans-serif'; ctx.fillStyle = '#fde68a'; ctx.fillText(`PRESA +${8 + (this.getAnyPassiveLevel('huansInstinto') - 1)}% CRIT`, ex, ey + 13); }
+      ctx.restore();
+    }
 
     // 5. Interaction Prompt
     if (!this.isEditMode && this.isNearMerchant && !this.isTalkingToMerchant) {

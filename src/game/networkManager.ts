@@ -188,8 +188,17 @@ class NetworkManager {
   private relayToMissing(event: string, payload: unknown, delivered: Set<string>) {
     if (!this.channel) return;
     const targetIds = [...this.presentPlayerIds].filter((id) => !delivered.has(id));
-    if (targetIds.length === 0) return;
-    this.channel.send({ type: 'broadcast', event, payload: { payload, targetIds } });
+    if (targetIds.length > 0) {
+      this.channel.send({ type: 'broadcast', event, payload: { payload, targetIds } });
+      return;
+    }
+
+    // Se o Presence ainda não encontrou ninguém, envia uma descoberta aberta.
+    // Ao receber esse primeiro estado os aparelhos negociam WebRTC e param de
+    // depender deste relay lento.
+    if (delivered.size === 0 && this.presentPlayerIds.size === 0) {
+      this.channel.send({ type: 'broadcast', event, payload });
+    }
   }
 
   private unwrapRelay<T>(raw: unknown): T | null {
@@ -289,17 +298,25 @@ class NetworkManager {
         updatedPlayers = [...currentPlayers, { user_id: user.id, user_name: userName, character }];
       }
 
-      await supabase
+      const { data: updatedRoom, error: updateError } = await supabase
         .from('acordelot_online_rooms')
         .update({
           players: updatedPlayers,
           player_count: updatedPlayers.length,
           updated_at: new Date().toISOString(),
         })
-        .eq('id', roomId);
+        .eq('id', roomId)
+        .select('players, player_count')
+        .maybeSingle();
 
-      return true;
-    } catch {
+      if (updateError || !updatedRoom) {
+        console.error('[NetworkManager] Banco recusou entrada na sala:', updateError);
+        return false;
+      }
+
+      return ((updatedRoom.players || []) as any[]).some((player) => player.user_id === user.id);
+    } catch (error) {
+      console.error('[NetworkManager] Falha ao entrar na sala:', error);
       return false;
     }
   }
@@ -330,6 +347,12 @@ class NetworkManager {
     ch.on('broadcast', { event: 'player_move' }, (payload) => {
       const p = this.unwrapRelay<RemotePlayerState>(payload.payload);
       if (p && p.id !== user.id) {
+        // Descoberta alternativa ao Presence para navegadores/redes móveis que
+        // atrasam o primeiro evento de sincronização.
+        if (!this.presentPlayerIds.has(p.id)) {
+          this.presentPlayerIds.add(p.id);
+          void this.ensurePeer(p.id);
+        }
         this.onRemotePlayerUpdate?.(p);
       }
     });

@@ -100,19 +100,19 @@ export const OnlineRoomModal: React.FC<OnlineRoomModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md select-none font-sans animate-fadeIn">
-      <div className="relative w-full max-w-lg bg-slate-900/95 border border-amber-500/40 rounded-3xl p-6 sm:p-7 shadow-[0_25px_60px_rgba(0,0,0,0.9)] overflow-hidden">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 landscape:p-2 bg-black/85 backdrop-blur-md select-none font-sans animate-fadeIn">
+      <div className="relative w-full max-w-lg landscape:max-w-4xl max-h-[94vh] bg-slate-900/95 border border-amber-500/40 rounded-3xl p-6 sm:p-7 landscape:p-4 shadow-[0_25px_60px_rgba(0,0,0,0.9)] overflow-y-auto">
         {/* Brilho Dourado */}
         <div className="absolute top-0 left-1/4 right-1/4 h-[2px] bg-gradient-to-r from-transparent via-amber-400 to-transparent" />
 
         {/* MODO SELETOR: SOLO OU ONLINE */}
         {tab === 'mode_select' ? (
-          <div className="space-y-6">
+          <div className="space-y-6 landscape:space-y-3">
             <div className="text-center">
               <img
                 src="/assets/login/logo.png"
                 alt="Acordelot"
-                className="w-44 sm:w-52 mx-auto mb-3 drop-shadow-[0_4px_20px_rgba(245,158,11,0.4)]"
+                className="w-44 sm:w-52 landscape:w-36 mx-auto mb-3 landscape:mb-1 drop-shadow-[0_4px_20px_rgba(245,158,11,0.4)]"
               />
               <h2 className="text-lg font-bold text-slate-100 tracking-wide">
                 Como deseja jogar hoje?
@@ -122,12 +122,12 @@ export const OnlineRoomModal: React.FC<OnlineRoomModalProps> = ({
               </p>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 landscape:gap-3">
               {/* Opção 1: Mundo Solo */}
               <button
                 type="button"
                 onClick={onSelectSolo}
-                className="cursor-pointer group relative text-left bg-slate-950/80 hover:bg-slate-800/90 border border-slate-800 hover:border-amber-400/80 rounded-2xl p-5 transition-all active:scale-98 shadow-lg flex flex-col justify-between"
+                className="cursor-pointer group relative text-left bg-slate-950/80 hover:bg-slate-800/90 border border-slate-800 hover:border-amber-400/80 rounded-2xl p-5 landscape:p-3 transition-all active:scale-98 shadow-lg flex flex-col justify-between"
               >
                 <div>
                   <div className="w-10 h-10 rounded-xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-400 mb-3 group-hover:scale-110 transition-transform">
@@ -151,7 +151,7 @@ export const OnlineRoomModal: React.FC<OnlineRoomModalProps> = ({
               <button
                 type="button"
                 onClick={() => setTab('rooms_list')}
-                className="cursor-pointer group relative text-left bg-slate-950/80 hover:bg-indigo-950/70 border border-slate-800 hover:border-indigo-400/80 rounded-2xl p-5 transition-all active:scale-98 shadow-lg flex flex-col justify-between"
+                className="cursor-pointer group relative text-left bg-slate-950/80 hover:bg-indigo-950/70 border border-slate-800 hover:border-indigo-400/80 rounded-2xl p-5 landscape:p-3 transition-all active:scale-98 shadow-lg flex flex-col justify-between"
               >
                 <div>
                   <div className="w-10 h-10 rounded-xl bg-indigo-500/15 border border-indigo-500/30 flex items-center justify-center text-indigo-400 mb-3 group-hover:scale-110 transition-transform">
@@ -266,7 +266,7 @@ export const OnlineRoomModal: React.FC<OnlineRoomModalProps> = ({
             )}
 
             {/* Lista de Salas */}
-            <div className="max-h-64 overflow-y-auto space-y-2.5 pr-1 scrollbar-thin">
+            <div className="max-h-64 landscape:max-h-[48vh] overflow-y-auto space-y-2.5 pr-1 scrollbar-thin">
               {rooms.length === 0 ? (
                 <div className="text-center py-8 bg-slate-950/50 rounded-2xl border border-slate-800/80">
                   <Globe className="w-8 h-8 text-slate-600 mx-auto mb-2" />

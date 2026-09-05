@@ -474,15 +474,46 @@ const CLASS_KITS = {
   ],
 } as const;
 
+const AKLES_ACTIVE_KIT = [
+  ['Skill 1 · Ressonância', '6s de arma energizada e ataques acelerados · Recarga 14s. As passivas ampliam duração, dano, crítico e redução de recarga.'],
+  ['Skill 2 · Amplificação', 'A Acordelâmina cresce e golpeia uma área frontal de 92px. Escala com Força, nível, ATQ da arma, dano básico e dano de Skill.'],
+  ['Skill 3 · Pulso Harmônico', 'Feixe direcional de longo alcance · Recarga 3,5s. Escala com Inteligência, nível e dano de Skill; agora usa animação progressiva de 16 quadros.'],
+] as const;
+
 const ClassSkillsTab: React.FC<{ engine: GameEngine }> = ({ engine }) => {
-  const kit = CLASS_KITS[engine.activeCharacter as 'wins' | 'huans'];
-  return <div className="h-full overflow-y-auto grid grid-cols-1 sm:grid-cols-2 gap-3 p-1">{kit.map(([name, desc], i) => (
-    <div key={name} className="rounded-xl border border-violet-500/30 bg-slate-950/60 p-4">
-      <div className="w-10 h-10 rounded-full bg-violet-500/15 text-violet-300 flex items-center justify-center mb-2">{i === 0 ? <Sparkles className="w-5 h-5" /> : <Zap className="w-5 h-5" />}</div>
-      <p className="text-sm font-black text-slate-100">{name}</p>
-      <p className="mt-1 text-[11px] text-slate-400 leading-relaxed">{desc}</p>
+  const char = engine.activeCharacter as 'wins' | 'huans';
+  const kit = CLASS_KITS[char];
+  const isWins = char === 'wins';
+  return (
+    <div className="h-full min-h-0 flex gap-3 p-1">
+      <aside className={`w-48 shrink-0 rounded-2xl border ${isWins ? 'border-fuchsia-500/35' : 'border-emerald-500/35'} bg-slate-950/65 p-3 flex flex-col`}>
+        <div className="h-52 rounded-xl bg-[radial-gradient(circle_at_50%_35%,rgba(139,92,246,.25),rgba(2,6,23,.95)_72%)] overflow-hidden">
+          <img src={`/assets/characters/portraits/${char}.webp`} alt={isWins ? 'Wins' : 'Huans'} className="w-full h-full object-contain" />
+        </div>
+        <p className="mt-2 text-base font-black text-white">{isWins ? 'Wins' : 'Huans'}</p>
+        <p className={`text-[10px] font-bold uppercase tracking-wider ${isWins ? 'text-fuchsia-300' : 'text-emerald-300'}`}>
+          {isWins ? 'Vocal · Maga Burst / Área' : 'Cordas · Caçador / Crítico'}
+        </p>
+        <div className="mt-2 text-[9px] leading-relaxed text-slate-400 space-y-1">
+          {isWins ? (
+            <><p>HP 90 · ATQ 9 · PH 18 · DEF 8</p><p>Crítico 5% / 150% · Energia 120</p><p>Mov. 100% · Ataque 95%</p></>
+          ) : (
+            <><p>HP 105 · ATQ 16 · PH 8 · DEF 10</p><p>Crítico 8% / 150% · Energia 100</p><p>Mov. 108% · Ataque 108%</p></>
+          )}
+        </div>
+      </aside>
+      <div className="flex-1 min-w-0 overflow-y-auto grid grid-cols-2 gap-3">
+        {kit.map(([name, desc], i) => (
+          <div key={name} className={`rounded-xl border ${isWins ? 'border-fuchsia-500/30' : 'border-emerald-500/30'} bg-slate-950/60 p-4`}>
+            <div className={`w-10 h-10 rounded-full flex items-center justify-center mb-2 ${isWins ? 'bg-fuchsia-500/15 text-fuchsia-300' : 'bg-emerald-500/15 text-emerald-300'}`}>{i === 0 ? <Sparkles className="w-5 h-5" /> : <Zap className="w-5 h-5" />}</div>
+            <p className="text-sm font-black text-slate-100">{name}</p>
+            <p className="mt-1 text-[11px] text-slate-400 leading-relaxed">{desc}</p>
+            {i > 0 && <p className="mt-2 text-[9px] font-bold text-cyan-300/80">Segure o botão · arraste para mirar · solte para lançar</p>}
+          </div>
+        ))}
+      </div>
     </div>
-  ))}</div>;
+  );
 };
 
 // Mesmo layout da tela de Arma: lista à esquerda (todas as passivas, com a
@@ -542,6 +573,14 @@ const SkillsTab: React.FC<{ engine: GameEngine }> = ({ engine }) => {
 
       {/* Coluna direita: detalhe grande da passiva selecionada */}
       <div className="flex-1 min-w-0 flex flex-col gap-2 overflow-y-auto pr-1">
+        <div className="grid grid-cols-3 gap-2 shrink-0">
+          {AKLES_ACTIVE_KIT.map(([name, desc], i) => (
+            <div key={name} className="rounded-xl border border-cyan-500/25 bg-slate-950/65 p-2.5">
+              <p className="text-[10px] font-black text-cyan-200">{i + 1} · {name.replace(/^Skill \d · /, '')}</p>
+              <p className="mt-1 text-[9px] leading-snug text-slate-400">{desc}</p>
+            </div>
+          ))}
+        </div>
         {/* linha 1: card principal + atributos/efeito */}
         <div className="flex gap-2">
           <div className="flex-1 min-w-0 flex gap-4 items-center rounded-xl border p-4" style={{ borderColor: g.color + '35', background: 'rgba(2,6,23,0.6)' }}>
@@ -658,12 +697,12 @@ const FichaTab: React.FC<{
 
   return (
     <div className="flex gap-3 h-full">
-      <div className="w-44 shrink-0 flex flex-col gap-2">
-        <div className="rounded-xl overflow-hidden border-2 border-amber-400/60 bg-gradient-to-b from-slate-800 to-slate-950 shadow-lg aspect-[3/4]">
+      <div className="w-52 shrink-0 flex flex-col gap-2">
+        <div className="rounded-xl overflow-hidden border-2 border-amber-400/60 bg-[radial-gradient(circle_at_50%_35%,rgba(245,158,11,.2),rgba(2,6,23,.95)_72%)] shadow-lg h-60">
           <img
-            src={engine?.activeCharacterPortrait ?? '/icons/icon-512.png'}
+            src={engine ? `/assets/characters/portraits/${engine.activeCharacter}.webp` : '/icons/icon-512.png'}
             alt={stats.name}
-            className="w-full h-full object-cover object-top scale-110"
+            className="w-full h-full object-contain object-center drop-shadow-[0_12px_18px_rgba(0,0,0,.7)]"
           />
         </div>
         <p className="text-center text-[11px] text-slate-400 -mt-1">{stats.className}</p>
@@ -794,7 +833,7 @@ export const CharacterScreen: React.FC<CharacterScreenProps> = ({
   return (
     <div className="fixed inset-0 z-40 flex items-center justify-center p-2 pointer-events-auto">
       <div className="absolute inset-0 bg-black/55 backdrop-blur-[2px]" onClick={onClose} />
-      <div className="relative w-full max-w-5xl h-[620px] max-h-[92vh] flex flex-col bg-slate-900/95 border border-amber-500/50 rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+      <div className="relative w-full max-w-6xl h-[620px] max-h-[94vh] flex flex-col bg-slate-900/95 border border-amber-500/50 rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150">
         <div className="flex items-center justify-between px-4 py-2 border-b border-slate-700/70 bg-slate-950/50 shrink-0">
           <h3 className="text-[13px] font-bold text-amber-200 tracking-wide">Ficha — {stats.name}</h3>
           <button type="button" onClick={onClose} className="cursor-pointer text-slate-400 hover:text-white p-1">

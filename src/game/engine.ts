@@ -87,6 +87,17 @@ interface CombatZone {
   marked: Set<string>;
 }
 
+interface SpriteVfx {
+  sheet: keyof LoadedAssets;
+  x: number;
+  y: number;
+  angle: number;
+  life: number;
+  duration: number;
+  width: number;
+  height: number;
+}
+
 // Geometria das sprite sheets do Akles (geradas por scripts/process-akles.mjs)
 interface AklesAnimMeta {
   sheet: keyof LoadedAssets;
@@ -358,6 +369,7 @@ export const HARVEST_DEFS: Record<string, HarvestDef> = {
   dark_icecrystal: { kind: 'rock', maxHp: 5, drop: 'crystal_blue_raw', dropMin: 1, dropMax: 3, respawnSecs: 45 },
   dark_bigrock: { kind: 'rock', maxHp: 6, drop: 'stone', dropMin: 3, dropMax: 5, respawnSecs: 35 },
   dark_deadtree: { kind: 'tree', maxHp: 3, drop: 'wood', dropMin: 1, dropMax: 3, respawnSecs: 25 },
+  dark_bigpine: { kind: 'tree', maxHp: 5, drop: 'wood', dropMin: 3, dropMax: 6, respawnSecs: 34 },
 };
 
 // ---- MONSTROS DISSONANTES + ECOS MUSICAIS ----
@@ -1244,6 +1256,7 @@ export class GameEngine {
   }
   lightBeams: LightBeam[] = [];
   combatZones: CombatZone[] = [];
+  spriteVfx: SpriteVfx[] = [];
   coins = 0; // claves musicais
   onCoinsChange?: (n: number) => void;
   playerHurtFlash = 0;
@@ -1356,7 +1369,7 @@ export class GameEngine {
     this.syncEquipHpBonus();
     this.lightBeams = [];
     this.combatZones = [];
-    this.lockedEnemyId = null;
+    this.spriteVfx = [];
     this.player.actionState = 'idle';
     // miniatura, nome e classe seguem o personagem ativo — vida, nível e
     // poder já são os mesmos this.stats compartilhados, então já "seguem
@@ -2060,10 +2073,6 @@ export class GameEngine {
       this.activateResonance(); // Skill 1 — Ressonância
       return;
     }
-    if (!this.isEditMode && e.code === 'KeyT') {
-      this.cycleCombatTarget();
-      return;
-    }
 
     // Editor: apagar seleção (múltipla ou única)
     if (this.isEditMode && (e.code === 'Delete' || e.code === 'Backspace')) {
@@ -2118,6 +2127,41 @@ export class GameEngine {
 
   setTouchVector(x: number, y: number) {
     this.touchVector = { x, y };
+  }
+
+  setSkillAimPreview(slot: number, dx: number, dy: number, power = 1) {
+    const len = Math.hypot(dx, dy);
+    if (len < 0.08) {
+      const [fx, fy] = this.facingVector();
+      this.skillAimPreview = { slot, dx: fx, dy: fy, power: 0.35 };
+      return;
+    }
+    this.skillAimPreview = { slot, dx: dx / len, dy: dy / len, power: Math.max(.25, Math.min(1, power)) };
+  }
+
+  cancelSkillAim() {
+    this.skillAimPreview = null;
+  }
+
+  releaseAimedSkill(slot: number, dx: number, dy: number, power = 1) {
+    const len = Math.hypot(dx, dy);
+    const [fx, fy] = this.facingVector();
+    this.queuedSkillAim = {
+      dx: len > .08 ? dx / len : fx,
+      dy: len > .08 ? dy / len : fy,
+      power: Math.max(.25, Math.min(1, power)),
+    };
+    const ax = this.queuedSkillAim.dx, ay = this.queuedSkillAim.dy;
+    this.player.direction = Math.abs(ax) > Math.abs(ay) ? (ax < 0 ? 'left' : 'right') : (ay < 0 ? 'up' : 'down');
+    this.skillAimPreview = null;
+    if (slot === 0) {
+      const used = this.activateResonance();
+      if (!used || this.activeCharacter === 'akles') this.queuedSkillAim = null;
+      return;
+    }
+    const action = slot === 1 ? 'spin' : 'cast';
+    this.triggerAction(action);
+    if (this.player.actionState !== action) this.queuedSkillAim = null;
   }
 
   // Dispara animações de ação (coleta, ataque, giro, magia)
@@ -2882,6 +2926,9 @@ export class GameEngine {
       }
 
       this.props = rebuiltProps;
+      // O mapa pode ser reconstruído novamente pelo sincronismo online depois
+      // do construtor. Reanexa a coleta aqui, no mesmo ponto da reconstrução.
+      this.initHarvestables();
     } catch (err) {
       console.warn('Failed to load custom map from storage:', err);
     }
@@ -2921,7 +2968,7 @@ export class GameEngine {
   // ---- COLETA DE RECURSOS ----
   attachHarvestData(p: WorldProp) {
     const def = HARVEST_DEFS[p.type];
-    if (!def) return;
+    if (!def || p.harvest) return;
     p.harvest = {
       kind: def.kind,
       hp: def.maxHp,
@@ -3207,8 +3254,9 @@ export class GameEngine {
   // Timestamp do último golpe (dado ou sofrido) — botão de ataque/coleta
   // inteligente usa isso pra saber se "está em luta" agora.
   lastCombatAt = -999;
-  private lockedEnemyId: string | null = null;
   private pointerAimWorld: { x: number; y: number } | null = null;
+  private queuedSkillAim: { dx: number; dy: number; power: number } | null = null;
+  private skillAimPreview: { slot: number; dx: number; dy: number; power: number } | null = null;
   get inCombat() {
     return this.timeElapsed - this.lastCombatAt < 4.5;
   }
@@ -3384,44 +3432,15 @@ export class GameEngine {
     return { x: this.player.x + 12, y: this.player.y + 14 };
   }
 
-  private validAimEnemies(maxRange: number) {
+  private combatAim(maxRange = 330): { dx: number; dy: number; x: number; y: number } {
     const origin = this.aimOrigin();
-    return this.enemies.filter((enemy) =>
-      enemy.state !== 'dead' && Math.hypot(enemy.x + 8 - origin.x, enemy.y - origin.y) <= maxRange
-    );
-  }
-
-  private aimTarget(maxRange = 330): Enemy | null {
-    const candidates = this.validAimEnemies(maxRange);
-    const locked = candidates.find((enemy) => enemy.id === this.lockedEnemyId);
-    if (locked) return locked;
-    if (this.lockedEnemyId) this.lockedEnemyId = null;
-
-    if (this.pointerAimWorld) {
-      const pointed = [...candidates].sort((a, b) =>
-        Math.hypot(a.x + 8 - this.pointerAimWorld!.x, a.y - this.pointerAimWorld!.y) -
-        Math.hypot(b.x + 8 - this.pointerAimWorld!.x, b.y - this.pointerAimWorld!.y)
-      )[0];
-      if (pointed && Math.hypot(pointed.x + 8 - this.pointerAimWorld.x, pointed.y - this.pointerAimWorld.y) <= 54) return pointed;
-    }
-
-    const origin = this.aimOrigin();
-    return [...candidates].sort((a, b) => {
-      const marksA = this.activeCharacter === 'huans' ? (a.preyMarks ?? 0) : this.activeCharacter === 'wins' ? (a.vocalNotes ?? 0) : 0;
-      const marksB = this.activeCharacter === 'huans' ? (b.preyMarks ?? 0) : this.activeCharacter === 'wins' ? (b.vocalNotes ?? 0) : 0;
-      if (marksA !== marksB) return marksB - marksA;
-      return Math.hypot(a.x + 8 - origin.x, a.y - origin.y) - Math.hypot(b.x + 8 - origin.x, b.y - origin.y);
-    })[0] ?? null;
-  }
-
-  private combatAim(maxRange = 330): { dx: number; dy: number; x: number; y: number; target: Enemy | null } {
-    const origin = this.aimOrigin();
-    const target = this.aimTarget(maxRange);
     let tx: number;
     let ty: number;
-    if (target) {
-      tx = target.x + 8;
-      ty = target.y;
+    if (this.queuedSkillAim) {
+      const queued = this.queuedSkillAim;
+      this.queuedSkillAim = null;
+      tx = origin.x + queued.dx * maxRange * queued.power;
+      ty = origin.y + queued.dy * maxRange * queued.power;
     } else if (this.pointerAimWorld) {
       const pdx = this.pointerAimWorld.x - origin.x;
       const pdy = this.pointerAimWorld.y - origin.y;
@@ -3440,25 +3459,7 @@ export class GameEngine {
     const dx = rawX / len;
     const dy = rawY / len;
     this.player.direction = Math.abs(dx) > Math.abs(dy) ? (dx < 0 ? 'left' : 'right') : (dy < 0 ? 'up' : 'down');
-    return { dx, dy, x: tx, y: ty, target };
-  }
-
-  cycleCombatTarget(): boolean {
-    if (this.activeCharacter === 'akles') return false;
-    const origin = this.aimOrigin();
-    const candidates = this.validAimEnemies(380).sort((a, b) => {
-      const aa = Math.atan2(a.y - origin.y, a.x + 8 - origin.x);
-      const ab = Math.atan2(b.y - origin.y, b.x + 8 - origin.x);
-      return aa - ab;
-    });
-    if (!candidates.length) {
-      this.lockedEnemyId = null;
-      this.onHarvestPopup?.('Nenhum alvo ao alcance', this.player.x, this.player.y - 18);
-      return false;
-    }
-    const current = candidates.findIndex((enemy) => enemy.id === this.lockedEnemyId);
-    this.lockedEnemyId = candidates[(current + 1) % candidates.length].id;
-    return true;
+    return { dx, dy, x: tx, y: ty };
   }
 
   private fireClassProjectile(kind: LightBeam['kind'], dmg: number, maxHits: number, speed = 440) {
@@ -3487,12 +3488,14 @@ export class GameEngine {
 
   private useWinsChorus() {
     const aim = this.combatAim(190);
-    this.combatZones.push({ kind: 'winsChorus', x: aim.target ? aim.x : this.player.x + 12 + aim.dx * 86, y: aim.target ? aim.y : this.player.y + 16 + aim.dy * 86, radius: 58 * this.meleeAreaMul, life: 0, duration: 5, tickT: 1, entered: {}, marked: new Set() });
+    const x = aim.x, y = aim.y;
+    this.combatZones.push({ kind: 'winsChorus', x, y, radius: 58 * this.meleeAreaMul, life: 0, duration: 5, tickT: 1, entered: {}, marked: new Set() });
   }
 
   private useWinsAria() {
     const { dx, dy } = this.combatAim(260);
     const cx = this.player.x + 12, cy = this.player.y + 16;
+    this.spriteVfx.push({ sheet: 'vfxWinsAria', x: cx + dx * 72, y: cy + dy * 72, angle: Math.atan2(dy, dx), life: 0, duration: .9, width: 180, height: 145 });
     for (const e of this.enemies) {
       if (e.state === 'dead') continue;
       const ex = e.x + 8 - cx, ey = e.y - cy, dist = Math.hypot(ex, ey);
@@ -3504,7 +3507,9 @@ export class GameEngine {
   }
 
   private useHunterStep() {
-    const [dx, dy] = this.facingVector();
+    const aim = this.combatAim(100);
+    const dx = aim.dx, dy = aim.dy;
+    const startX = this.player.x + 12, startY = this.player.y + 14;
     for (let step = 0; step < 5; step++) {
       const nx = this.player.x + dx * 18, ny = this.player.y + dy * 18;
       if (this.checkSolidCollision({ x: nx, y: ny, w: 20, h: 14 })) break;
@@ -3514,11 +3519,12 @@ export class GameEngine {
     this.hunterDashWindow = 0.35;
     this.hunterBuffT = 5;
     this.hunterEnhancedBasics = 3;
+    this.spriteVfx.push({ sheet: 'vfxHuansStep', x: (startX + this.player.x + 12) / 2, y: (startY + this.player.y + 14) / 2, angle: Math.atan2(dy, dx), life: 0, duration: .55, width: 135, height: 68 });
   }
 
   private useHuansRain() {
     const aim = this.combatAim(260);
-    this.combatZones.push({ kind: 'huansRain', x: aim.target ? aim.x : this.player.x + 12 + aim.dx * 120, y: aim.target ? aim.y : this.player.y + 16 + aim.dy * 120, radius: 72 * this.meleeAreaMul, life: 0, duration: 1.21, tickT: 0, entered: {}, marked: new Set() });
+    this.combatZones.push({ kind: 'huansRain', x: aim.x, y: aim.y, radius: 72 * this.meleeAreaMul, life: 0, duration: 1.21, tickT: 0, entered: {}, marked: new Set() });
   }
 
   private onComboHitLanded() {
@@ -3591,6 +3597,10 @@ export class GameEngine {
   }
 
   private updateSkillTimers(dt: number) {
+    for (let i = this.spriteVfx.length - 1; i >= 0; i--) {
+      this.spriteVfx[i].life += dt;
+      if (this.spriteVfx[i].life >= this.spriteVfx[i].duration) this.spriteVfx.splice(i, 1);
+    }
     if (this.resonanceActive) {
       this.resonanceT -= dt;
       if (this.resonanceT <= 0) {
@@ -3658,9 +3668,8 @@ export class GameEngine {
   fireLightCannon() {
     if (this.pulseCdT > 0) return;
     this.pulseCdT = GameEngine.PULSE_COOLDOWN * this.cooldownMul;
-    const dir = this.player.direction;
-    const dvec =
-      dir === 'left' ? [-1, 0] : dir === 'right' ? [1, 0] : dir === 'up' ? [0, -1] : [0, 1];
+    const aim = this.combatAim(380);
+    const dvec = [aim.dx, aim.dy];
     const dmg = (14 + this.stats.inteligencia * 2.5 + this.stats.level * 2) * this.skillDmgMul;
     const speed = 360;
     this.lightBeams.push({
@@ -3672,6 +3681,7 @@ export class GameEngine {
       maxLife: 1.3,
       dmg,
       hitIds: [],
+      kind: 'aklesPulse',
     });
     // flash de disparo (partículas azuis)
     for (let i = 0; i < 10; i++) {
@@ -4099,9 +4109,10 @@ export class GameEngine {
       const h = p.harvest;
       if (!h || h.downUntil > 0) continue;
       if (kind !== 'any' && h.kind !== kind) continue;
-      const cx = p.x + p.w / 2;
-      const cy = p.y + p.h * 0.75;
-      const d = Math.hypot(px - cx, py - cy);
+      const box = p.collider ?? { x: p.x, y: p.y + p.h * .55, w: p.w, h: p.h * .45 };
+      const nearestX = Math.max(box.x, Math.min(px, box.x + box.w));
+      const nearestY = Math.max(box.y, Math.min(py, box.y + box.h));
+      const d = Math.hypot(px - nearestX, py - nearestY);
       if (d <= bestD) {
         bestD = d;
         best = p;
@@ -5015,32 +5026,6 @@ export class GameEngine {
       item.draw();
     }
 
-    // Mira assistida/travada para os personagens de ataque à distância.
-    if (this.activeCharacter !== 'akles') {
-      const aimed = this.aimTarget(380);
-      if (aimed) {
-        const ax = Math.round(aimed.x + 8 - camX);
-        const ay = Math.round(aimed.y - 8 - camY);
-        const locked = aimed.id === this.lockedEnemyId;
-        const pulse = 15 + Math.sin(this.timeElapsed * 7) * 2;
-        ctx.save();
-        ctx.strokeStyle = this.activeCharacter === 'wins' ? (locked ? '#f0abfc' : '#d946ef') : (locked ? '#fde68a' : '#6ee7b7');
-        ctx.lineWidth = locked ? 2.4 : 1.4;
-        ctx.globalAlpha = locked ? 0.95 : 0.7;
-        ctx.beginPath();
-        ctx.arc(ax, ay, pulse, 0, Math.PI * 2);
-        ctx.stroke();
-        for (let n = 0; n < 4; n++) {
-          const ang = n * Math.PI / 2;
-          ctx.beginPath();
-          ctx.moveTo(ax + Math.cos(ang) * (pulse - 5), ay + Math.sin(ang) * (pulse - 5));
-          ctx.lineTo(ax + Math.cos(ang) * (pulse + 5), ay + Math.sin(ang) * (pulse + 5));
-          ctx.stroke();
-        }
-        ctx.restore();
-      }
-    }
-
     // Marcas de combate visíveis: notas da Wins e presa do Huans.
     for (const e of this.enemies) {
       if (e.state === 'dead') continue;
@@ -5140,67 +5125,48 @@ export class GameEngine {
     // 3.42 Drops no chão (claves, fragmentos, madeira, pedra...)
     this.renderGroundDrops(ctx, camX, camY);
 
-    // 3.45 Canhão de Luz — feixe grosso e brilhante do Akles
-    for (const z of this.combatZones) {
-      const zx = Math.round(z.x - camX), zy = Math.round(z.y - camY);
-      const pulse = 0.78 + Math.sin(this.timeElapsed * 8) * 0.12;
+    // 3.45 VFX de combate: a animação vem das folhas progressivas 4x4.
+    const drawVfxFrame = (sheet: keyof LoadedAssets, frame: number, x: number, y: number, w: number, h: number, angle = 0) => {
+      const img = this.assets?.[sheet];
+      if (!img?.complete || !img.naturalWidth) return;
+      const cw = img.naturalWidth / 4, ch = img.naturalHeight / 4;
+      const f = Math.max(0, Math.min(15, frame));
       ctx.save();
-      ctx.globalAlpha = Math.min(0.75, (z.duration - z.life) * 2);
-      ctx.fillStyle = z.kind === 'winsChorus' ? 'rgba(192,90,255,0.20)' : 'rgba(70,210,170,0.18)';
-      ctx.strokeStyle = z.kind === 'winsChorus' ? '#e879f9' : '#6ee7b7';
+      ctx.imageSmoothingEnabled = true;
+      ctx.translate(Math.round(x - camX), Math.round(y - camY));
+      ctx.rotate(angle);
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.drawImage(img, (f % 4) * cw, Math.floor(f / 4) * ch, cw, ch, -w / 2, -h / 2, w, h);
+      ctx.restore();
+    };
+
+    if (this.skillAimPreview) {
+      const a = this.skillAimPreview;
+      const ox = this.player.x + 12 - camX, oy = this.player.y + 14 - camY;
+      const range = a.slot === 1 ? 190 : a.slot === 2 ? 260 : 330;
+      ctx.save();
+      ctx.strokeStyle = a.slot === 0 ? 'rgba(96,220,255,.9)' : a.slot === 1 ? 'rgba(216,120,255,.9)' : 'rgba(255,215,90,.9)';
+      ctx.fillStyle = 'rgba(120,210,255,.11)';
       ctx.lineWidth = 2;
-      ctx.beginPath(); ctx.arc(zx, zy, z.radius * pulse, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-      if (z.kind === 'huansRain') {
-        ctx.strokeStyle = 'rgba(253,230,138,.8)';
-        for (let n = 0; n < 6; n++) { const ox = ((n * 29 + Math.floor(this.timeElapsed * 90)) % 100) / 100 * z.radius * 1.6 - z.radius * .8; ctx.beginPath(); ctx.moveTo(zx + ox, zy - z.radius); ctx.lineTo(zx + ox - 8, zy + z.radius * .55); ctx.stroke(); }
-      }
+      ctx.setLineDash([7, 5]);
+      ctx.beginPath(); ctx.moveTo(ox, oy); ctx.lineTo(ox + a.dx * range * a.power, oy + a.dy * range * a.power); ctx.stroke();
+      ctx.beginPath(); ctx.arc(ox + a.dx * range * a.power, oy + a.dy * range * a.power, a.slot === 0 ? 13 : 46, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
       ctx.restore();
     }
+
+    for (const z of this.combatZones) {
+      const frame = z.kind === 'winsChorus' ? Math.floor(z.life * 12) % 16 : Math.floor(z.life / z.duration * 16);
+      drawVfxFrame(z.kind === 'winsChorus' ? 'vfxWinsChorus' : 'vfxHuansRain', frame, z.x, z.y, z.radius * 2.6, z.radius * 2.1);
+    }
     for (const b of this.lightBeams) {
-      const bx = Math.round(b.x - camX);
-      const by = Math.round(b.y - camY);
       const ang = Math.atan2(b.vy, b.vx);
-      const fade = Math.min(1, (1 - b.life / b.maxLife) * 1.4);
-      const grow = Math.min(1, b.life * 6); // "cresce" ao sair
-      ctx.save();
-      ctx.translate(bx, by);
-      ctx.rotate(ang);
-      ctx.globalCompositeOperation = 'lighter';
-      // rastro longo
-      const tl = 64 * grow;
-      const g = ctx.createLinearGradient(-tl, 0, 10, 0);
-      const projectileColor = b.kind?.startsWith('wins') ? '230,140,255' : b.kind?.startsWith('huans') ? '110,231,183' : '150,215,255';
-      g.addColorStop(0, 'rgba(90,170,255,0)');
-      g.addColorStop(0.6, `rgba(${projectileColor},${0.4 * fade})`);
-      g.addColorStop(1, `rgba(230,245,255,${0.9 * fade})`);
-      ctx.fillStyle = g;
-      ctx.beginPath();
-      ctx.moveTo(-tl, 0);
-      ctx.lineTo(6, -7 * grow);
-      ctx.lineTo(10, 0);
-      ctx.lineTo(6, 7 * grow);
-      ctx.closePath();
-      ctx.fill();
-      // faíscas do rastro
-      ctx.fillStyle = `rgba(255,255,255,${0.5 * fade})`;
-      for (let i = 0; i < 4; i++) {
-        const px = -tl * Math.random();
-        ctx.fillRect(px, (Math.random() - 0.5) * 10 * grow, 2, 2);
-      }
-      // núcleo
-      const gl = ctx.createRadialGradient(0, 0, 1, 0, 0, 20);
-      gl.addColorStop(0, `rgba(255,255,255,${fade})`);
-      gl.addColorStop(0.4, `rgba(160,220,255,${0.75 * fade})`);
-      gl.addColorStop(1, 'rgba(120,190,255,0)');
-      ctx.fillStyle = gl;
-      ctx.beginPath();
-      ctx.arc(0, 0, 20, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.fillStyle = `rgba(255,255,255,${fade})`;
-      ctx.beginPath();
-      ctx.arc(0, 0, 5, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.restore();
+      const frame = Math.floor(Math.min(.999, b.life / b.maxLife) * 16);
+      const sheet = b.kind?.startsWith('wins') ? 'vfxWinsNote' : b.kind?.startsWith('huans') ? 'vfxHuansArrow' : 'vfxAklesCannon';
+      const scale = b.kind === 'aklesPulse' ? 1 : b.kind?.endsWith('Basic') ? .55 : .78;
+      drawVfxFrame(sheet, frame, b.x, b.y, 190 * scale, 95 * scale, ang);
+    }
+    for (const fx of this.spriteVfx) {
+      drawVfxFrame(fx.sheet, Math.floor(Math.min(.999, fx.life / fx.duration) * 16), fx.x, fx.y, fx.width, fx.height, fx.angle);
     }
 
     // 3.5 Chuva (atrás do shader de luz)
@@ -6341,7 +6307,7 @@ export class GameEngine {
       const rad = (angleDeg * Math.PI) / 180;
       wx = Math.round(px + Math.cos(rad) * reach - camX);
       wy = Math.round(py + Math.sin(rad) * reach * 0.55 - camY);
-    } else if (act === 'spin') {
+    } else if (act === 'spin' && this.activeCharacter === 'akles') {
       const meta = AKLES_ANIM.spin;
       const p = Math.min(1, (this.player.actionTimer || 0) / meta.cols);
       const f = amplifyTrajectory(p, baseAngle);

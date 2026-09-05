@@ -326,19 +326,19 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
       </div>
 
       {/* Conteúdo Central: Logo + Formulário */}
-      <div className="relative z-20 flex flex-col items-center justify-center max-w-md w-full px-5 py-4">
+      <div className="relative z-20 flex flex-col landscape:flex-row items-center justify-center max-w-md landscape:max-w-5xl landscape:gap-8 w-full px-5 landscape:px-16 py-4 max-h-screen">
         {/* LOGO com animação de surgimento e flutuação */}
         <div
           className={`transition-all duration-1000 ease-out transform ${
             showLogo
               ? 'opacity-100 translate-y-0 scale-100'
               : 'opacity-0 -translate-y-8 scale-95'
-          } flex flex-col items-center mb-5`}
+          } flex flex-col items-center mb-5 landscape:mb-0 landscape:w-[42%] landscape:shrink-0`}
         >
           <img
             src="/assets/login/logo.png"
             alt="Acordelot Logo"
-            className="w-64 sm:w-80 md:w-96 max-h-36 object-contain drop-shadow-[0_10px_25px_rgba(0,0,0,0.9)] transition-transform duration-700 hover:scale-105"
+            className="w-64 sm:w-80 md:w-96 landscape:w-full max-h-36 landscape:max-h-44 object-contain drop-shadow-[0_10px_25px_rgba(0,0,0,0.9)] transition-transform duration-700 hover:scale-105"
           />
           <div className="flex items-center gap-2 mt-2">
             <span className="h-[1px] w-8 bg-gradient-to-r from-transparent to-amber-400/80" />
@@ -355,14 +355,14 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
             showForm
               ? 'opacity-100 translate-y-0'
               : 'opacity-0 translate-y-8 pointer-events-none'
-          }`}
+          } landscape:flex-1 landscape:max-w-lg`}
         >
-          <div className="bg-slate-900/80 backdrop-blur-xl border border-amber-500/25 rounded-2xl p-6 sm:p-7 shadow-[0_15px_45px_rgba(0,0,0,0.7)] relative overflow-hidden">
+          <div className="bg-slate-900/80 backdrop-blur-xl border border-amber-500/25 rounded-2xl p-6 sm:p-7 landscape:p-4 shadow-[0_15px_45px_rgba(0,0,0,0.7)] relative overflow-hidden max-h-[94vh] overflow-y-auto">
             {/* Brilho decorativo dourado no topo do card */}
             <div className="absolute top-0 left-1/4 right-1/4 h-[1.5px] bg-gradient-to-r from-transparent via-amber-400/90 to-transparent" />
 
             {/* Alternador Entrar / Criar Conta */}
-            <div className="grid grid-cols-2 p-1 bg-slate-950/75 rounded-xl border border-slate-800 mb-5">
+            <div className="grid grid-cols-2 p-1 bg-slate-950/75 rounded-xl border border-slate-800 mb-5 landscape:mb-2">
               <button
                 type="button"
                 onClick={() => {
@@ -414,7 +414,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
             )}
 
             {/* Formulário */}
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={handleSubmit} className="space-y-4 landscape:space-y-2">
               {mode === 'register' && (
                 <div>
                   <label className="block text-[11px] font-semibold text-slate-300 uppercase tracking-wider mb-1.5">
@@ -433,7 +433,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
                       onChange={(e) => setUsername(e.target.value)}
                       placeholder="Como quer ser chamado?"
                       autoComplete="username"
-                      className="w-full pl-9 pr-3 py-2.5 bg-slate-950/85 border border-slate-700/90 rounded-xl text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-amber-400/90 focus:ring-1 focus:ring-amber-400/50 transition-all"
+                      className="w-full pl-9 pr-3 py-2.5 landscape:py-1.5 bg-slate-950/85 border border-slate-700/90 rounded-xl text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-amber-400/90 focus:ring-1 focus:ring-amber-400/50 transition-all"
                     />
                   </div>
                 </div>
@@ -453,7 +453,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="seu.email@exemplo.com"
                     autoComplete="email"
-                    className="w-full pl-9 pr-3 py-2.5 bg-slate-950/85 border border-slate-700/90 rounded-xl text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-amber-400/90 focus:ring-1 focus:ring-amber-400/50 transition-all"
+                    className="w-full pl-9 pr-3 py-2.5 landscape:py-1.5 bg-slate-950/85 border border-slate-700/90 rounded-xl text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-amber-400/90 focus:ring-1 focus:ring-amber-400/50 transition-all"
                   />
                 </div>
               </div>
@@ -473,7 +473,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="Mínimo 6 caracteres"
                     autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
-                    className="w-full pl-9 pr-10 py-2.5 bg-slate-950/85 border border-slate-700/90 rounded-xl text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-amber-400/90 focus:ring-1 focus:ring-amber-400/50 transition-all"
+                    className="w-full pl-9 pr-10 py-2.5 landscape:py-1.5 bg-slate-950/85 border border-slate-700/90 rounded-xl text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-amber-400/90 focus:ring-1 focus:ring-amber-400/50 transition-all"
                   />
                   <button
                     type="button"
@@ -502,7 +502,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
               <button
                 type="submit"
                 disabled={loading}
-                className="cursor-pointer w-full mt-2 py-3 px-4 rounded-xl bg-gradient-to-r from-amber-500 via-amber-400 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-bold text-sm shadow-[0_4px_18px_rgba(245,158,11,0.35)] hover:shadow-[0_6px_24px_rgba(245,158,11,0.5)] transition-all active:scale-[0.98] disabled:opacity-60 flex items-center justify-center gap-2"
+                className="cursor-pointer w-full mt-2 py-3 landscape:py-2 px-4 rounded-xl bg-gradient-to-r from-amber-500 via-amber-400 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-bold text-sm shadow-[0_4px_18px_rgba(245,158,11,0.35)] hover:shadow-[0_6px_24px_rgba(245,158,11,0.5)] transition-all active:scale-[0.98] disabled:opacity-60 flex items-center justify-center gap-2"
               >
                 {loading ? (
                   <div className="w-5 h-5 border-2 border-slate-950 border-t-transparent rounded-full animate-spin" />
@@ -520,7 +520,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
               </button>
             </form>
 
-            <div className="mt-4 text-center">
+            <div className="mt-4 landscape:mt-2 text-center landscape:hidden">
               <span className="text-[11px] text-slate-400">
                 Seu progresso, itens e mapa ficam salvos em nuvem na sua conta.
               </span>

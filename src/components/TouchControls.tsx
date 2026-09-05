@@ -241,6 +241,51 @@ export const TouchControls: React.FC<TouchControlsProps> = ({
       ? ['Flecha Resonante', 'Passo do Caçador', 'Chuva das Cordas']
       : ['Ressonância', 'Amplificação', 'Pulso Harmônico'];
 
+  const [skillAim, setSkillAim] = useState<{ slot: number; pointerId: number; x: number; y: number; dx: number; dy: number; power: number } | null>(null);
+  const skillAimRef = useRef<typeof skillAim>(null);
+  const beginSkillAim = (slot: number, e: React.PointerEvent) => {
+    e.preventDefault();
+    const next = { slot, pointerId: e.pointerId, x: e.clientX, y: e.clientY, dx: 0, dy: 0, power: .35 };
+    skillAimRef.current = next;
+    setSkillAim(next);
+    engineRef.current?.setSkillAimPreview(slot, 0, 0, .35);
+  };
+  useEffect(() => {
+    const move = (e: PointerEvent) => {
+      const a = skillAimRef.current;
+      if (!a || e.pointerId !== a.pointerId) return;
+      e.preventDefault();
+      const dx = e.clientX - a.x, dy = e.clientY - a.y;
+      const power = Math.max(.25, Math.min(1, Math.hypot(dx, dy) / 90));
+      const next = { ...a, dx, dy, power };
+      skillAimRef.current = next;
+      setSkillAim(next);
+      engineRef.current?.setSkillAimPreview(a.slot, dx, dy, power);
+    };
+    const up = (e: PointerEvent) => {
+      const a = skillAimRef.current;
+      if (!a || e.pointerId !== a.pointerId) return;
+      engineRef.current?.releaseAimedSkill(a.slot, a.dx, a.dy, a.power);
+      skillAimRef.current = null;
+      setSkillAim(null);
+    };
+    const cancel = (e: PointerEvent) => {
+      const a = skillAimRef.current;
+      if (!a || e.pointerId !== a.pointerId) return;
+      engineRef.current?.cancelSkillAim();
+      skillAimRef.current = null;
+      setSkillAim(null);
+    };
+    window.addEventListener('pointermove', move, { passive: false });
+    window.addEventListener('pointerup', up);
+    window.addEventListener('pointercancel', cancel);
+    return () => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+      window.removeEventListener('pointercancel', cancel);
+    };
+  }, [engineRef]);
+
   // Fileira de topo (mochila/síntese/partitura/arma/catálogo/missões/ficha): 7
   // ícones em LINHA HORIZONTAL, à esquerda do widget de clima (que fica em
   // right-4, ~136px de largura) e acima da barra de vida. Antes isso era uma
@@ -253,11 +298,12 @@ export const TouchControls: React.FC<TouchControlsProps> = ({
   const sideMenuRight = (i: number) => `calc(${Math.round(190 + i * sideMenuStep)}px + env(safe-area-inset-right))`;
 
   // Botão arrastável: id próprio, posição própria, funciona em qualquer lugar da tela.
-  const D: React.FC<{ id: string; className: string; title: string; onAction: () => void; style?: React.CSSProperties; children: React.ReactNode }> = ({
+  const D: React.FC<{ id: string; className: string; title: string; onAction: () => void; aimSlot?: number; style?: React.CSSProperties; children: React.ReactNode }> = ({
     id,
     className,
     title,
     onAction,
+    aimSlot,
     style,
     children,
   }) => {
@@ -268,6 +314,10 @@ export const TouchControls: React.FC<TouchControlsProps> = ({
         onPointerDown={(e) => {
           if (hudEdit) {
             startDrag(id)(e);
+            return;
+          }
+          if (aimSlot !== undefined) {
+            beginSkillAim(aimSlot, e);
             return;
           }
           e.preventDefault();
@@ -407,25 +457,20 @@ export const TouchControls: React.FC<TouchControlsProps> = ({
         );
       })}
 
-      {/* Skills ao redor */}
-      <D id="btn_spin" className={`${actionBtn} absolute w-[46px] h-[46px] border-indigo-400/50 bg-indigo-950/80 text-indigo-300`} title={skillNames[1]} onAction={() => engineRef.current?.triggerAction('spin')} style={{ right: 'calc(76px + env(safe-area-inset-right))', bottom: 'calc(126px + env(safe-area-inset-bottom))' }}>
+      {/* Skills: segure, arraste para mirar e solte para lançar. */}
+      <D id="btn_spin" aimSlot={1} className={`${actionBtn} absolute w-[46px] h-[46px] border-indigo-400/50 bg-indigo-950/80 text-indigo-300`} title={`${skillNames[1]} · arraste para mirar`} onAction={() => {}} style={{ right: 'calc(76px + env(safe-area-inset-right))', bottom: 'calc(126px + env(safe-area-inset-bottom))' }}>
         <HudIcon name="amplify" className="w-9 h-9" />
       </D>
-      <D id="btn_cast" className={`${actionBtn} absolute w-[46px] h-[46px] border-cyan-400/50 bg-cyan-950/80 text-cyan-300`} title={skillNames[2]} onAction={() => engineRef.current?.triggerAction('cast')} style={{ right: 'calc(6px + env(safe-area-inset-right))', bottom: 'calc(52px + env(safe-area-inset-bottom))' }}>
+      <D id="btn_cast" aimSlot={2} className={`${actionBtn} absolute w-[46px] h-[46px] border-cyan-400/50 bg-cyan-950/80 text-cyan-300`} title={`${skillNames[2]} · arraste para mirar`} onAction={() => {}} style={{ right: 'calc(6px + env(safe-area-inset-right))', bottom: 'calc(52px + env(safe-area-inset-bottom))' }}>
         <HudIcon name="cast" className="w-9 h-9" />
       </D>
-      <D id="btn_resonance" className={`${actionBtn} absolute w-[46px] h-[46px] border-blue-400/50 bg-blue-950/80 text-blue-300`} title={skillNames[0]} onAction={() => engineRef.current?.activateResonance()} style={{ right: 'calc(146px + env(safe-area-inset-right))', bottom: 'calc(52px + env(safe-area-inset-bottom))' }}>
+      <D id="btn_resonance" aimSlot={0} className={`${actionBtn} absolute w-[46px] h-[46px] border-blue-400/50 bg-blue-950/80 text-blue-300`} title={`${skillNames[0]} · arraste para mirar`} onAction={() => {}} style={{ right: 'calc(146px + env(safe-area-inset-right))', bottom: 'calc(52px + env(safe-area-inset-bottom))' }}>
         <HudIcon name="resonance" className="w-9 h-9" />
       </D>
-      <D
-        id="btn_locked"
-        className={`${actionBtn} absolute w-[46px] h-[46px] ${activeChar === 'akles' ? 'border border-slate-600/50 bg-slate-900/75 text-slate-600' : 'border border-amber-400/60 bg-amber-950/85 text-amber-200'}`}
-        title={activeChar === 'akles' ? 'Mira disponível para Wins e Huans' : 'Travar ou alternar alvo'}
-        onAction={() => engineRef.current?.cycleCombatTarget()}
-        style={{ right: 'calc(76px + env(safe-area-inset-right))', bottom: 'calc(-4px + env(safe-area-inset-bottom))' }}
-      >
-        <HudIcon name="locked" className="w-8 h-8 opacity-60 grayscale" />
-      </D>
+
+      {skillAim && (
+        <div className="absolute pointer-events-none rounded-full border-2 border-cyan-300/80 bg-cyan-400/15 shadow-[0_0_24px_rgba(34,211,238,.45)]" style={{ width: 56, height: 56, left: skillAim.x + skillAim.dx - 28, top: skillAim.y + skillAim.dy - 28 }} />
+      )}
 
     </div>
   );

@@ -49,6 +49,15 @@ export interface LoadedAssets {
   weaponAcordelaminaT2: HTMLImageElement;
   weaponAcordelaminaT2Energized: HTMLImageElement;
 
+  // VFX pré-renderizados — folhas 4x4, 16 quadros progressivos
+  vfxWinsNote: HTMLImageElement;
+  vfxWinsChorus: HTMLImageElement;
+  vfxWinsAria: HTMLImageElement;
+  vfxHuansArrow: HTMLImageElement;
+  vfxHuansStep: HTMLImageElement;
+  vfxHuansRain: HTMLImageElement;
+  vfxAklesCannon: HTMLImageElement;
+
   // Muralhas musicais (props de construção)
   wallMusical1: HTMLImageElement;
   wallMusical2: HTMLImageElement;
@@ -199,6 +208,13 @@ const ASSET_PATHS: Record<keyof LoadedAssets, string> = {
   toolPickCrystal: '/assets/tools/pick_crystal.png',
   weaponAcordelaminaT2: '/assets/weapons/acordelamina_t2.png',
   weaponAcordelaminaT2Energized: '/assets/weapons/acordelamina_t2_energized.png',
+  vfxWinsNote: '/assets/vfx/wins_note_sheet.webp',
+  vfxWinsChorus: '/assets/vfx/wins_chorus_sheet.webp',
+  vfxWinsAria: '/assets/vfx/wins_aria_sheet.webp',
+  vfxHuansArrow: '/assets/vfx/huans_arrow_sheet.webp',
+  vfxHuansStep: '/assets/vfx/huans_step_sheet.webp',
+  vfxHuansRain: '/assets/vfx/huans_rain_sheet.webp',
+  vfxAklesCannon: '/assets/vfx/akles_cannon_sheet.webp',
   wallMusical1: '/assets/props/wall_musical_1.png',
   wallMusical2: '/assets/props/wall_musical_2.png',
   wallMusical3: '/assets/props/wall_musical_3.png',

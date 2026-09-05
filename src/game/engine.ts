@@ -1072,16 +1072,54 @@ export class GameEngine {
   talkingNpcId: string | null = null;
   onInteractionChange?: (state: InteractionState) => void;
 
-  // Balões de fala aleatórios (aproximação) — NPC ensina música, Akles reage
+  // Balões de fala (NPCs, Akles e Chat Multiplayer)
   private bubbles: Array<{
-    who: 'npc' | 'akles';
+    who: 'npc' | 'akles' | 'remotePlayer';
     npcId?: string;
+    remotePlayerId?: string;
+    playerName?: string;
     text: string;
     born: number;
     ttl: number;
   }> = [];
   private npcBarkCd: Record<string, number> = {};
   private barkNpcInRange: string | null = null;
+
+  // Jogadores remotos sincronizados em tempo real (Multiplayer Online)
+  public remotePlayers: Map<string, {
+    id: string;
+    name: string;
+    character: 'akles' | 'wins' | 'huans';
+    x: number;
+    y: number;
+    direction: Direction;
+    isMoving: boolean;
+    stepTimer: number;
+    lastUpdate: number;
+  }> = new Map();
+
+  setRemotePlayer(id: string, data: any) {
+    this.remotePlayers.set(id, { ...data });
+  }
+
+  removeRemotePlayer(id: string) {
+    this.remotePlayers.delete(id);
+  }
+
+  clearRemotePlayers() {
+    this.remotePlayers.clear();
+  }
+
+  showChatBubble(senderId: string, senderName: string, text: string, isLocal = false) {
+    this.bubbles.push({
+      who: isLocal ? 'akles' : 'remotePlayer',
+      remotePlayerId: senderId,
+      playerName: senderName,
+      text,
+      born: this.timeElapsed,
+      ttl: 6.5,
+    });
+  }
 
   // Números de dano flutuantes (causado = amarelo, sofrido = vermelho)
   private damageTexts: Array<{
@@ -4799,6 +4837,14 @@ export class GameEngine {
       draw: () => this.drawPlayer(camX, camY),
     });
 
+    // Jogadores remotos (Multiplayer Online)
+    for (const rp of this.remotePlayers.values()) {
+      renderables.push({
+        sortY: rp.y + 30,
+        draw: () => this.drawRemotePlayer(rp, camX, camY),
+      });
+    }
+
     if (this.isToolHarvest) {
       renderables.push({
         sortY: this.player.y + 31,
@@ -5331,7 +5377,13 @@ export class GameEngine {
       if (b.who === 'akles') {
         ax = this.player.x + 12 - camX;
         ay = this.player.y - 20 - camY;
-        accent = '#7dd3fc';
+        accent = '#fbbf24';
+      } else if (b.who === 'remotePlayer') {
+        const rp = b.remotePlayerId ? this.remotePlayers.get(b.remotePlayerId) : null;
+        if (!rp) continue;
+        ax = rp.x + 12 - camX;
+        ay = rp.y - 20 - camY;
+        accent = '#38bdf8';
       } else {
         const npc = this.npcs.find((n) => n.id === b.npcId);
         if (!npc) continue;
@@ -5350,6 +5402,9 @@ export class GameEngine {
       // quebra de linha (~22 chars)
       const words = b.text.split(' ');
       const lines: string[] = [];
+      if (b.playerName && (b.who === 'akles' || b.who === 'remotePlayer')) {
+        lines.push(b.playerName + ':');
+      }
       let cur = '';
       for (const w of words) {
         if ((cur + ' ' + w).trim().length > 24) {
@@ -6453,5 +6508,92 @@ export class GameEngine {
       const col = char.frame;
       ctx.drawImage(sheet, col * 20, fallbackRow * 28, 20, 28, cx, cy, 24, 32);
     }
+  }
+
+  drawRemotePlayer(
+    rp: {
+      id: string;
+      name: string;
+      character: 'akles' | 'wins' | 'huans';
+      x: number;
+      y: number;
+      direction: Direction;
+      isMoving: boolean;
+      stepTimer: number;
+    },
+    camX: number,
+    camY: number
+  ) {
+    const ctx = this.ctx;
+    const cx = Math.round(rp.x - camX);
+    const cy = Math.round(rp.y - camY);
+
+    if (cx < -80 || cx > this.viewportW + 80 || cy < -80 || cy > this.viewportH + 80) return;
+
+    // Drop shadow under feet
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.35)';
+    ctx.beginPath();
+    ctx.ellipse(cx + 12, cy + 29, 12, 5, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    const assets = this.assets;
+    const charKey = (rp.character || 'akles') as PlayerCharacterKey;
+    const moveKey: 'idle' | 'walk' | 'run' = rp.isMoving ? 'walk' : 'idle';
+    const aMeta = ANIM_BY_CHAR[charKey]?.[moveKey] ?? ANIM_BY_CHAR['akles']['idle'];
+    const dirRowTable = DIR_ROW_BY_CHAR[charKey] ?? DIR_ROW_BY_CHAR['akles'];
+    const aSheet = assets?.[aMeta.sheet] as HTMLImageElement | undefined;
+
+    if (aSheet && aSheet.complete && aSheet.naturalWidth > 0) {
+      const effCw = aMeta.cw;
+      const effCh = aMeta.ch;
+      const dispScale = aMeta.disp ?? AKLES_DISP_SCALE;
+      const dispW = effCw * dispScale;
+      const dispH = effCh * dispScale;
+      const feetY = cy + 38;
+      const feetFrac = aMeta.feetFrac ?? (effCh - 4) / effCh;
+      const sheetRow = dirRowTable[rp.direction] ?? 0;
+      const col = rp.isMoving
+        ? Math.floor(rp.stepTimer * (aMeta.fps / 8)) % aMeta.cols
+        : Math.floor(this.timeElapsed * aMeta.fps) % aMeta.cols;
+
+      ctx.imageSmoothingEnabled = true;
+      ctx.drawImage(
+        aSheet,
+        col * effCw + 1,
+        sheetRow * effCh + 1,
+        effCw - 2,
+        effCh - 2,
+        Math.round(cx + 12 - dispW / 2),
+        Math.round(feetY - dispH * feetFrac),
+        Math.round(dispW),
+        Math.round(dispH)
+      );
+      ctx.imageSmoothingEnabled = false;
+    } else {
+      const sheet = this.heroSprites.hero;
+      const fallbackDirRowMap: Record<Direction, number> = { down: 0, up: 1, left: 2, right: 3 };
+      const fallbackRow = fallbackDirRowMap[rp.direction] ?? 0;
+      ctx.drawImage(sheet, 0, fallbackRow * 28, 20, 28, cx, cy, 24, 32);
+    }
+
+    // Placa do nome sobre a cabeça do jogador
+    ctx.save();
+    ctx.font = 'bold 9px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    const textW = ctx.measureText(rp.name).width;
+    const tagY = cy - 4;
+
+    ctx.fillStyle = 'rgba(15, 23, 42, 0.85)';
+    ctx.beginPath();
+    ctx.roundRect(cx + 12 - textW / 2 - 4, tagY - 6, textW + 8, 12, 3);
+    ctx.fill();
+    ctx.strokeStyle = '#38bdf8';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+
+    ctx.fillStyle = '#f8fafc';
+    ctx.fillText(rp.name, cx + 12, tagY);
+    ctx.restore();
   }
 }

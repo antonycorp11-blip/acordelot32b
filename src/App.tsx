@@ -7,10 +7,13 @@ import React, { useEffect, useState } from 'react';
 import { supabase } from './lib/supabaseClient';
 import { GameCanvas } from './components/GameCanvas';
 import { LoginScreen } from './components/LoginScreen';
+import { OnlineRoomModal } from './components/OnlineRoomModal';
 
 export default function App() {
   const [user, setUser] = useState<any>(null);
   const [checkingAuth, setCheckingAuth] = useState(true);
+  const [gameMode, setGameMode] = useState<'unselected' | 'solo' | 'online'>('unselected');
+  const [onlineRoom, setOnlineRoom] = useState<{ id: string; name: string } | null>(null);
 
   useEffect(() => {
     // 1. Checa sessão existente no carregamento inicial (login persistente)
@@ -27,9 +30,9 @@ export default function App() {
     } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'SIGNED_OUT') {
         setUser(null);
+        setGameMode('unselected');
+        setOnlineRoom(null);
       }
-      // Se for SIGNED_IN durante uso da tela de login, não interrompe a transição cinematográfica do LoginScreen.
-      // O LoginScreen chamará onLoginSuccess após a transição visual.
       setCheckingAuth(false);
     });
 
@@ -41,10 +44,13 @@ export default function App() {
   const handleLogout = async () => {
     await supabase.auth.signOut();
     setUser(null);
+    setGameMode('unselected');
+    setOnlineRoom(null);
   };
 
   const handleLoginSuccess = (authenticatedUser: any) => {
     setUser(authenticatedUser);
+    setGameMode('unselected');
   };
 
   // Tela preta minimalista de carregamento inicial (enquanto valida sessão do Supabase)
@@ -61,10 +67,31 @@ export default function App() {
 
   return (
     <main className="w-full h-full bg-slate-950 overflow-hidden">
-      {user ? (
-        <GameCanvas user={user} onLogout={handleLogout} />
-      ) : (
+      {!user ? (
         <LoginScreen onLoginSuccess={handleLoginSuccess} />
+      ) : (
+        <>
+          <GameCanvas
+            user={user}
+            onLogout={handleLogout}
+            roomId={gameMode === 'online' ? onlineRoom?.id : null}
+            roomName={gameMode === 'online' ? onlineRoom?.name : null}
+            onChangeMode={() => {
+              setGameMode('unselected');
+              setOnlineRoom(null);
+            }}
+          />
+
+          <OnlineRoomModal
+            open={gameMode === 'unselected'}
+            user={user}
+            onSelectSolo={() => setGameMode('solo')}
+            onJoinOnlineRoom={(roomId, roomName) => {
+              setOnlineRoom({ id: roomId, name: roomName });
+              setGameMode('online');
+            }}
+          />
+        </>
       )}
     </main>
   );

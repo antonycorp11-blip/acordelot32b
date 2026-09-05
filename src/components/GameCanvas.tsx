@@ -25,6 +25,8 @@ import {
   X,
   LogOut,
   Smartphone,
+  Settings,
+  CloudRain,
 } from 'lucide-react';
 import type { PlayerStats } from '../game/engine';
 import { GameEngine, InteractionState, SelectedPropInfo, TimeOfDay, CHARACTER_ROSTER, CHARACTER_PORTRAITS } from '../game/engine';
@@ -39,11 +41,13 @@ import { WeaponScreen } from './WeaponScreen';
 import { CatalogScreen } from './CatalogScreen';
 import { QuestScreen } from './QuestScreen';
 import { HudIcon } from './HudIcon';
+import { SettingsModal } from './SettingsModal';
+import { ChatBox } from './ChatBox';
 import { publishMapToCode, getGhToken, setGhToken } from '../game/mapPersist';
 import { saveWorldMapToCloud, syncWorldMapFromCloud } from '../game/worldMapSync';
 import { loadCloudSave, applySaveToEngine, setupAutoSave, saveToCloud } from '../game/saveManager';
 import { saveGlobalHudLayout } from '../game/hudSync';
-import { CloudRain } from 'lucide-react';
+import { networkManager, ChatMessage } from '../game/networkManager';
 
 interface PropPaletteItem {
   type: string;
@@ -464,9 +468,18 @@ const PROP_CATALOG: PropPaletteItem[] = [
 export interface GameCanvasProps {
   user?: any;
   onLogout?: () => void;
+  roomId?: string | null;
+  roomName?: string | null;
+  onChangeMode?: () => void;
 }
 
-export const GameCanvas: React.FC<GameCanvasProps> = ({ user, onLogout }) => {
+export const GameCanvas: React.FC<GameCanvasProps> = ({
+  user,
+  onLogout,
+  roomId,
+  roomName,
+  onChangeMode,
+}) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const engineRef = useRef<GameEngine | null>(null);
@@ -523,6 +536,78 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({ user, onLogout }) => {
   const [showMobileHudEditor, setShowMobileHudEditor] = useState(false);
   const [currentHudLayout, setCurrentHudLayout] = useState<any>(null);
   const [hudSaveStatus, setHudSaveStatus] = useState<string | null>(null);
+
+  // Estados de Música, Configurações e Multiplayer
+  const [showSettingsModal, setShowSettingsModal] = useState(false);
+  const [lastSavedText, setLastSavedText] = useState('há poucos instantes');
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+
+  // Música contínua de fundo (Whispers of the Village)
+  const bgmRef = useRef<HTMLAudioElement | null>(null);
+  const [bgmVolume, setBgmVolume] = useState(() => {
+    try {
+      const v = localStorage.getItem('acordelot_bgm_volume');
+      return v !== null ? Number(v) : 0.45;
+    } catch {
+      return 0.45;
+    }
+  });
+  const [isBgmMuted, setIsBgmMuted] = useState(() => {
+    try {
+      return localStorage.getItem('acordelot_bgm_muted') === 'true';
+    } catch {
+      return false;
+    }
+  });
+
+  useEffect(() => {
+    const audio = bgmRef.current;
+    if (!audio) return;
+    audio.volume = isBgmMuted ? 0 : bgmVolume;
+    audio.loop = true;
+
+    audio.play().catch(() => {});
+
+    const handleFirstGesture = () => {
+      if (audio && audio.paused) {
+        audio.play().catch(() => {});
+      }
+      window.removeEventListener('pointerdown', handleFirstGesture);
+      window.removeEventListener('keydown', handleFirstGesture);
+    };
+
+    window.addEventListener('pointerdown', handleFirstGesture);
+    window.addEventListener('keydown', handleFirstGesture);
+
+    return () => {
+      window.removeEventListener('pointerdown', handleFirstGesture);
+      window.removeEventListener('keydown', handleFirstGesture);
+    };
+  }, []);
+
+  const handleVolumeChange = (vol: number) => {
+    setBgmVolume(vol);
+    try {
+      localStorage.setItem('acordelot_bgm_volume', String(vol));
+    } catch {}
+    if (bgmRef.current) {
+      bgmRef.current.volume = isBgmMuted ? 0 : vol;
+    }
+  };
+
+  const handleToggleBgmMute = () => {
+    const next = !isBgmMuted;
+    setIsBgmMuted(next);
+    try {
+      localStorage.setItem('acordelot_bgm_muted', String(next));
+    } catch {}
+    if (bgmRef.current) {
+      bgmRef.current.volume = next ? 0 : bgmVolume;
+      if (!next && bgmRef.current.paused) {
+        bgmRef.current.play().catch(() => {});
+      }
+    }
+  };
 
   // O jogo é pensado SEMPRE pra paisagem — em celular na vertical o HUD
   // inteiro (posicionado em coordenadas de paisagem) sai torto/de lado.
@@ -703,6 +788,88 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({ user, onLogout }) => {
       engineRef.current = null;
     };
   }, []);
+
+  // Conexão e sincronização Multiplayer da Sala Online (Supabase Realtime Broadcast & Presence)
+  useEffect(() => {
+    if (!roomId) {
+      if (engineRef.current) {
+        engineRef.current.clearRemotePlayers();
+      }
+      return;
+    }
+
+    const currentUserId = user?.id || 'guest-' + Math.random().toString(36).substring(2, 7);
+
+    networkManager.onRemotePlayerUpdate = (remotePlayer) => {
+      if (engineRef.current) {
+        engineRef.current.setRemotePlayer(remotePlayer);
+      }
+    };
+
+    networkManager.onRemotePlayerLeave = (leftPlayerId) => {
+      if (engineRef.current) {
+        engineRef.current.removeRemotePlayer(leftPlayerId);
+      }
+    };
+
+    networkManager.onChatMessage = (msg) => {
+      setChatMessages((prev) => [...prev.slice(-49), msg]);
+      if (engineRef.current) {
+        engineRef.current.showChatBubble(
+          msg.senderId,
+          msg.senderName,
+          msg.text,
+          msg.senderId === currentUserId
+        );
+      }
+    };
+
+    networkManager.connectToRoom(
+      roomId,
+      user,
+      engineRef.current?.activeCharacter || 'akles'
+    );
+
+    // Loop de broadcast de movimento para a sala (throttled em ~15 FPS)
+    const interval = setInterval(() => {
+      const eng = engineRef.current;
+      if (!eng || !eng.player) return;
+      const p = eng.player;
+      networkManager.broadcastMovement(
+        user,
+        p.x,
+        p.y,
+        p.direction,
+        p.isMoving,
+        p.stepTimer,
+        eng.activeCharacter
+      );
+    }, 66);
+
+    return () => {
+      clearInterval(interval);
+      networkManager.disconnectFromRoom(user?.id);
+      if (engineRef.current) {
+        engineRef.current.clearRemotePlayers();
+      }
+    };
+  }, [roomId, user]);
+
+  const handleSendChatMessage = (text: string) => {
+    if (!user || !roomId) return;
+    const msg = networkManager.sendChatMessage(user, text);
+    if (msg) {
+      setChatMessages((prev) => [...prev.slice(-49), msg]);
+      if (engineRef.current) {
+        engineRef.current.showChatBubble(
+          msg.senderId,
+          msg.senderName,
+          msg.text,
+          true
+        );
+      }
+    }
+  };
 
   const handleSaveGlobalHud = async () => {
     setHudSaveStatus('Salvando layout...');
@@ -1585,23 +1752,35 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({ user, onLogout }) => {
         </div>
       )}
 
-      {/* Indicador do ciclo de dia/noite + Logout (sempre visível, topo direito) */}
+      {/* Top HUD: Indicador de Dia/Noite, Sala Online e Botão de Configurações */}
       {!isEditMode && (
         <div
           className="absolute right-4 z-20 flex items-center gap-2"
           style={{ top: 'calc(12px + env(safe-area-inset-top))' }}
         >
-          <DayCycleIndicator engine={engineRef.current} />
-          {onLogout && (
+          {roomId && (
             <button
               type="button"
-              onClick={onLogout}
-              className="cursor-pointer bg-slate-900/85 hover:bg-red-950/85 text-slate-300 hover:text-red-300 border border-slate-700/80 hover:border-red-500/60 p-2 rounded-xl backdrop-blur-md shadow-lg transition-all active:scale-95"
-              title="Sair da Conta (Logout)"
+              onClick={onChangeMode}
+              className="cursor-pointer bg-indigo-950/85 hover:bg-indigo-900/90 text-indigo-300 border border-indigo-500/60 px-2.5 py-1.5 rounded-xl text-[11px] font-bold flex items-center gap-1.5 shadow-lg backdrop-blur-md active:scale-95 transition-all"
+              title="Clique para trocar de sala ou voltar ao Mundo Solo"
             >
-              <LogOut className="w-4 h-4" />
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+              <span>{roomName || 'Online'}</span>
             </button>
           )}
+
+          <DayCycleIndicator engine={engineRef.current} />
+
+          <button
+            id="hud-settings-btn"
+            type="button"
+            onClick={() => setShowSettingsModal(true)}
+            className="cursor-pointer bg-slate-900/85 hover:bg-slate-800 text-amber-400 hover:text-amber-300 border border-slate-700/80 hover:border-amber-400/60 p-2 rounded-xl backdrop-blur-md shadow-lg transition-all active:scale-95"
+            title="Configurações (Música, Save e Sair)"
+          >
+            <Settings className="w-4 h-4" />
+          </button>
         </div>
       )}
 
@@ -1810,6 +1989,56 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({ user, onLogout }) => {
           </div>
         </div>
       )}
+
+      {/* Música Principal Contínua em Loop (Whispers of the Village) */}
+      <audio
+        ref={bgmRef}
+        src="/assets/audio/whispers_of_the_village.m4a"
+        loop
+        preload="auto"
+        playsInline
+      />
+
+      {/* Chat de Texto Online para Comunicação com Balões de Fala */}
+      {roomId && (
+        <ChatBox
+          onlineRoomName={roomName ?? null}
+          onSendMessage={handleSendChatMessage}
+          messages={chatMessages}
+        />
+      )}
+
+      {/* Modal de Configurações (Volume, Save e Sair) */}
+      <SettingsModal
+        open={showSettingsModal}
+        onClose={() => setShowSettingsModal(false)}
+        musicVolume={bgmVolume}
+        onVolumeChange={handleVolumeChange}
+        isMusicMuted={isBgmMuted}
+        onToggleMute={handleToggleBgmMute}
+        onManualSave={async () => {
+          if (user?.id && engineRef.current) {
+            const ok = await saveToCloud(engineRef.current, user.id);
+            if (ok) {
+              const now = new Date();
+              setLastSavedText(
+                `${now.getHours().toString().padStart(2, '0')}:${now
+                  .getMinutes()
+                  .toString()
+                  .padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}`
+              );
+            }
+            return ok;
+          }
+          return false;
+        }}
+        onLogout={() => {
+          if (onLogout) onLogout();
+        }}
+        lastSavedText={lastSavedText}
+        roomName={roomName}
+        onChangeMode={onChangeMode}
+      />
     </div>
     </div>
   );

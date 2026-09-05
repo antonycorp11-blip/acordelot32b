@@ -288,22 +288,8 @@ export const TouchControls: React.FC<TouchControlsProps> = ({
 
   return (
     <div className="fixed inset-0 z-30 pointer-events-none select-none" style={{ touchAction: 'none' }}>
-      {/* Botão de editar HUD */}
-      <button
-        type="button"
-        onPointerDown={(e) => {
-          e.preventDefault();
-          setHudEdit((v) => !v);
-        }}
-        className={`pointer-events-auto absolute w-9 h-9 rounded-full border shadow-xl flex items-center justify-center backdrop-blur-md transition-all active:scale-90 z-40 ${
-          hudEdit ? 'bg-amber-500 border-amber-300 text-slate-950' : 'bg-slate-950/80 border-slate-700 text-slate-400'
-        }`}
-        style={{ left: 'max(18px, env(safe-area-inset-left))', bottom: 'calc(158px + env(safe-area-inset-bottom))' }}
-        title="Editar posição dos botões (arraste cada um)"
-      >
-        <HudIcon name="settings" className="w-7 h-7" />
-      </button>
-      {hudEdit && (
+      {/* Botão de editar HUD (Aparece apenas quando o Modo Editor estiver ativo) */}
+      {forceEditMode && (
         <>
           <div
             className="pointer-events-none absolute px-2 py-1 rounded-lg text-[9px] font-bold bg-amber-500 text-slate-950 z-40"
@@ -318,9 +304,9 @@ export const TouchControls: React.FC<TouchControlsProps> = ({
               resetLayout();
             }}
             className="pointer-events-auto absolute px-2 py-1 rounded-lg text-[10px] font-bold bg-slate-950/85 border border-slate-700 text-slate-300 z-40"
-            style={{ left: 'calc(64px + env(safe-area-inset-left))', bottom: 'calc(158px + env(safe-area-inset-bottom))' }}
+            style={{ left: 'max(18px, env(safe-area-inset-left))', bottom: 'calc(158px + env(safe-area-inset-bottom))' }}
           >
-            Restaurar
+            Restaurar Padrão
           </button>
         </>
       )}

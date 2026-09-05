@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import type { GameEngine, PlayerCharacterKey } from '../game/engine';
 import { CHARACTER_ROSTER, CHARACTER_PORTRAITS } from '../game/engine';
 import { HudIcon } from './HudIcon';
+import { fetchGlobalHudLayout } from '../game/hudSync';
 
 interface TouchControlsProps {
   engineRef: React.MutableRefObject<GameEngine | null>;
@@ -12,6 +13,8 @@ interface TouchControlsProps {
   onToggleCatalog: () => void;
   onToggleQuests: () => void;
   onToggleSheet: () => void;
+  forceEditMode?: boolean;
+  onLayoutChange?: (layout: Record<Orientation, Layout>) => void;
 }
 
 const JOYSTICK_SIZE = 132;
@@ -67,6 +70,8 @@ export const TouchControls: React.FC<TouchControlsProps> = ({
   onToggleCatalog,
   onToggleQuests,
   onToggleSheet,
+  forceEditMode = false,
+  onLayoutChange,
 }) => {
   const baseRef = useRef<HTMLDivElement | null>(null);
   const originRef = useRef<{ x: number; y: number } | null>(null);
@@ -74,19 +79,25 @@ export const TouchControls: React.FC<TouchControlsProps> = ({
   const [knob, setKnob] = useState({ x: 0, y: 0 });
   const [active, setActive] = useState(false);
 
-  const [hudEdit, setHudEdit] = useState(false);
+  const [hudEdit, setHudEdit] = useState(forceEditMode);
   const [orientation, setOrientation] = useState<Orientation>(getOrientation);
   const [full, setFull] = useState(loadFullLayout);
   const layout = full[orientation];
 
-  // Altura real da tela — telas Android mais baixas que a de referência
-  // (~375px) empurravam a coluna lateral pra fora e colidiam com o widget
-  // do relógio. Em vez de posições fixas, compacta o espaçamento vertical
-  // conforme sobra espaço de verdade, então fica igual em qualquer aparelho.
-  // Altura EFETIVA da tela (a curta, sempre) — em celular travado em retrato
-  // o GameCanvas gira tudo por CSS, então window.innerHeight/innerWidth
-  // reportam o retrato "cru"; a dimensão que realmente vira a altura da
-  // paisagem exibida é a MENOR das duas, não innerHeight direto.
+  useEffect(() => {
+    setHudEdit(forceEditMode);
+  }, [forceEditMode]);
+
+  useEffect(() => {
+    fetchGlobalHudLayout().then((global) => {
+      if (global && global.landscape) {
+        setFull(global);
+        onLayoutChange?.(global);
+      }
+    });
+  }, []);
+
+  // Altura real da tela
   const [viewportH, setViewportH] = useState(() => Math.min(window.innerWidth, window.innerHeight));
   const [viewportW, setViewportW] = useState(() => Math.max(window.innerWidth, window.innerHeight));
 
@@ -121,7 +132,11 @@ export const TouchControls: React.FC<TouchControlsProps> = ({
       e.preventDefault();
       const dx = d.orig.dx + (e.clientX - d.startX);
       const dy = d.orig.dy + (e.clientY - d.startY);
-      setFull((prev) => ({ ...prev, [orientation]: { ...prev[orientation], [d.id]: { dx, dy } } }));
+      setFull((prev) => {
+        const next = { ...prev, [orientation]: { ...prev[orientation], [d.id]: { dx, dy } } };
+        onLayoutChange?.(next);
+        return next;
+      });
     };
     const up = (e: PointerEvent) => {
       const d = dragRef.current;
@@ -129,6 +144,7 @@ export const TouchControls: React.FC<TouchControlsProps> = ({
       dragRef.current = null;
       setFull((cur) => {
         saveFullLayout(cur);
+        onLayoutChange?.(cur);
         return cur;
       });
     };
@@ -140,7 +156,7 @@ export const TouchControls: React.FC<TouchControlsProps> = ({
       window.removeEventListener('pointerup', up);
       window.removeEventListener('pointercancel', up);
     };
-  }, [hudEdit, orientation]);
+  }, [hudEdit, orientation, onLayoutChange]);
 
   const resetLayout = () => {
     setFull((prev) => {
@@ -415,13 +431,15 @@ export const TouchControls: React.FC<TouchControlsProps> = ({
       <D id="btn_resonance" className={`${actionBtn} absolute w-[46px] h-[46px] border-blue-400/50 bg-blue-950/80 text-blue-300`} title={skillNames[0]} onAction={() => engineRef.current?.activateResonance()} style={{ right: 'calc(146px + env(safe-area-inset-right))', bottom: 'calc(52px + env(safe-area-inset-bottom))' }}>
         <HudIcon name="resonance" className="w-9 h-9" />
       </D>
-      <div
-        className={`absolute w-[46px] h-[46px] rounded-full border border-slate-600/50 bg-slate-900/75 text-slate-600 flex items-center justify-center pointer-events-none ${hudEdit ? 'outline outline-2 outline-dashed outline-amber-400/50 outline-offset-2' : ''}`}
-        style={{ right: 'calc(76px + env(safe-area-inset-right))', bottom: 'calc(-4px + env(safe-area-inset-bottom))', transform: `translate(${getPos('btn_locked').dx}px, ${getPos('btn_locked').dy}px)` }}
+      <D
+        id="btn_locked"
+        className={`${actionBtn} absolute w-[46px] h-[46px] border border-slate-600/50 bg-slate-900/75 text-slate-600`}
         title="Habilidade em breve"
+        onAction={() => {}}
+        style={{ right: 'calc(76px + env(safe-area-inset-right))', bottom: 'calc(-4px + env(safe-area-inset-bottom))' }}
       >
         <HudIcon name="locked" className="w-8 h-8 opacity-60 grayscale" />
-      </div>
+      </D>
 
     </div>
   );

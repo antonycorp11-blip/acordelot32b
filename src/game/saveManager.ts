@@ -40,10 +40,12 @@ export interface AcordelotSaveData {
   updated_at?: string;
 }
 
+const LOCAL_SAVE_PREFIX = 'acordelot_player_save_';
+
 /**
- * Converte o estado atual do GameEngine em um payload completo para o Supabase.
+ * Converte o estado atual do GameEngine em um payload completo para salvar.
  */
-export function serializeEngineSave(engine: GameEngine, userId: string): Omit<AcordelotSaveData, 'id' | 'updated_at'> {
+export function serializeEngineSave(engine: GameEngine, userId: string): Omit<AcordelotSaveData, 'id'> {
   const charKey = engine.activeCharacter;
   const anyEngine = engine as any;
 
@@ -129,20 +131,50 @@ export function serializeEngineSave(engine: GameEngine, userId: string): Omit<Ac
       })(),
     },
     play_time_seconds: Math.round(anyEngine.timeElapsed || 0),
+    updated_at: new Date().toISOString(),
   };
 }
 
 /**
- * Injeta o save recuperado do Supabase de volta no GameEngine.
+ * Salva localmente de forma instantânea e síncrona (imune a fechamentos bruscos do navegador/app).
+ */
+export function saveToLocalInstant(payload: any): void {
+  try {
+    if (!payload?.user_id) return;
+    localStorage.setItem(LOCAL_SAVE_PREFIX + payload.user_id, JSON.stringify(payload));
+  } catch (err) {
+    console.warn('[SaveManager] Falha ao salvar localmente no dispositivo:', err);
+  }
+}
+
+/**
+ * Lê o save local instantâneo do dispositivo.
+ */
+export function getLocalInstantSave(userId: string): AcordelotSaveData | null {
+  try {
+    const raw = localStorage.getItem(LOCAL_SAVE_PREFIX + userId);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Injeta o save recuperado de volta no GameEngine de forma abrangente.
  */
 export function applySaveToEngine(engine: GameEngine, save: Partial<AcordelotSaveData>): void {
   if (!save) return;
   const anyEngine = engine as any;
 
-  // 1. Posição
+  // 1. Posição e Câmera
   if (typeof save.pos_x === 'number' && typeof save.pos_y === 'number') {
     engine.player.x = save.pos_x;
     engine.player.y = save.pos_y;
+    // Reposiciona a câmera diretamente para o jogador sem atraso
+    if (typeof engine.viewportW === 'number' && typeof engine.viewportH === 'number') {
+      engine.camX = engine.player.x + 12 - engine.viewportW / 2;
+      engine.camY = engine.player.y + 12 - engine.viewportH / 2;
+    }
   }
   if (save.direction) {
     engine.player.direction = save.direction;
@@ -153,7 +185,7 @@ export function applySaveToEngine(engine: GameEngine, save: Partial<AcordelotSav
     engine.switchCharacter(save.active_character);
   }
 
-  // 3. Stats por personagem
+  // 3. Stats e Nível por personagem
   if (save.stats_by_character && typeof save.stats_by_character === 'object') {
     if (anyEngine.statsByCharacter) {
       for (const [k, v] of Object.entries(save.stats_by_character)) {
@@ -165,9 +197,26 @@ export function applySaveToEngine(engine: GameEngine, save: Partial<AcordelotSav
     const currentStats = save.stats_by_character[engine.activeCharacter];
     if (currentStats) {
       engine.stats = { ...engine.stats, ...currentStats };
-      engine.onStatsChange?.({ ...engine.stats });
+      if (anyEngine.statsByCharacter) {
+        anyEngine.statsByCharacter[engine.activeCharacter] = engine.stats;
+      }
     }
   }
+
+  // Garante a aplicação do Nível e XP raízes
+  if (typeof save.level === 'number' && save.level > 0) {
+    engine.stats.level = save.level;
+    if (anyEngine.statsByCharacter?.[engine.activeCharacter]) {
+      anyEngine.statsByCharacter[engine.activeCharacter].level = save.level;
+    }
+  }
+  if (typeof save.xp === 'number') {
+    engine.stats.xp = save.xp;
+    if (anyEngine.statsByCharacter?.[engine.activeCharacter]) {
+      anyEngine.statsByCharacter[engine.activeCharacter].xp = save.xp;
+    }
+  }
+  engine.onStatsChange?.({ ...engine.stats });
 
   // 4. Economia & Inventário
   if (typeof save.coins === 'number') {
@@ -273,9 +322,36 @@ export function applySaveToEngine(engine: GameEngine, save: Partial<AcordelotSav
 }
 
 /**
- * Busca o save na nuvem pelo user_id do Supabase.
+ * Salva tanto no localStorage (instantâneo) quanto no Supabase.
+ */
+export async function saveToCloud(engine: GameEngine, userId: string): Promise<boolean> {
+  try {
+    const payload = serializeEngineSave(engine, userId);
+    // Salva localmente de imediato (0ms, síncrono)
+    saveToLocalInstant(payload);
+
+    const { error } = await supabase
+      .from('acordelot_player_saves')
+      .upsert(payload, { onConflict: 'user_id' });
+
+    if (error) {
+      console.warn('[SaveManager] Erro ao salvar na nuvem Supabase:', error);
+      return false;
+    }
+    return true;
+  } catch (err) {
+    console.warn('[SaveManager] Falha de conexão ao enviar save:', err);
+    return false;
+  }
+}
+
+/**
+ * Carrega o save combinando o cache local instantâneo e a nuvem do Supabase.
+ * Se o local tiver mais progresso (ex: fechamento rápido de aba), o local é priorizado.
  */
 export async function loadCloudSave(userId: string): Promise<AcordelotSaveData | null> {
+  const localSave = getLocalInstantSave(userId);
+
   try {
     const { data, error } = await supabase
       .from('acordelot_player_saves')
@@ -283,55 +359,77 @@ export async function loadCloudSave(userId: string): Promise<AcordelotSaveData |
       .eq('user_id', userId)
       .maybeSingle();
 
-    if (error) {
-      console.error('[SaveManager] Erro ao carregar save da nuvem:', error);
-      return null;
+    if (error || !data) {
+      return localSave;
     }
-    return data as AcordelotSaveData | null;
+
+    const cloudSave = data as AcordelotSaveData;
+
+    // Se o local tiver nível maior ou timestamp mais recente que a nuvem, prioriza o local
+    if (localSave) {
+      const localLevel = localSave.level || 1;
+      const cloudLevel = cloudSave.level || 1;
+      const localTime = localSave.updated_at ? new Date(localSave.updated_at).getTime() : 0;
+      const cloudTime = cloudSave.updated_at ? new Date(cloudSave.updated_at).getTime() : 0;
+
+      if (localLevel > cloudLevel || (localLevel === cloudLevel && localTime > cloudTime)) {
+        // Envia o save local mais atualizado para sincronizar na nuvem
+        supabase.from('acordelot_player_saves').upsert(localSave, { onConflict: 'user_id' }).then(() => {});
+        return localSave;
+      }
+    }
+
+    // Nuvem é mais recente ou local não existe
+    saveToLocalInstant(cloudSave);
+    return cloudSave;
   } catch (err) {
-    console.error('[SaveManager] Falha de conexão ao carregar save:', err);
-    return null;
+    console.warn('[SaveManager] Falha ao consultar nuvem, usando cache local:', err);
+    return localSave;
   }
 }
 
 /**
- * Salva o estado completo no Supabase (upsert por user_id).
+ * Configura o sistema de auto-save infalível:
+ * 1. Timer contínuo de 5 segundos (ao invés de 30s)
+ * 2. Salva síncrono e na nuvem em visibilitychange (ao minimizar app/celular)
+ * 3. Salva síncrono em pagehide e beforeunload
+ * 4. Salva imediatamente ao subir de nível ou coletar itens
  */
-export async function saveToCloud(engine: GameEngine, userId: string): Promise<boolean> {
-  try {
-    const payload = serializeEngineSave(engine, userId);
-    const { error } = await supabase
-      .from('acordelot_player_saves')
-      .upsert(payload, { onConflict: 'user_id' });
-
-    if (error) {
-      console.error('[SaveManager] Erro ao salvar na nuvem:', error);
-      return false;
-    }
-    return true;
-  } catch (err) {
-    console.error('[SaveManager] Falha ao enviar save para Supabase:', err);
-    return false;
-  }
-}
-
-/**
- * Cria um timer de auto-save periódico (ex: a cada 30 segundos) e salva ao fechar a janela.
- */
-export function setupAutoSave(engine: GameEngine, userId: string, intervalMs = 30000): () => void {
-  const intervalId = setInterval(() => {
-    saveToCloud(engine, userId).catch((err) =>
-      console.warn('[SaveManager] Falha silenciosa no auto-save:', err)
-    );
-  }, intervalMs);
-
-  const onUnload = () => {
+export function setupAutoSave(engine: GameEngine, userId: string, intervalMs = 5000): () => void {
+  const saveNow = () => {
     saveToCloud(engine, userId).catch(() => {});
   };
-  window.addEventListener('beforeunload', onUnload);
+
+  // 1. Timer periódico de batimento cardíaco (a cada 5s)
+  const intervalId = setInterval(saveNow, intervalMs);
+
+  // 2. Eventos de ciclo de vida do navegador / PWA no celular
+  const onVisibilityChange = () => {
+    if (document.visibilityState === 'hidden') {
+      const payload = serializeEngineSave(engine, userId);
+      saveToLocalInstant(payload);
+      saveNow();
+    }
+  };
+
+  const onPageHide = () => {
+    const payload = serializeEngineSave(engine, userId);
+    saveToLocalInstant(payload);
+    saveNow();
+  };
+
+  document.addEventListener('visibilitychange', onVisibilityChange);
+  window.addEventListener('pagehide', onPageHide);
+  window.addEventListener('beforeunload', onPageHide);
+
+  // 3. Salva também em blur da janela (troca de app ou aba)
+  window.addEventListener('blur', onPageHide);
 
   return () => {
     clearInterval(intervalId);
-    window.removeEventListener('beforeunload', onUnload);
+    document.removeEventListener('visibilitychange', onVisibilityChange);
+    window.removeEventListener('pagehide', onPageHide);
+    window.removeEventListener('beforeunload', onPageHide);
+    window.removeEventListener('blur', onPageHide);
   };
 }

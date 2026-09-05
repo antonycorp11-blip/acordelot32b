@@ -38,10 +38,29 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
   const [waitingForLandscape, setWaitingForLandscape] = useState(false);
   const [authedUser, setAuthedUser] = useState<any>(null);
 
-  // Formulário de autenticação
+  // Formulário de autenticação com dados salvos no dispositivo
   const [mode, setMode] = useState<'login' | 'register'>('login');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [email, setEmail] = useState(() => {
+    try {
+      return localStorage.getItem('acordelot_saved_email') || '';
+    } catch {
+      return '';
+    }
+  });
+  const [password, setPassword] = useState(() => {
+    try {
+      return localStorage.getItem('acordelot_saved_password') || '';
+    } catch {
+      return '';
+    }
+  });
+  const [rememberMe, setRememberMe] = useState(() => {
+    try {
+      return localStorage.getItem('acordelot_remember_me') !== 'false';
+    } catch {
+      return true;
+    }
+  });
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -138,6 +157,20 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
     }
   };
 
+  const persistCredentials = (mail: string, pass: string) => {
+    try {
+      if (rememberMe) {
+        localStorage.setItem('acordelot_saved_email', mail);
+        localStorage.setItem('acordelot_saved_password', pass);
+        localStorage.setItem('acordelot_remember_me', 'true');
+      } else {
+        localStorage.removeItem('acordelot_saved_email');
+        localStorage.removeItem('acordelot_saved_password');
+        localStorage.setItem('acordelot_remember_me', 'false');
+      }
+    } catch {}
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg(null);
@@ -174,6 +207,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
         }
 
         if (data.user) {
+          persistCredentials(cleanEmail, password);
           triggerGameEntry(data.user);
         }
       } else {
@@ -196,8 +230,10 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
         });
 
         if (loginRes.data.user) {
+          persistCredentials(cleanEmail, password);
           triggerGameEntry(loginRes.data.user);
         } else if (data.user) {
+          persistCredentials(cleanEmail, password);
           triggerGameEntry(data.user);
         } else {
           setErrorMsg(loginRes.error?.message || 'Conta criada, por favor faça login.');
@@ -219,13 +255,13 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
     if (audioRef.current) {
       let vol = audioRef.current.volume;
       const fadeInterval = setInterval(() => {
-        vol = Math.max(0, vol - 0.1);
+        vol = Math.max(0, vol - 0.05);
         if (audioRef.current) audioRef.current.volume = vol;
         if (vol <= 0) {
           clearInterval(fadeInterval);
           audioRef.current?.pause();
         }
-      }, 70);
+      }, 50);
     }
 
     // Se estiver em modo retrato (vertical), pede para virar
@@ -235,7 +271,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
     } else {
       setTimeout(() => {
         onLoginSuccess(user);
-      }, 1000);
+      }, 1200);
     }
   };
 
@@ -412,6 +448,19 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
                     {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
                 </div>
+              </div>
+
+              {/* Lembrar Dados no Aparelho */}
+              <div className="flex items-center justify-between text-xs text-slate-300 px-0.5">
+                <label className="flex items-center gap-2 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={rememberMe}
+                    onChange={(e) => setRememberMe(e.target.checked)}
+                    className="w-4 h-4 rounded border-slate-700 bg-slate-950 text-amber-500 focus:ring-amber-400/50 accent-amber-500 cursor-pointer"
+                  />
+                  <span className="text-[12px] text-slate-300">Lembrar meus dados de acesso</span>
+                </label>
               </div>
 
               {/* Botão Principal */}

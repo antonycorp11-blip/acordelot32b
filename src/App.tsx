@@ -13,17 +13,23 @@ export default function App() {
   const [checkingAuth, setCheckingAuth] = useState(true);
 
   useEffect(() => {
-    // 1. Checa sessão existente no carregamento inicial
+    // 1. Checa sessão existente no carregamento inicial (login persistente)
     supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null);
+      if (session?.user) {
+        setUser(session.user);
+      }
       setCheckingAuth(false);
     });
 
     // 2. Ouve alterações de autenticação em tempo real
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_OUT') {
+        setUser(null);
+      }
+      // Se for SIGNED_IN durante uso da tela de login, não interrompe a transição cinematográfica do LoginScreen.
+      // O LoginScreen chamará onLoginSuccess após a transição visual.
       setCheckingAuth(false);
     });
 

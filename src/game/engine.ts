@@ -1046,6 +1046,7 @@ export class GameEngine {
 
   assets: LoadedAssets | null = null;
   assetsLoaded: boolean = false;
+  onAssetsLoaded?: () => void;
   heroSprites: ReturnType<typeof generateCharacterSprites>;
   trees: ReturnType<typeof generateTrees>;
   houses: ReturnType<typeof generateHouses>;
@@ -1840,9 +1841,12 @@ export class GameEngine {
       .then((assets) => {
         this.assets = assets;
         this.assetsLoaded = true;
+        this.onAssetsLoaded?.();
       })
       .catch((err) => {
         console.error('Failed to load assets:', err);
+        this.assetsLoaded = true;
+        this.onAssetsLoaded?.();
       });
 
     this.bindEvents();

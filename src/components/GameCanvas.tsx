@@ -24,6 +24,7 @@ import {
   Layers,
   X,
   LogOut,
+  Smartphone,
 } from 'lucide-react';
 import type { PlayerStats } from '../game/engine';
 import { GameEngine, InteractionState, SelectedPropInfo, TimeOfDay, CHARACTER_ROSTER, CHARACTER_PORTRAITS } from '../game/engine';
@@ -40,7 +41,8 @@ import { QuestScreen } from './QuestScreen';
 import { HudIcon } from './HudIcon';
 import { publishMapToCode, getGhToken, setGhToken } from '../game/mapPersist';
 import { saveWorldMapToCloud, syncWorldMapFromCloud } from '../game/worldMapSync';
-import { loadCloudSave, applySaveToEngine, setupAutoSave } from '../game/saveManager';
+import { loadCloudSave, applySaveToEngine, setupAutoSave, saveToCloud } from '../game/saveManager';
+import { saveGlobalHudLayout } from '../game/hudSync';
 import { CloudRain } from 'lucide-react';
 
 interface PropPaletteItem {
@@ -516,6 +518,12 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({ user, onLogout }) => {
     'houses_front' | 'houses_angles' | 'rocks' | 'street' | 'trees' | 'walls'
   >('houses_front');
 
+  // Estados de carregamento de assets e editor de HUD Mobile no PC
+  const [assetsLoaded, setAssetsLoaded] = useState(false);
+  const [showMobileHudEditor, setShowMobileHudEditor] = useState(false);
+  const [currentHudLayout, setCurrentHudLayout] = useState<any>(null);
+  const [hudSaveStatus, setHudSaveStatus] = useState<string | null>(null);
+
   // O jogo é pensado SEMPRE pra paisagem — em celular na vertical o HUD
   // inteiro (posicionado em coordenadas de paisagem) sai torto/de lado.
   // Em vez de deixar isso confuso, avisa e trava até girar o aparelho.
@@ -538,18 +546,39 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({ user, onLogout }) => {
 
     const engine = new GameEngine(canvasRef.current);
     engineRef.current = engine;
+
+    // Detecta se os assets já carregaram ou aguarda carregamento para remover a cortina preta
+    if (engine.assetsLoaded) {
+      setAssetsLoaded(true);
+    } else {
+      engine.onAssetsLoaded = () => {
+        setAssetsLoaded(true);
+      };
+    }
+
     syncWorldMapFromCloud(engine);
 
-    // Carrega save na nuvem se o jogador estiver autenticado
+    // Carrega save na nuvem e local de forma infalível
     let autoSaveCleanup: (() => void) | null = null;
+    let saveTimeout: any = null;
     const userId = user?.id;
+
+    const scheduleSave = () => {
+      if (!userId || !engineRef.current) return;
+      if (saveTimeout) clearTimeout(saveTimeout);
+      saveTimeout = setTimeout(() => {
+        if (engineRef.current) saveToCloud(engineRef.current, userId).catch(() => {});
+      }, 1000);
+    };
+
     if (userId) {
       loadCloudSave(userId).then((save) => {
         if (save) {
           applySaveToEngine(engine, save);
         }
       });
-      autoSaveCleanup = setupAutoSave(engine, userId, 30000);
+      // Auto-save a cada 5 segundos e ao minimizar/fechar
+      autoSaveCleanup = setupAutoSave(engine, userId, 5000);
     }
     if ((import.meta as { env?: { DEV?: boolean } }).env?.DEV) {
       (window as unknown as { __game?: GameEngine }).__game = engine;
@@ -565,18 +594,33 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({ user, onLogout }) => {
 
     engine.onInventoryChange = (inv) => {
       setInventory(inv);
+      scheduleSave();
     };
 
+    let prevLevel = engine.stats?.level || 1;
     engine.onStatsChange = (s) => {
       setStats(s);
+      if (s.level > prevLevel) {
+        prevLevel = s.level;
+        // Subiu de nível! Salva imediatamente no dispositivo e na nuvem
+        if (userId && engineRef.current) {
+          saveToCloud(engineRef.current, userId).catch(() => {});
+        }
+      } else {
+        scheduleSave();
+      }
     };
     setStats({ ...engine.stats });
 
     engine.onFragmentsChange = ({ fragments: f, built }) => {
       setFragments(f);
       setNotesBuilt(built);
+      scheduleSave();
     };
-    engine.onCoinsChange = (n) => setCoins(n);
+    engine.onCoinsChange = (n) => {
+      setCoins(n);
+      scheduleSave();
+    };
 
     engine.onHarvestPopup = (text) => {
       setPickupFlash(text);
@@ -651,6 +695,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({ user, onLogout }) => {
     engine.start();
 
     return () => {
+      if (saveTimeout) clearTimeout(saveTimeout);
       if (autoSaveCleanup) autoSaveCleanup();
       ro.disconnect();
       window.removeEventListener('keydown', onKey);
@@ -658,6 +703,20 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({ user, onLogout }) => {
       engineRef.current = null;
     };
   }, []);
+
+  const handleSaveGlobalHud = async () => {
+    setHudSaveStatus('Salvando layout...');
+    const raw = localStorage.getItem('acordelot_hud_layout_v3');
+    const layout = currentHudLayout || (raw ? JSON.parse(raw) : { portrait: {}, landscape: {} });
+    const success = await saveGlobalHudLayout(layout);
+    if (success) {
+      setHudSaveStatus('✅ HUD Global salvo no Supabase para todos!');
+      setTimeout(() => setHudSaveStatus(null), 3500);
+    } else {
+      setHudSaveStatus('❌ Erro ao salvar HUD no servidor');
+      setTimeout(() => setHudSaveStatus(null), 3000);
+    }
+  };
 
   const dlgLines = interaction.npc?.dialogue ?? interaction.dialogue ?? [];
   const handleNextDialogue = () => {
@@ -680,6 +739,9 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({ user, onLogout }) => {
     const next = !isEditMode;
     setIsEditMode(next);
     engineRef.current?.setEditMode(next);
+    if (!next) {
+      setShowMobileHudEditor(false);
+    }
   };
 
   const handleTimeOfDay = (time: TimeOfDay) => {
@@ -837,6 +899,21 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({ user, onLogout }) => {
                       : 'Publicar no Código'}
                 </span>
               </button>
+
+              {/* Opção para exibir e editar o HUD do celular no computador */}
+              <button
+                type="button"
+                onClick={() => setShowMobileHudEditor((v) => !v)}
+                className={`cursor-pointer flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-bold transition-all ${
+                  showMobileHudEditor
+                    ? 'bg-gradient-to-r from-amber-400 to-amber-500 text-slate-950 shadow-md shadow-amber-500/30 font-extrabold'
+                    : 'bg-slate-800/90 hover:bg-slate-700/90 text-amber-300 border border-amber-500/40'
+                }`}
+                title="Mostrar os botões de toque do celular para posicionar com o mouse no computador e salvar para todos"
+              >
+                <Smartphone className="w-3.5 h-3.5" />
+                <span>{showMobileHudEditor ? '📱 HUD Celular (Aberto)' : '📱 HUD Celular'}</span>
+              </button>
             </div>
 
             {/* Middle: Day / Sunset / Night Shaders */}
@@ -925,6 +1002,47 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({ user, onLogout }) => {
               </button>
             </div>
           </div>
+
+          {/* Barra de controle do HUD Celular no PC */}
+          {showMobileHudEditor && (
+            <div className="bg-slate-900/95 backdrop-blur-md border border-amber-400/80 rounded-2xl px-3.5 py-2 flex flex-wrap items-center justify-between gap-2.5 shadow-2xl shadow-black/80 animate-in fade-in slide-in-from-top-2 duration-150">
+              <div className="flex items-center gap-2">
+                <Smartphone className="w-4 h-4 text-amber-400 animate-bounce" />
+                <span className="text-xs font-bold text-amber-300">
+                  HUD do Celular no PC:
+                </span>
+                <span className="text-[11px] text-slate-300">
+                  Arraste qualquer botão com o mouse para posicioná-lo. Ao salvar, todos os celulares carregarão este HUD.
+                </span>
+              </div>
+
+              <div className="flex items-center gap-2">
+                {hudSaveStatus && (
+                  <span className="text-xs font-bold text-emerald-400 animate-pulse mr-1">
+                    {hudSaveStatus}
+                  </span>
+                )}
+
+                <button
+                  type="button"
+                  onClick={handleSaveGlobalHud}
+                  className="cursor-pointer flex items-center gap-1.5 bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 text-white font-bold px-3 py-1.5 rounded-xl text-xs shadow-md active:scale-95 transition-all"
+                  title="Salvar layout global para todos os celulares no Supabase"
+                >
+                  <Save className="w-3.5 h-3.5" />
+                  <span>Salvar HUD Global</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setShowMobileHudEditor(false)}
+                  className="cursor-pointer bg-slate-800 hover:bg-slate-700 text-slate-300 px-2.5 py-1.5 rounded-xl text-xs font-semibold transition-all"
+                >
+                  Fechar HUD
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* Barra de seleção múltipla */}
           {groupCount > 1 && (
@@ -1173,6 +1291,25 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({ user, onLogout }) => {
           className="w-full h-full object-contain cursor-default select-none"
           style={{ imageRendering: 'auto', touchAction: 'none' }}
         />
+
+        {/* TELA DE PRÉ-CARREGAMENTO CINEMÁTICA ACORDELOT (Elimina código cru / assets não carregados) */}
+        <div
+          className={`fixed inset-0 z-50 bg-slate-950 flex flex-col items-center justify-center transition-opacity duration-700 select-none ${
+            assetsLoaded ? 'opacity-0 pointer-events-none' : 'opacity-100 pointer-events-auto'
+          }`}
+        >
+          <img
+            src="/assets/login/logo.png"
+            alt="Acordelot"
+            className="w-56 sm:w-72 max-h-32 object-contain mb-6 drop-shadow-[0_0_35px_rgba(245,158,11,0.5)] animate-pulse"
+          />
+          <div className="w-56 sm:w-72 h-1.5 bg-slate-900 rounded-full overflow-hidden mb-3 border border-amber-500/20 shadow-inner">
+            <div className="h-full bg-gradient-to-r from-amber-500 via-amber-300 to-amber-500 rounded-full animate-pulse" />
+          </div>
+          <span className="text-[11px] uppercase tracking-[0.25em] text-amber-300/90 font-semibold animate-pulse">
+            Carregando Texturas &amp; Sons de Acordelot…
+          </span>
+        </div>
       </div>
 
       {/* Barra de vida + retrato + XP */}
@@ -1186,8 +1323,8 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({ user, onLogout }) => {
         />
       )}
 
-      {/* Joystick + botões de ação para celular */}
-      {isTouchDevice && !isEditMode && (
+      {/* Joystick + botões de ação para celular (também visível no PC quando showMobileHudEditor estiver ativo) */}
+      {((isTouchDevice && !isEditMode) || showMobileHudEditor) && (
         <TouchControls
           engineRef={engineRef}
           onToggleInventory={() => setShowInventory((v) => !v)}
@@ -1199,6 +1336,10 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({ user, onLogout }) => {
           onToggleSheet={() => {
             setSheetInitialTab('ficha');
             setShowSheet((v) => !v);
+          }}
+          forceEditMode={showMobileHudEditor}
+          onLayoutChange={(layout) => {
+            setCurrentHudLayout(layout);
           }}
         />
       )}

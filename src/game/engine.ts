@@ -1096,10 +1096,35 @@ export class GameEngine {
     isMoving: boolean;
     stepTimer: number;
     lastUpdate: number;
+    targetX?: number;
+    targetY?: number;
   }> = new Map();
 
-  setRemotePlayer(id: string, data: any) {
-    this.remotePlayers.set(id, { ...data });
+  setRemotePlayer(data: {
+    id: string;
+    name: string;
+    character: 'akles' | 'wins' | 'huans';
+    x: number;
+    y: number;
+    direction: Direction;
+    isMoving: boolean;
+    stepTimer: number;
+    lastUpdate: number;
+  }) {
+    if (!data?.id || !Number.isFinite(data.x) || !Number.isFinite(data.y)) return;
+    const current = this.remotePlayers.get(data.id);
+    this.remotePlayers.set(data.id, current
+      ? { ...current, ...data, x: current.x, y: current.y, targetX: data.x, targetY: data.y }
+      : { ...data, targetX: data.x, targetY: data.y });
+  }
+
+  private updateRemotePlayers(dt: number) {
+    const blend = 1 - Math.exp(-dt * 14);
+    for (const [id, player] of this.remotePlayers) {
+      player.x += ((player.targetX ?? player.x) - player.x) * blend;
+      player.y += ((player.targetY ?? player.y) - player.y) * blend;
+      if (Date.now() - player.lastUpdate > 15000) this.remotePlayers.delete(id);
+    }
   }
 
   removeRemotePlayer(id: string) {
@@ -1108,6 +1133,16 @@ export class GameEngine {
 
   clearRemotePlayers() {
     this.remotePlayers.clear();
+  }
+  onEnemyDamaged?: (enemyId: string, damage: number, fromX: number, fromY: number) => void;
+  private applyingNetworkDamage = false;
+
+  applyRemoteEnemyDamage(enemyId: string, damage: number, fromX: number, fromY: number) {
+    const enemy = this.enemies.find((candidate) => candidate.id === enemyId);
+    if (!enemy || enemy.state === 'dead' || !Number.isFinite(damage) || damage <= 0) return;
+    this.applyingNetworkDamage = true;
+    this.damageEnemy(enemy, damage, fromX, fromY, { networkFinal: true });
+    this.applyingNetworkDamage = false;
   }
 
   showChatBubble(senderId: string, senderName: string, text: string, isLocal = false) {
@@ -1198,6 +1233,11 @@ export class GameEngine {
 
   // Combate: monstros, moeda PvE, projéteis
   enemies: Enemy[] = [];
+  private enemyRngState = 0x41c0de;
+  private enemyRandom() {
+    this.enemyRngState = (Math.imul(this.enemyRngState, 1664525) + 1013904223) >>> 0;
+    return this.enemyRngState / 0x100000000;
+  }
   lightBeams: LightBeam[] = [];
   combatZones: CombatZone[] = [];
   coins = 0; // claves musicais
@@ -3078,17 +3118,17 @@ export class GameEngine {
       maxHp: hp,
       level: lvl,
       dmgMul,
-      facingLeft: Math.random() < 0.5,
+      facingLeft: this.enemyRandom() < 0.5,
       state: 'idle',
       frame: 0,
-      animTimer: Math.random() * 2,
+      animTimer: this.enemyRandom() * 2,
       stateTimer: 0,
       attackCd: 0,
       hurtFlash: 0,
       knockX: 0,
       knockY: 0,
       wanderTarget: null,
-      wanderTimer: Math.random() * 3,
+      wanderTimer: this.enemyRandom() * 3,
       respawnAt: 0,
       hitBy: -1,
     });
@@ -3097,6 +3137,7 @@ export class GameEngine {
 
   initEnemies() {
     this.enemies = [];
+    this.enemyRngState = 0x41c0de;
     let id = 0;
     // Monstros hostis em clusters de floresta longe da vila
     const hostiles = ['aranha', 'nocturno', 'maestro'];
@@ -3105,26 +3146,26 @@ export class GameEngine {
       [128, 96], [124, 60], [90, 100],
     ];
     for (const [cc, rr] of clusters) {
-      const kind = hostiles[Math.floor(Math.random() * hostiles.length)];
-      const n = 2 + Math.floor(Math.random() * 3);
+      const kind = hostiles[Math.floor(this.enemyRandom() * hostiles.length)];
+      const n = 2 + Math.floor(this.enemyRandom() * 3);
       // nível cresce com a distância da vila (spawn ~ col 36, row 29)
       const distTiles = Math.hypot(cc - 36, rr - 29);
       const baseLvl = 1 + Math.floor(distTiles / 26);
       for (let k = 0; k < n; k++) {
         this.spawnEnemy(
           kind,
-          cc + Math.round((Math.random() - 0.5) * 8),
-          rr + Math.round((Math.random() - 0.5) * 8),
+          cc + Math.round((this.enemyRandom() - 0.5) * 8),
+          rr + Math.round((this.enemyRandom() - 0.5) * 8),
           id++,
-          baseLvl + Math.floor(Math.random() * 2)
+          baseLvl + Math.floor(this.enemyRandom() * 2)
         );
       }
     }
     // 12 Ecos no NORDESTE (parte superior direita do mapa)
     for (let i = 0; i < 12; i++) {
       for (let tries = 0; tries < 20; tries++) {
-        const c = 92 + Math.floor(Math.random() * 46);
-        const r = 4 + Math.floor(Math.random() * 34);
+        const c = 92 + Math.floor(this.enemyRandom() * 46);
+        const r = 4 + Math.floor(this.enemyRandom() * 34);
         if (this.spawnEnemy('eco_' + NOTE_KEY[i], c, r, id++)) break;
       }
     }
@@ -3135,14 +3176,14 @@ export class GameEngine {
     const darkKinds = ['aranha', 'nocturno', 'maestro', 'dama', 'colosso'];
     let placed = 0;
     for (let tries = 0; tries < 900 && placed < 130; tries++) {
-      const c = 3 + Math.floor(Math.random() * (MAP_COLS - 6));
-      const r = darkStartRow + Math.floor(Math.random() * (darkEndRow - darkStartRow));
+      const c = 3 + Math.floor(this.enemyRandom() * (MAP_COLS - 6));
+      const r = darkStartRow + Math.floor(this.enemyRandom() * (darkEndRow - darkStartRow));
       // colosso é raro (chefe)
-      const roll = Math.random();
+      const roll = this.enemyRandom();
       const kind =
-        roll < 0.06 ? 'colosso' : darkKinds[Math.floor(Math.random() * 4)];
+        roll < 0.06 ? 'colosso' : darkKinds[Math.floor(this.enemyRandom() * 4)];
       // nível base da Floresta Sombria: começa alto e cresce com a profundidade
-      const depthLvl = 6 + Math.floor((r - DARK_START) / 7) + Math.floor(Math.random() * 3);
+      const depthLvl = 6 + Math.floor((r - DARK_START) / 7) + Math.floor(this.enemyRandom() * 3);
       const lvl = kind === 'colosso' ? depthLvl + 4 : depthLvl;
       if (this.spawnEnemy(kind, c, r, id++, lvl)) placed++;
     }
@@ -3187,15 +3228,17 @@ export class GameEngine {
     dmg: number,
     fromX: number,
     fromY: number,
-    opts: { crit?: boolean; isPulse?: boolean; skill?: boolean } = {},
+    opts: { crit?: boolean; isPulse?: boolean; skill?: boolean; networkFinal?: boolean } = {},
   ) {
     if (e.state === 'dead') return;
     this.lastCombatAt = this.timeElapsed;
     // Impacto Harmônico (Amplificação) — inimigo "com a DEF reduzida"
-    if (e.harmonicDebuffT && e.harmonicDebuffT > 0) dmg *= 1 + (e.harmonicDebuffPct || 0);
-    if (this.activeCharacter === 'wins' && opts.skill && e.resonantT && e.resonantT > 0) dmg *= 1.08;
-    if (this.activeCharacter === 'huans' && (e.preyMarks ?? 0) > 0) dmg *= 1 + (e.preyMarks ?? 0) * 0.02;
-    if (this.activeCharacter === 'huans') e.preyLastHitAt = this.timeElapsed;
+    if (!opts.networkFinal) {
+      if (e.harmonicDebuffT && e.harmonicDebuffT > 0) dmg *= 1 + (e.harmonicDebuffPct || 0);
+      if (this.activeCharacter === 'wins' && opts.skill && e.resonantT && e.resonantT > 0) dmg *= 1.08;
+      if (this.activeCharacter === 'huans' && (e.preyMarks ?? 0) > 0) dmg *= 1 + (e.preyMarks ?? 0) * 0.02;
+      if (this.activeCharacter === 'huans') e.preyLastHitAt = this.timeElapsed;
+    }
     // Reverberação (Pulso Harmônico) — marca consumida pelo próximo golpe básico
     if (!opts.isPulse && e.reverbMarkHits && e.reverbMarkHits > 0) {
       dmg *= 1 + (e.reverbMarkPct || 0);
@@ -3203,6 +3246,7 @@ export class GameEngine {
     }
     dmg = Math.max(1, Math.round(dmg));
     e.hp -= dmg;
+    if (!this.applyingNetworkDamage) this.onEnemyDamaged?.(e.id, dmg, fromX, fromY);
     e.hurtFlash = 0.2;
     this.addDamageText(
       e.x + 8,
@@ -4418,6 +4462,7 @@ export class GameEngine {
 
     this.moveCharacterWithCollision(this.player, dt);
     this.updateCompanion(dt);
+    this.updateRemotePlayers(dt);
     this.updateNpcs(dt);
     this.updateFragments(dt);
     this.updateEnemies(dt);

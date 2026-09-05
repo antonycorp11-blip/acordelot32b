@@ -7,6 +7,7 @@ import {
   Lock,
   Sparkles,
   UserPlus,
+  User,
   LogIn,
   ArrowRight,
   Eye,
@@ -54,6 +55,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
       return '';
     }
   });
+  const [username, setUsername] = useState('');
   const [rememberMe, setRememberMe] = useState(() => {
     try {
       return localStorage.getItem('acordelot_remember_me') !== 'false';
@@ -177,6 +179,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
     setSuccessMsg(null);
 
     const cleanEmail = email.trim();
+    const cleanUsername = username.trim().replace(/\s+/g, ' ');
     if (!cleanEmail || !password) {
       setErrorMsg('Por favor preencha seu e-mail e sua senha.');
       return;
@@ -184,6 +187,14 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
 
     if (password.length < 6) {
       setErrorMsg('A senha precisa ter pelo menos 6 caracteres.');
+      return;
+    }
+    if (mode === 'register' && (cleanUsername.length < 2 || cleanUsername.length > 20)) {
+      setErrorMsg('O nome de usuário precisa ter entre 2 e 20 caracteres.');
+      return;
+    }
+    if (mode === 'register' && !/^[\p{L}\p{N}_ -]+$/u.test(cleanUsername)) {
+      setErrorMsg('Use apenas letras, números, espaço, hífen ou sublinhado no nome.');
       return;
     }
 
@@ -215,6 +226,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
         const { data, error } = await supabase.auth.signUp({
           email: cleanEmail,
           password,
+          options: { data: { username: cleanUsername } },
         });
 
         if (error) {
@@ -403,6 +415,29 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
 
             {/* Formulário */}
             <form onSubmit={handleSubmit} className="space-y-4">
+              {mode === 'register' && (
+                <div>
+                  <label className="block text-[11px] font-semibold text-slate-300 uppercase tracking-wider mb-1.5">
+                    Nome de usuário
+                  </label>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-amber-400/70">
+                      <User className="w-4 h-4" />
+                    </div>
+                    <input
+                      type="text"
+                      required
+                      minLength={2}
+                      maxLength={20}
+                      value={username}
+                      onChange={(e) => setUsername(e.target.value)}
+                      placeholder="Como quer ser chamado?"
+                      autoComplete="username"
+                      className="w-full pl-9 pr-3 py-2.5 bg-slate-950/85 border border-slate-700/90 rounded-xl text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-amber-400/90 focus:ring-1 focus:ring-amber-400/50 transition-all"
+                    />
+                  </div>
+                </div>
+              )}
               <div>
                 <label className="block text-[11px] font-semibold text-slate-300 uppercase tracking-wider mb-1.5">
                   E-mail

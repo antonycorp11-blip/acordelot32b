@@ -8,6 +8,7 @@ import { supabase } from './lib/supabaseClient';
 import { GameCanvas } from './components/GameCanvas';
 import { LoginScreen } from './components/LoginScreen';
 import { OnlineRoomModal } from './components/OnlineRoomModal';
+import { ensureUsername } from './lib/userProfile';
 
 export default function App() {
   const [user, setUser] = useState<any>(null);
@@ -17,9 +18,9 @@ export default function App() {
 
   useEffect(() => {
     // 1. Checa sessão existente no carregamento inicial (login persistente)
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
       if (session?.user) {
-        setUser(session.user);
+        setUser(await ensureUsername(session.user));
       }
       setCheckingAuth(false);
     });
@@ -48,8 +49,8 @@ export default function App() {
     setOnlineRoom(null);
   };
 
-  const handleLoginSuccess = (authenticatedUser: any) => {
-    setUser(authenticatedUser);
+  const handleLoginSuccess = async (authenticatedUser: any) => {
+    setUser(await ensureUsername(authenticatedUser));
     setGameMode('unselected');
   };
 

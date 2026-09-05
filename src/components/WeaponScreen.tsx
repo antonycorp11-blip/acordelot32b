@@ -30,8 +30,8 @@ export const WeaponScreen: React.FC<Props> = ({ open, onClose, engine, inventory
 
   const safeSelected = weaponKeys.includes(selected) ? selected : weaponKeys[0];
   const equippedKey = engine.equippedWeaponKey;
-  const viewingEquipped = safeSelected === equippedKey;
   const def = WEAPON_DEFS[safeSelected];
+  const viewingEquipped = safeSelected === equippedKey;
   const level = engine.weaponLevels[safeSelected] ?? 1;
   const atk = def.baseAtk + def.atkPerLevel * (level - 1);
   const maxed = level >= def.maxLevel;

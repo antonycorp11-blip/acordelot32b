@@ -812,6 +812,26 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
       }
     };
 
+    networkManager.onRoomPresenceSync = (presentPlayers) => {
+      const eng = engineRef.current;
+      if (!eng) return;
+      const presentIds = new Set(presentPlayers.map((player) => player.id));
+      for (const id of eng.remotePlayers.keys()) {
+        if (!presentIds.has(id)) eng.removeRemotePlayer(id);
+      }
+      for (const player of presentPlayers) eng.setRemotePlayer(player);
+    };
+
+    networkManager.onEnemyDamage = (event) => {
+      engineRef.current?.applyRemoteEnemyDamage(event.enemyId, event.damage, event.fromX, event.fromY);
+    };
+
+    if (engineRef.current) {
+      engineRef.current.onEnemyDamaged = (enemyId, damage, fromX, fromY) => {
+        networkManager.broadcastEnemyDamage(user, enemyId, damage, fromX, fromY);
+      };
+    }
+
     networkManager.onChatMessage = (msg) => {
       setChatMessages((prev) => [...prev.slice(-49), msg]);
       if (engineRef.current) {
@@ -824,13 +844,16 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
       }
     };
 
-    networkManager.connectToRoom(
-      roomId,
-      user,
-      engineRef.current?.activeCharacter || 'akles'
-    );
+    const localPlayer = engineRef.current?.player;
+    networkManager.connectToRoom(roomId, user, engineRef.current?.activeCharacter || 'akles', localPlayer ? {
+      x: localPlayer.x,
+      y: localPlayer.y,
+      direction: localPlayer.direction,
+      isMoving: localPlayer.isMoving,
+      stepTimer: localPlayer.stepTimer,
+    } : undefined);
 
-    // Loop de broadcast de movimento para a sala (throttled em ~15 FPS)
+    // Movimento remoto em 4 FPS; o motor interpola entre pacotes.
     const interval = setInterval(() => {
       const eng = engineRef.current;
       if (!eng || !eng.player) return;
@@ -844,12 +867,18 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
         p.stepTimer,
         eng.activeCharacter
       );
-    }, 66);
+    }, 250);
 
     return () => {
       clearInterval(interval);
       networkManager.disconnectFromRoom(user?.id);
+      networkManager.onRemotePlayerUpdate = undefined;
+      networkManager.onRemotePlayerLeave = undefined;
+      networkManager.onRoomPresenceSync = undefined;
+      networkManager.onEnemyDamage = undefined;
+      networkManager.onChatMessage = undefined;
       if (engineRef.current) {
+        engineRef.current.onEnemyDamaged = undefined;
         engineRef.current.clearRemotePlayers();
       }
     };

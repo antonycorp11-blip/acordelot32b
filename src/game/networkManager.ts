@@ -37,6 +37,14 @@ export interface ChatMessage {
   timestamp: number;
 }
 
+export interface EnemyDamageEvent {
+  attackerId: string;
+  enemyId: string;
+  damage: number;
+  fromX: number;
+  fromY: number;
+}
+
 class NetworkManager {
   private currentRoomId: string | null = null;
   private channel: RealtimeChannel | null = null;
@@ -46,7 +54,8 @@ class NetworkManager {
   public onRemotePlayerUpdate?: (player: RemotePlayerState) => void;
   public onRemotePlayerLeave?: (playerId: string) => void;
   public onChatMessage?: (msg: ChatMessage) => void;
-  public onRoomPresenceSync?: (players: any[]) => void;
+  public onRoomPresenceSync?: (players: RemotePlayerState[]) => void;
+  public onEnemyDamage?: (event: EnemyDamageEvent) => void;
 
   /**
    * Busca todas as salas com vagas disponíveis (máx 4).
@@ -129,7 +138,9 @@ class NetworkManager {
       const exists = currentPlayers.some((p) => p.user_id === user.id);
       const userName = user?.user_metadata?.username || user?.email?.split('@')[0] || 'Aventureiro';
 
-      let updatedPlayers = currentPlayers;
+      let updatedPlayers = currentPlayers.map((player) => player.user_id === user.id
+        ? { ...player, user_name: userName, character }
+        : player);
       if (!exists) {
         if (currentPlayers.length >= 4) return false; // Cheia
         updatedPlayers = [...currentPlayers, { user_id: user.id, user_name: userName, character }];
@@ -153,7 +164,12 @@ class NetworkManager {
   /**
    * Conecta ao canal Realtime (Broadcast + Presence).
    */
-  connectToRoom(roomId: string, user: any, character = 'akles') {
+  connectToRoom(
+    roomId: string,
+    user: any,
+    character: 'akles' | 'wins' | 'huans' = 'akles',
+    initialState?: Pick<RemotePlayerState, 'x' | 'y' | 'direction' | 'isMoving' | 'stepTimer'>,
+  ) {
     this.disconnectFromRoom();
     this.currentRoomId = roomId;
 
@@ -182,13 +198,31 @@ class NetworkManager {
       }
     });
 
+    ch.on('broadcast', { event: 'enemy_damage' }, (payload) => {
+      const event = payload.payload as EnemyDamageEvent;
+      if (event?.attackerId && event.attackerId !== user.id) this.onEnemyDamage?.(event);
+    });
+
     // 3. Ouve sincronização de presença (quem entra / sai da sala)
     ch.on('presence', { event: 'sync' }, () => {
       const state = ch.presenceState();
-      const allMembers: any[] = [];
+      const allMembers: RemotePlayerState[] = [];
       for (const [key, presences] of Object.entries(state)) {
         if (Array.isArray(presences) && presences[0]) {
-          allMembers.push({ key, ...(presences[0] as object) });
+          const presence = presences[0] as any;
+          const id = presence.user_id || key;
+          if (id === user.id) continue;
+          allMembers.push({
+            id,
+            name: presence.user_name || 'Aventureiro',
+            character: presence.character || 'akles',
+            x: Number.isFinite(presence.x) ? presence.x : 36 * 32,
+            y: Number.isFinite(presence.y) ? presence.y : 29 * 32,
+            direction: presence.direction || 'down',
+            isMoving: !!presence.isMoving,
+            stepTimer: presence.stepTimer || 0,
+            lastUpdate: Date.now(),
+          });
         }
       }
       this.onRoomPresenceSync?.(allMembers);
@@ -206,6 +240,11 @@ class NetworkManager {
           user_id: user.id,
           user_name: userName,
           character,
+          x: initialState?.x ?? 36 * 32,
+          y: initialState?.y ?? 29 * 32,
+          direction: initialState?.direction ?? 'down',
+          isMoving: initialState?.isMoving ?? false,
+          stepTimer: initialState?.stepTimer ?? 0,
           online_at: new Date().toISOString(),
         });
       }
@@ -229,8 +268,8 @@ class NetworkManager {
     if (!this.channel || !this.currentRoomId || !user) return;
 
     const now = Date.now();
-    // Throttling leve: max 15 broadcasts por segundo se estiver andando (66ms)
-    if (now - this.lastMoveBroadcast < 65) return;
+    // 4 FPS + interpolação local: suave e abaixo do teto de 100 msg/s do Free.
+    if (now - this.lastMoveBroadcast < 240) return;
 
     const payload: RemotePlayerState = {
       id: user.id,
@@ -245,7 +284,7 @@ class NetworkManager {
     };
 
     const strKey = `${payload.x},${payload.y},${direction},${isMoving}`;
-    if (strKey === this.lastBroadcastPayload && !isMoving) return;
+    if (strKey === this.lastBroadcastPayload && !isMoving && now - this.lastMoveBroadcast < 2000) return;
 
     this.lastBroadcastPayload = strKey;
     this.lastMoveBroadcast = now;
@@ -255,6 +294,12 @@ class NetworkManager {
       event: 'player_move',
       payload,
     });
+  }
+
+  broadcastEnemyDamage(user: any, enemyId: string, damage: number, fromX: number, fromY: number) {
+    if (!this.channel || !this.currentRoomId || !user) return;
+    const payload: EnemyDamageEvent = { attackerId: user.id, enemyId, damage, fromX, fromY };
+    this.channel.send({ type: 'broadcast', event: 'enemy_damage', payload });
   }
 
   /**
@@ -284,20 +329,27 @@ class NetworkManager {
    * Desconecta da sala e limpa canal.
    */
   async disconnectFromRoom(userId?: string) {
-    if (this.currentRoomId && userId) {
+    const leavingRoomId = this.currentRoomId;
+    const leavingChannel = this.channel;
+    this.currentRoomId = null;
+    this.channel = null;
+    this.lastBroadcastPayload = '';
+    this.lastMoveBroadcast = 0;
+
+    if (leavingRoomId && userId) {
       // Remove do banco de dados se aplicável
       try {
         const { data: room } = await supabase
           .from('acordelot_online_rooms')
           .select('*')
-          .eq('id', this.currentRoomId)
+          .eq('id', leavingRoomId)
           .maybeSingle();
 
         if (room) {
           const players = (room.players || []) as any[];
           const filtered = players.filter((p) => p.user_id !== userId);
           if (filtered.length <= 0) {
-            await supabase.from('acordelot_online_rooms').delete().eq('id', this.currentRoomId);
+            await supabase.from('acordelot_online_rooms').delete().eq('id', leavingRoomId);
           } else {
             await supabase
               .from('acordelot_online_rooms')
@@ -306,17 +358,13 @@ class NetworkManager {
                 player_count: filtered.length,
                 updated_at: new Date().toISOString(),
               })
-              .eq('id', this.currentRoomId);
+              .eq('id', leavingRoomId);
           }
         }
       } catch {}
     }
 
-    if (this.channel) {
-      this.channel.unsubscribe();
-      this.channel = null;
-    }
-    this.currentRoomId = null;
+    if (leavingChannel) await leavingChannel.unsubscribe();
   }
 
   getCurrentRoomId() {

@@ -853,7 +853,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
       stepTimer: localPlayer.stepTimer,
     } : undefined);
 
-    // WebRTC direto em 8 FPS; o Supabase só é usado como fallback lento.
+    // WebRTC direto em ~12 FPS; o Supabase só é usado como fallback lento.
     const interval = setInterval(() => {
       const eng = engineRef.current;
       if (!eng || !eng.player) return;
@@ -865,9 +865,11 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
         p.direction,
         p.isMoving,
         p.stepTimer,
-        eng.activeCharacter
+        eng.activeCharacter,
+        p.actionState,
+        p.actionTimer,
       );
-    }, 125);
+    }, 80);
 
     return () => {
       clearInterval(interval);

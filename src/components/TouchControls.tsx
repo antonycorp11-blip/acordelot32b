@@ -227,7 +227,7 @@ export const TouchControls: React.FC<TouchControlsProps> = ({
       const eng = engineRef.current;
       if (!eng) return;
       const busy = ['chop', 'mine', 'attack', 'spin', 'cast'].includes(eng.player.actionState as string);
-      setCollectMode(!busy && !eng.inCombat && !!eng.findNearestHarvestable('any'));
+      setCollectMode(!busy && !!eng.findNearestHarvestable('any'));
       setActiveChar(eng.activeCharacter);
     }, 180);
     return () => clearInterval(iv);
@@ -419,9 +419,9 @@ export const TouchControls: React.FC<TouchControlsProps> = ({
       </D>
       <D
         id="btn_locked"
-        className={`${actionBtn} absolute w-[46px] h-[46px] border border-slate-600/50 bg-slate-900/75 text-slate-600`}
-        title="Habilidade em breve"
-        onAction={() => {}}
+        className={`${actionBtn} absolute w-[46px] h-[46px] ${activeChar === 'akles' ? 'border border-slate-600/50 bg-slate-900/75 text-slate-600' : 'border border-amber-400/60 bg-amber-950/85 text-amber-200'}`}
+        title={activeChar === 'akles' ? 'Mira disponível para Wins e Huans' : 'Travar ou alternar alvo'}
+        onAction={() => engineRef.current?.cycleCombatTarget()}
         style={{ right: 'calc(76px + env(safe-area-inset-right))', bottom: 'calc(-4px + env(safe-area-inset-bottom))' }}
       >
         <HudIcon name="locked" className="w-8 h-8 opacity-60 grayscale" />

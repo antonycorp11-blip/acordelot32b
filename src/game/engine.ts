@@ -1095,6 +1095,8 @@ export class GameEngine {
     direction: Direction;
     isMoving: boolean;
     stepTimer: number;
+    actionState?: CharacterState['actionState'];
+    actionTimer?: number;
     lastUpdate: number;
     targetX?: number;
     targetY?: number;
@@ -1109,6 +1111,8 @@ export class GameEngine {
     direction: Direction;
     isMoving: boolean;
     stepTimer: number;
+    actionState?: CharacterState['actionState'];
+    actionTimer?: number;
     lastUpdate: number;
   }) {
     if (!data?.id || !Number.isFinite(data.x) || !Number.isFinite(data.y)) return;
@@ -1268,7 +1272,7 @@ export class GameEngine {
   // de arma não exige trocar animação nenhuma — só o config visual muda.
   equippedWeaponKey = 'acordelamina_t2';
   private weaponByCharacter: Record<PlayerCharacterKey, string> = {
-    akles: 'acordelamina_t2', wins: 'vocal_cajado_do_corista_jovem', huans: 'cordas_arco_do_cordel_jovem',
+    akles: 'acordelamina_t2', wins: 'vocal_cajado_do_solista', huans: 'cordas_arco_do_violao_harmonico',
   };
   // nível de cada arma é independente — trocar de arma não reseta progresso.
   weaponLevels: Record<string, number> = { acordelamina_t2: 1 };
@@ -1322,8 +1326,8 @@ export class GameEngine {
   onCharacterChange?: () => void;
   private static readonly CHARACTER_DEFAULT_WEAPON: Record<PlayerCharacterKey, string> = {
     akles: 'acordelamina_t2',
-    wins: 'vocal_cajado_do_corista_jovem',
-    huans: 'cordas_arco_do_cordel_jovem',
+    wins: 'vocal_cajado_do_solista',
+    huans: 'cordas_arco_do_violao_harmonico',
   };
   private static readonly CHARACTER_IDENTITY: Record<PlayerCharacterKey, { name: string; className: string }> = {
     akles: { name: 'Akles', className: 'Cavaleiro Errante' },
@@ -1352,6 +1356,7 @@ export class GameEngine {
     this.syncEquipHpBonus();
     this.lightBeams = [];
     this.combatZones = [];
+    this.lockedEnemyId = null;
     this.player.actionState = 'idle';
     // miniatura, nome e classe seguem o personagem ativo — vida, nível e
     // poder já são os mesmos this.stats compartilhados, então já "seguem
@@ -2055,6 +2060,10 @@ export class GameEngine {
       this.activateResonance(); // Skill 1 — Ressonância
       return;
     }
+    if (!this.isEditMode && e.code === 'KeyT') {
+      this.cycleCombatTarget();
+      return;
+    }
 
     // Editor: apagar seleção (múltipla ou única)
     if (this.isEditMode && (e.code === 'Delete' || e.code === 'Backspace')) {
@@ -2419,7 +2428,13 @@ export class GameEngine {
   }
 
   onMouseMove = (e: MouseEvent) => {
-    if (!this.isEditMode) return;
+    if (!this.isEditMode) {
+      const rect = this.canvas.getBoundingClientRect();
+      const inside = e.clientX >= rect.left && e.clientX <= rect.right && e.clientY >= rect.top && e.clientY <= rect.bottom;
+      this.pointerAimWorld = inside ? this.getWorldPosFromEvent(e) : null;
+      this.canvas.style.cursor = this.activeCharacter === 'akles' ? 'default' : 'crosshair';
+      return;
+    }
     const worldPos = this.getWorldPosFromEvent(e);
     if (!worldPos) return;
 
@@ -3192,6 +3207,8 @@ export class GameEngine {
   // Timestamp do último golpe (dado ou sofrido) — botão de ataque/coleta
   // inteligente usa isso pra saber se "está em luta" agora.
   lastCombatAt = -999;
+  private lockedEnemyId: string | null = null;
+  private pointerAimWorld: { x: number; y: number } | null = null;
   get inCombat() {
     return this.timeElapsed - this.lastCombatAt < 4.5;
   }
@@ -3363,8 +3380,89 @@ export class GameEngine {
     return this.player.direction === 'left' ? [-1, 0] : this.player.direction === 'right' ? [1, 0] : this.player.direction === 'up' ? [0, -1] : [0, 1];
   }
 
+  private aimOrigin() {
+    return { x: this.player.x + 12, y: this.player.y + 14 };
+  }
+
+  private validAimEnemies(maxRange: number) {
+    const origin = this.aimOrigin();
+    return this.enemies.filter((enemy) =>
+      enemy.state !== 'dead' && Math.hypot(enemy.x + 8 - origin.x, enemy.y - origin.y) <= maxRange
+    );
+  }
+
+  private aimTarget(maxRange = 330): Enemy | null {
+    const candidates = this.validAimEnemies(maxRange);
+    const locked = candidates.find((enemy) => enemy.id === this.lockedEnemyId);
+    if (locked) return locked;
+    if (this.lockedEnemyId) this.lockedEnemyId = null;
+
+    if (this.pointerAimWorld) {
+      const pointed = [...candidates].sort((a, b) =>
+        Math.hypot(a.x + 8 - this.pointerAimWorld!.x, a.y - this.pointerAimWorld!.y) -
+        Math.hypot(b.x + 8 - this.pointerAimWorld!.x, b.y - this.pointerAimWorld!.y)
+      )[0];
+      if (pointed && Math.hypot(pointed.x + 8 - this.pointerAimWorld.x, pointed.y - this.pointerAimWorld.y) <= 54) return pointed;
+    }
+
+    const origin = this.aimOrigin();
+    return [...candidates].sort((a, b) => {
+      const marksA = this.activeCharacter === 'huans' ? (a.preyMarks ?? 0) : this.activeCharacter === 'wins' ? (a.vocalNotes ?? 0) : 0;
+      const marksB = this.activeCharacter === 'huans' ? (b.preyMarks ?? 0) : this.activeCharacter === 'wins' ? (b.vocalNotes ?? 0) : 0;
+      if (marksA !== marksB) return marksB - marksA;
+      return Math.hypot(a.x + 8 - origin.x, a.y - origin.y) - Math.hypot(b.x + 8 - origin.x, b.y - origin.y);
+    })[0] ?? null;
+  }
+
+  private combatAim(maxRange = 330): { dx: number; dy: number; x: number; y: number; target: Enemy | null } {
+    const origin = this.aimOrigin();
+    const target = this.aimTarget(maxRange);
+    let tx: number;
+    let ty: number;
+    if (target) {
+      tx = target.x + 8;
+      ty = target.y;
+    } else if (this.pointerAimWorld) {
+      const pdx = this.pointerAimWorld.x - origin.x;
+      const pdy = this.pointerAimWorld.y - origin.y;
+      const dist = Math.max(1, Math.hypot(pdx, pdy));
+      const clamped = Math.min(maxRange, dist);
+      tx = origin.x + pdx / dist * clamped;
+      ty = origin.y + pdy / dist * clamped;
+    } else {
+      const [fdx, fdy] = this.facingVector();
+      tx = origin.x + fdx * maxRange;
+      ty = origin.y + fdy * maxRange;
+    }
+    const rawX = tx - origin.x;
+    const rawY = ty - origin.y;
+    const len = Math.max(1, Math.hypot(rawX, rawY));
+    const dx = rawX / len;
+    const dy = rawY / len;
+    this.player.direction = Math.abs(dx) > Math.abs(dy) ? (dx < 0 ? 'left' : 'right') : (dy < 0 ? 'up' : 'down');
+    return { dx, dy, x: tx, y: ty, target };
+  }
+
+  cycleCombatTarget(): boolean {
+    if (this.activeCharacter === 'akles') return false;
+    const origin = this.aimOrigin();
+    const candidates = this.validAimEnemies(380).sort((a, b) => {
+      const aa = Math.atan2(a.y - origin.y, a.x + 8 - origin.x);
+      const ab = Math.atan2(b.y - origin.y, b.x + 8 - origin.x);
+      return aa - ab;
+    });
+    if (!candidates.length) {
+      this.lockedEnemyId = null;
+      this.onHarvestPopup?.('Nenhum alvo ao alcance', this.player.x, this.player.y - 18);
+      return false;
+    }
+    const current = candidates.findIndex((enemy) => enemy.id === this.lockedEnemyId);
+    this.lockedEnemyId = candidates[(current + 1) % candidates.length].id;
+    return true;
+  }
+
   private fireClassProjectile(kind: LightBeam['kind'], dmg: number, maxHits: number, speed = 440) {
-    const [dx, dy] = this.facingVector();
+    const { dx, dy } = this.combatAim(kind?.startsWith('wins') ? 320 : 380);
     this.lightBeams.push({ x: this.player.x + 12 + dx * 16, y: this.player.y + 12 + dy * 12, vx: dx * speed, vy: dy * speed, life: 0, maxLife: 1.15, dmg, hitIds: [], kind, maxHits });
   }
 
@@ -3388,12 +3486,12 @@ export class GameEngine {
   }
 
   private useWinsChorus() {
-    const [dx, dy] = this.facingVector();
-    this.combatZones.push({ kind: 'winsChorus', x: this.player.x + 12 + dx * 72, y: this.player.y + 16 + dy * 72, radius: 58 * this.meleeAreaMul, life: 0, duration: 5, tickT: 1, entered: {}, marked: new Set() });
+    const aim = this.combatAim(190);
+    this.combatZones.push({ kind: 'winsChorus', x: aim.target ? aim.x : this.player.x + 12 + aim.dx * 86, y: aim.target ? aim.y : this.player.y + 16 + aim.dy * 86, radius: 58 * this.meleeAreaMul, life: 0, duration: 5, tickT: 1, entered: {}, marked: new Set() });
   }
 
   private useWinsAria() {
-    const [dx, dy] = this.facingVector();
+    const { dx, dy } = this.combatAim(260);
     const cx = this.player.x + 12, cy = this.player.y + 16;
     for (const e of this.enemies) {
       if (e.state === 'dead') continue;
@@ -3419,8 +3517,8 @@ export class GameEngine {
   }
 
   private useHuansRain() {
-    const [dx, dy] = this.facingVector();
-    this.combatZones.push({ kind: 'huansRain', x: this.player.x + 12 + dx * 96, y: this.player.y + 16 + dy * 96, radius: 72 * this.meleeAreaMul, life: 0, duration: 1.21, tickT: 0, entered: {}, marked: new Set() });
+    const aim = this.combatAim(260);
+    this.combatZones.push({ kind: 'huansRain', x: aim.target ? aim.x : this.player.x + 12 + aim.dx * 120, y: aim.target ? aim.y : this.player.y + 16 + aim.dy * 120, radius: 72 * this.meleeAreaMul, life: 0, duration: 1.21, tickT: 0, entered: {}, marked: new Set() });
   }
 
   private onComboHitLanded() {
@@ -3987,7 +4085,9 @@ export class GameEngine {
   }
 
   private harvestReach() {
-    return 62;
+    // A colisão visual de árvores e rochas pode impedir o centro do jogador
+    // de chegar a 62 px do ponto de extração, especialmente no celular.
+    return 88;
   }
 
   findNearestHarvestable(kind: 'tree' | 'rock' | 'any'): WorldProp | null {
@@ -4028,12 +4128,12 @@ export class GameEngine {
     this.triggerAction('chop');
   }
 
-  // Botão único (HUD): Coletar quando dá, Atacar quando não dá — nunca os
-  // dois juntos. Se o jogador acabou de dar/levar dano, fica travado em
-  // ataque mesmo perto de um recurso (não pode "fugir" pra coleta em luta).
+  // Botão único (HUD): recurso próximo sempre tem prioridade. O bloqueio por
+  // combate fazia o botão permanecer em ataque e dava a impressão de que a
+  // coleta havia parado após qualquer golpe recebido.
   primaryAction() {
     if (['chop', 'mine', 'attack', 'spin', 'cast'].includes(this.player.actionState as string)) return;
-    if (!this.inCombat && this.findNearestHarvestable('any')) {
+    if (this.findNearestHarvestable('any')) {
       this.harvestAction();
       return;
     }
@@ -4913,6 +5013,32 @@ export class GameEngine {
 
     for (const item of renderables) {
       item.draw();
+    }
+
+    // Mira assistida/travada para os personagens de ataque à distância.
+    if (this.activeCharacter !== 'akles') {
+      const aimed = this.aimTarget(380);
+      if (aimed) {
+        const ax = Math.round(aimed.x + 8 - camX);
+        const ay = Math.round(aimed.y - 8 - camY);
+        const locked = aimed.id === this.lockedEnemyId;
+        const pulse = 15 + Math.sin(this.timeElapsed * 7) * 2;
+        ctx.save();
+        ctx.strokeStyle = this.activeCharacter === 'wins' ? (locked ? '#f0abfc' : '#d946ef') : (locked ? '#fde68a' : '#6ee7b7');
+        ctx.lineWidth = locked ? 2.4 : 1.4;
+        ctx.globalAlpha = locked ? 0.95 : 0.7;
+        ctx.beginPath();
+        ctx.arc(ax, ay, pulse, 0, Math.PI * 2);
+        ctx.stroke();
+        for (let n = 0; n < 4; n++) {
+          const ang = n * Math.PI / 2;
+          ctx.beginPath();
+          ctx.moveTo(ax + Math.cos(ang) * (pulse - 5), ay + Math.sin(ang) * (pulse - 5));
+          ctx.lineTo(ax + Math.cos(ang) * (pulse + 5), ay + Math.sin(ang) * (pulse + 5));
+          ctx.stroke();
+        }
+        ctx.restore();
+      }
     }
 
     // Marcas de combate visíveis: notas da Wins e presa do Huans.
@@ -6565,6 +6691,8 @@ export class GameEngine {
       direction: Direction;
       isMoving: boolean;
       stepTimer: number;
+      actionState?: CharacterState['actionState'];
+      actionTimer?: number;
     },
     camX: number,
     camY: number
@@ -6587,6 +6715,20 @@ export class GameEngine {
     const aMeta = ANIM_BY_CHAR[charKey]?.[moveKey] ?? ANIM_BY_CHAR['akles']['idle'];
     const dirRowTable = DIR_ROW_BY_CHAR[charKey] ?? DIR_ROW_BY_CHAR['akles'];
     const aSheet = assets?.[aMeta.sheet] as HTMLImageElement | undefined;
+
+    const remoteActing = rp.actionState === 'attack' || rp.actionState === 'spin' || rp.actionState === 'cast';
+    if (remoteActing) {
+      const color = rp.character === 'wins' ? '#e879f9' : rp.character === 'huans' ? '#6ee7b7' : '#93c5fd';
+      const radius = 16 + Math.sin(this.timeElapsed * 12) * 3;
+      ctx.save();
+      ctx.globalAlpha = 0.75;
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(cx + 12, cy + 17, radius, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+    }
 
     if (aSheet && aSheet.complete && aSheet.naturalWidth > 0) {
       const effCw = aMeta.cw;

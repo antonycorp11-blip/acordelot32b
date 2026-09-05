@@ -234,13 +234,22 @@ export function applySaveToEngine(engine: GameEngine, save: Partial<AcordelotSav
       engine.weaponLevels = { ...engine.weaponLevels, ...save.weapons.levels };
     }
     if (save.weapons.equippedByCharacter) {
+      // Migração dos protótipos T1 para as armas T2 oficiais escolhidas para
+      // Wins e Huans. Outras armas selecionadas pelo jogador são preservadas.
+      const equippedByCharacter = { ...save.weapons.equippedByCharacter };
+      if (equippedByCharacter.wins === 'vocal_cajado_do_corista_jovem') {
+        equippedByCharacter.wins = 'vocal_cajado_do_solista';
+      }
+      if (equippedByCharacter.huans === 'cordas_arco_do_cordel_jovem') {
+        equippedByCharacter.huans = 'cordas_arco_do_violao_harmonico';
+      }
       if (anyEngine.weaponByCharacter) {
         anyEngine.weaponByCharacter = {
           ...anyEngine.weaponByCharacter,
-          ...save.weapons.equippedByCharacter,
+          ...equippedByCharacter,
         };
       }
-      const charWeapon = save.weapons.equippedByCharacter[engine.activeCharacter];
+      const charWeapon = equippedByCharacter[engine.activeCharacter];
       if (charWeapon) {
         engine.equippedWeaponKey = charWeapon;
         engine.onWeaponChange?.();

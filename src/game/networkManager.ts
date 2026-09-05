@@ -26,6 +26,8 @@ export interface RemotePlayerState {
   direction: 'down' | 'up' | 'left' | 'right';
   isMoving: boolean;
   stepTimer: number;
+  actionState?: 'idle' | 'walk' | 'run' | 'chop' | 'mine' | 'attack' | 'spin' | 'cast';
+  actionTimer?: number;
   lastUpdate: number;
 }
 
@@ -443,13 +445,16 @@ class NetworkManager {
     direction: 'down' | 'up' | 'left' | 'right',
     isMoving: boolean,
     stepTimer: number,
-    character: 'akles' | 'wins' | 'huans'
+    character: 'akles' | 'wins' | 'huans',
+    actionState?: RemotePlayerState['actionState'],
+    actionTimer?: number,
   ) {
     if (!this.channel || !this.currentRoomId || !user) return;
 
     const now = Date.now();
-    // P2P pode ser suave (8 FPS) sem consumir mensagens de gameplay do Supabase.
-    if (now - this.lastMoveBroadcast < 120) return;
+    // P2P em ~12 FPS mantém perseguição/combate fluidos sem consumir mensagens
+    // de gameplay do Supabase. O relay continua limitado separadamente.
+    if (now - this.lastMoveBroadcast < 80) return;
 
     const payload: RemotePlayerState = {
       id: user.id,
@@ -460,10 +465,12 @@ class NetworkManager {
       direction,
       isMoving,
       stepTimer,
+      actionState,
+      actionTimer,
       lastUpdate: now,
     };
 
-    const strKey = `${payload.x},${payload.y},${direction},${isMoving},${character}`;
+    const strKey = `${payload.x},${payload.y},${direction},${isMoving},${character},${actionState}`;
     if (strKey === this.lastBroadcastPayload && !isMoving && now - this.lastMoveBroadcast < 8000) return;
 
     this.lastBroadcastPayload = strKey;

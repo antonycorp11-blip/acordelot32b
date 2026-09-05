@@ -41,7 +41,8 @@ Tutoriais ficam registrados num Guia do Viajante e podem ser consultados novamen
 | Passivas e upgrade de passiva | desafio de especialização | ativar ou melhorar uma passiva adequada |
 | Loja, moedas e limite diário | mercado de Acordelot | comprar uma poção com ouro bruto/refinado |
 | Consumíveis e atalhos | patrulha fora da muralha | usar cura, escudo ou buff em combate |
-| Personagens e troca de grupo | Wins e Huans ajudam numa defesa | alternar personagem para resolver duas ameaças |
+| Companheiro de campanha | Wins e Huans ajudam numa defesa | escolher um deles e executar um combo em dupla |
+| Troca e ordens de companheiro | treinamento após a escolha | alternar controle e ordenar seguir/focar/recuar |
 | Catálogo por classe | conversa com o armeiro | filtrar itens de Teclas, Voz e Cordas |
 | Gacha/sorteio | Convergência dos Ecos | realizar invocação tutorial e organizar o resultado |
 | Missões diárias | quadro de Acordelot | aceitar, progredir e resgatar uma diária curta |
@@ -63,6 +64,24 @@ Também faltam no código atual a ressonância não hostil dos Ecos, a construç
 - **Acorde-Cosmos:** representação equipável do acorde, formada por estrelas/notas ligadas como constelação e responsável por bônus de atributos.
 
 O jogador precisa completar a coleção cromática uma vez no Capítulo 1. O progresso pode atravessar várias missões, mas as notas obrigatórias devem ter fontes garantidas para evitar dependência de sorte.
+
+## Regra do grupo no início
+
+- Akles é o único personagem jogável no começo.
+- Pippo acompanha cenas e explorações específicas, mas não ocupa o sistema formal de companheiros de combate.
+- O jogador precisa dominar o básico de Akles antes de receber outro personagem.
+- Wins e Huans são apresentados pela história, não entregues por menu nem pelo gacha.
+- Na primeira escolha, somente um entra no grupo ativo: Wins ou Huans.
+- A escolha não é uma exclusão permanente. O outro personagem terá uma rota posterior de recrutamento.
+- O gacha não substitui personagens canônicos obtidos pela história.
+
+### Identidade da escolha
+
+**Wins** oferece controle de área, dano harmônico, Notas Vocais e proteção indireta por impedir o avanço dos inimigos. É a escolha mais confortável contra grupos.
+
+**Huans** oferece alcance, crítico, mobilidade, Marca da Presa e foco em alvo prioritário. É a escolha mais confortável contra elites e chefes.
+
+Ambos devem ser igualmente viáveis. A escolha define estilo e conversas, nunca uma opção correta e outra fraca.
 
 ## Estrutura das missões principais
 
@@ -187,34 +206,46 @@ O jogador precisa completar a coleção cromática uma vez no Capítulo 1. O pro
 - Ensina: tela padrão de Skills, dano, custo, cooldown, requisito, passiva e upgrades.
 - Validação: melhorar uma Skill e uma passiva, depois usar ambas em treino.
 
-#### MQ_C1_019_AS_QUATRO_FORMAS
+#### MQ_C1_019_ESCOLHA_DE_COMPANHEIRO
 
-- História: Wins e Huans ajudam a defender uma caravana.
-- Ensina: Teclas, Voz, Cordas e Ritmo; troca de personagem e catálogo por classe.
-- Música: timbre e função musical não são a mesma coisa.
-- Regra: Wins e Huans demonstram identidades diferentes, sem substituírem Pippo emocionalmente.
+- História: Wins e Huans ajudam Akles a defender uma caravana, cada um por uma rota diferente.
+- Demonstração: Wins controla um grupo com magia Vocal; Huans persegue um inimigo de elite com técnicas de Cordas.
+- Escolha: depois de combater ao lado dos dois, Akles convida Wins ou Huans para acompanhá-lo na campanha.
+- Ensina: companheiro de combate, troca de controle, ordens rápidas e ataque ao mesmo alvo.
+- Combo de Wins: controle/Notas Vocais abrem uma janela para o golpe de Akles.
+- Combo de Huans: Marca da Presa permite que ambos concentrem dano no alvo prioritário.
+- Consequência: o escolhido acompanha missões, aparece em cenas e comenta a investigação.
+- Regra: a decisão não altera o cânone central nem impede recrutar o outro posteriormente.
 
-#### MQ_C1_020_MERCADO_E_RESSONANCIA
+#### MQ_C1_020_PRIMEIRO_COMBATE_EM_DUPLA
+
+- História: Akles e o companheiro escolhido realizam uma patrulha para o Sr. Antony.
+- Ensina: `Seguir`, `Focar alvo`, `Recuar`, troca de personagem e Skill coordenada.
+- IA: o companheiro acompanha sem bloquear passagem, evita áreas perigosas e ataca o alvo focado.
+- Validação: vencer um grupo e uma elite usando duas ordens diferentes.
+- Online: quando outro jogador ocupa a vaga, o companheiro pode ser recolhido sem quebrar a missão.
+
+#### MQ_C1_021_MERCADO_E_RESSONANCIA
 
 - História: Pippo prepara suprimentos para uma exploração dos dois.
 - Ensina: loja, ouro bruto/refinado, poções, limites diários e expansão de mochila.
 - Validação: usar um consumível numa luta curta.
 
-#### MQ_C1_021_CONVERGENCIA_DOS_ECOS
+#### MQ_C1_022_CONVERGENCIA_DOS_ECOS
 
 - História: a melodia de Akles atrai um Eco ou aliado para uma partitura de vínculo.
 - Ensina: gacha/sorteio, probabilidades, garantia, duplicatas e histórico.
 - Primeira invocação: gratuita e controlada, sem moeda premium.
 - Condição: só implementar após o sistema de gacha estar funcional e auditável.
 
-#### MQ_C1_022_DOZE_NOTAS_UMA_ESCALA
+#### MQ_C1_023_DOZE_NOTAS_UMA_ESCALA
 
 - História: a coleção cromática de Pippo é completada com as notas reunidas ao longo da jornada.
 - Ensina: círculo das 12 notas, semitom como um passo e tom como dois passos.
 - Ação: o jogador percorre `T–T–S–T–T–T–S` para construir sua primeira escala maior.
 - Proteção: notas essenciais têm obtenção garantida por missões e ressonâncias específicas.
 
-#### MQ_C1_023_CONSTELACAO_DO_ACORDE
+#### MQ_C1_024_CONSTELACAO_DO_ACORDE
 
 - História: o Sr. Antony mostra que uma escala pode produzir forças menores com identidades próprias.
 - Ensina: graus da escala e formação da tríade pelos graus `1–3–5`.
@@ -222,7 +253,7 @@ O jogador precisa completar a coleção cromática uma vez no Capítulo 1. O pro
 - Equipamento: o jogador equipa o cosmos e observa os atributos concedidos.
 - Validação: trocar entre dois cosmos simples para adaptar a build a um desafio.
 
-#### MQ_C1_024_UMA_MELODIA_PARA_PIPPO
+#### MQ_C1_025_UMA_MELODIA_PARA_PIPPO
 
 - História: Akles e Pippo compõem uma pequena melodia no lugar secreto do menino.
 - Ensina: combinação simples de notas/ritmo e registro no diário musical.
@@ -231,19 +262,19 @@ O jogador precisa completar a coleção cromática uma vez no Capítulo 1. O pro
 
 ### Ato IV — A Nota Ausente
 
-#### MQ_C1_025_SOMBRAS_SEM_VOZ
+#### MQ_C1_026_SOMBRAS_SEM_VOZ
 
 - História: áreas de Acordelot perdem todo o som; símbolos apontam para os Remanescentes.
 - Ensina: estados negativos, resistência, silêncio de Skills e preparação de build.
 - Mistério: alguém estuda os horários de Pippo.
 
-#### MQ_C1_026_A_NOITE_DO_SILENCIO
+#### MQ_C1_027_A_NOITE_DO_SILENCIO
 
 - História: uma falsa emergência afasta guardas e aliados.
 - Ensina: combate mais longo, consumíveis, troca de personagem e leitura de efeitos.
 - Online: se houver companhia, objetivos e dano são compartilhados; a cena funciona solo.
 
-#### MQ_C1_027_O_SEQUESTRO_DE_PIPPO
+#### MQ_C1_028_O_SEQUESTRO_DE_PIPPO
 
 - História: dois Dissonantes contratados capturam Pippo.
 - Combate: ambos têm funções distintas e usam ferramentas preparadas para neutralizar Akles.
@@ -251,7 +282,7 @@ O jogador precisa completar a coleção cromática uma vez no Capítulo 1. O pro
 - Verdade secreta: a contratação foi fabricada por Klassíkia para manter o ciclo.
 - Resultado fixo: Akles perde sem parecer incompetente; ele escolhe salvar civis ou alcançar Pippo por segundos, mas o sequestro ocorre.
 
-#### MQ_C1_028_O_MENINO_QUE_NUNCA_EXISTIU
+#### MQ_C1_029_O_MENINO_QUE_NUNCA_EXISTIU
 
 - História: todos afirmam que Pippo nunca existiu.
 - Mudança de mundo: quarto, diálogos, registros e relações são reescritos.
@@ -260,43 +291,43 @@ O jogador precisa completar a coleção cromática uma vez no Capítulo 1. O pro
 
 ### Ato V — As pistas para Dissonia
 
-#### MQ_C1_029_MEMORIA_IMPOSSIVEL
+#### MQ_C1_030_MEMORIA_IMPOSSIVEL
 
 - História: Akles tenta provar a existência de Pippo.
 - Ensina: diário de pistas e reconstrução de acontecimentos.
 - Resultado: provas comuns foram alteradas; resíduos musicais não foram totalmente apagados.
 
-#### MQ_C1_030_A_MELODIA_INCOMPLETA
+#### MQ_C1_031_A_MELODIA_INCOMPLETA
 
 - História: a música compartilhada provoca lembranças fragmentadas nos Ecos.
 - Música: ausência, pausa e nota esperada.
 - Pista: o som de pagamento ouvido na noite não pertence aos sequestradores.
 
-#### MQ_C1_031_DOIS_ROSTOS_DISSONANTES
+#### MQ_C1_032_DOIS_ROSTOS_DISSONANTES
 
 - História: testemunhas e rastros identificam os dois sequestradores.
 - Pista: ambos receberam pagamento e instruções com aparência remanescente.
 - Cuidado: a descoberta acusa indivíduos, não o povo de Dissonia.
 
-#### MQ_C1_032_CINZAS_DO_SILENCIO
+#### MQ_C1_033_CINZAS_DO_SILENCIO
 
 - História: Akles encontra um ponto de entrega abandonado.
 - Pista: símbolos dos Remanescentes são perfeitos demais e não apresentam desgaste real.
 - Contradição: um ataque remanescente tenta recuperar as mesmas instruções.
 
-#### MQ_C1_033_A_TESTEMUNHA_DISSONANTE
+#### MQ_C1_034_A_TESTEMUNHA_DISSONANTE
 
 - História: um Dissonante impede que Akles seja morto e explica que Dissonia não responde pelos sequestradores.
 - Decisão: confiar parcialmente ou manter distância muda diálogos, não bloqueia pistas.
 - Revelação: os dois criminosos partiram para Dissonia esperando o restante do pagamento.
 
-#### MQ_C1_034_PERMISSAO_PARA_PARTIR
+#### MQ_C1_035_PERMISSAO_PARA_PARTIR
 
 - História: o Sr. Antony autoriza a investigação além da fronteira.
 - Ensina: preparação de viagem, objetivos regionais e conteúdo recomendado.
 - Secundárias não concluídas continuam disponíveis; nenhuma expira silenciosamente.
 
-#### MQ_C1_035_O_PAIS_ENTRE_FREQUENCIAS
+#### MQ_C1_036_O_PAIS_ENTRE_FREQUENCIAS
 
 - História: Akles atravessa a fronteira a pé e avista Dissonia.
 - Gancho: a melodia de Pippo toca sozinha; uma voz afirma que o ciclo falhou.
@@ -335,6 +366,8 @@ O jogador precisa completar a coleção cromática uma vez no Capítulo 1. O pro
 - SQ_SYS_005_SEGUNDA_AFINACAO — melhorar arma sem consumir recurso de história.
 - SQ_SYS_006_TREINO_DE_PASSIVA — comparar dois caminhos de build.
 - SQ_SYS_007_RESSONANCIA_COMPARTILHADA — entrar ou criar sala online, opcional.
+- SQ_SYS_008_SINTONIA_EM_DUPLA — elevar o primeiro nível de vínculo do companheiro.
+- SQ_SYS_009_TROCA_DE_MAESTRO — vencer uma luta alternando o personagem controlado.
 
 ### Investigação e mundo
 
@@ -349,9 +382,45 @@ O jogador precisa completar a coleção cromática uma vez no Capítulo 1. O pro
 - Missões 1–5: somente HUD essencial.
 - Missões 6–11: coleta, inventário, ressonância de Ecos e síntese.
 - Missões 12–18: mapa, progressão, build, armas, equipamentos, Skills e passivas.
-- Missões 19–24: personagens, catálogo, loja, gacha, escalas, Acordes-Cosmos e vínculo final com Pippo.
-- Missões 25–28: prova integrada dos sistemas durante o sequestro.
-- Missões 29–35: investigação livre com menos instruções e mais autonomia.
+- Missões 19–25: companheiro, catálogo, loja, gacha, escalas, Acordes-Cosmos e vínculo final com Pippo.
+- Missões 26–29: prova integrada dos sistemas durante o sequestro.
+- Missões 30–36: investigação livre com menos instruções e mais autonomia.
+
+## Progressão e ritmo de recompensa
+
+O capítulo precisa manter várias progressões paralelas, mas cada tela deve mostrar somente a próxima decisão relevante:
+
+1. nível e atributos de Akles;
+2. Skills e passivas;
+3. arma e seu aprimoramento;
+4. equipamentos e bônus de conjunto;
+5. coleção das 12 notas;
+6. escalas descobertas;
+7. Acordes-Cosmos e builds;
+8. vínculo e técnicas combinadas do companheiro;
+9. exploração, mapa e acesso a regiões;
+10. diário de pistas sobre Pippo.
+
+Cadência pretendida:
+
+- uma novidade mecânica ou narrativa relevante a cada 10–15 minutos no começo;
+- uma recompensa de poder ou nova possibilidade a cada 15–25 minutos;
+- uma cena significativa com Pippo a cada duas ou três missões até o sequestro;
+- nenhuma sequência superior a duas missões baseada apenas em coleta ou combate;
+- cada tutorial termina com uso livre da mecânica, sem janela explicativa cobrindo a ação;
+- o jogo alterna descoberta, combate, construção de build, vínculo e mistério.
+
+### Critérios de qualidade antes de considerar o capítulo pronto
+
+- jogadores novos conseguem concluir sem ajuda externa;
+- jogadores entendem por que escolheram sua build, não apenas seguem setas;
+- Wins e Huans apresentam estilos úteis e claramente diferentes;
+- o companheiro não fica preso, não rouba todo o dano e não precisa ser protegido constantemente;
+- a maioria dos jogadores consegue descrever Pippo e sente sua ausência após o sequestro;
+- o jogador consegue explicar nota, tom, semitom, escala e tríade usando o que fez no jogo;
+- nenhuma etapa exige grind aleatório para continuar a história;
+- o mistério entrega pistas suficientes para teorias, mas não revela Klassíkia no Capítulo 1;
+- sessões de teste demonstram vontade espontânea de continuar até Dissonia.
 
 ## Requisitos técnicos do sistema de campanha
 
@@ -391,7 +460,8 @@ O salvamento deve registrar eventos canônicos, não apenas flags de diálogo. E
 5. Implementar a ação Ressoar e a obtenção de fragmentos/Pó de Eco.
 6. Implementar progressão/build das missões 12–18.
 7. Implementar coleção cromática, criação de escalas e Acordes-Cosmos equipáveis.
-8. Projetar e implementar o gacha antes de incluir a missão 21.
-9. Implementar vínculo, sequestro e mudança global de memória.
-10. Construir estrada/fronteira até Dissonia e o encerramento.
-11. Fazer uma passagem completa solo e outra cooperativa.
+8. Implementar escolha, IA, ordens, vínculo e combos do companheiro.
+9. Projetar e implementar o gacha antes de incluir a missão 22.
+10. Implementar vínculo, sequestro e mudança global de memória.
+11. Construir estrada/fronteira até Dissonia e o encerramento.
+12. Fazer uma passagem completa solo e outra cooperativa, seguida de testes com jogadores novos.

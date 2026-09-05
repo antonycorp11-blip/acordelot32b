@@ -100,8 +100,10 @@ O capítulo começa como descoberta do mundo e termina como investigação.
 O jogador deve:
 
 - despertar sem memória e descobrir as capacidades de Akles;
+- começar a campanha controlando somente Akles;
 - conhecer o mundo, Acordelot e seus sistemas;
 - conviver o suficiente com Pippo para criar afeto verdadeiro;
+- aprender o sistema de companheiros e escolher Wins ou Huans para acompanhá-lo;
 - presenciar o sequestro e lutar contra os dois Dissonantes;
 - descobrir que todos esqueceram Pippo;
 - encontrar provas de que sua própria memória é impossível;
@@ -119,6 +121,9 @@ O jogador deve:
 7. A melodia criada por Akles e Pippo é a âncora emocional e temporal do capítulo.
 8. O Sr. Antony é o líder de Acordelot.
 9. Antes da partida da Terra, o nome é Classíquia; depois dela, Klassíkia.
+10. O primeiro personagem jogável é somente Akles. Wins e Huans não ficam disponíveis desde o início.
+11. Pippo é acompanhante narrativo, não ocupa a vaga de companheiro de combate.
+12. A escolha inicial entre Wins e Huans muda combate, diálogos e cenas, mas não apaga o personagem recusado; ele poderá ser recrutado posteriormente.
 
 ## Gancho final do capítulo
 

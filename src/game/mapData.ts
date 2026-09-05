@@ -14,7 +14,8 @@
 import { Rect, WorldProp, NPC } from './types';
 
 // Mapa: bloco norte (vila + terras editadas) + bloco sul (FLORESTA SOMBRIA).
-export const MAP_COLS = 144;
+export const ORIGINAL_MAP_COLS = 144;
+export const MAP_COLS = 184; // +40 colunas: domínio musical do Sentinela a leste
 export const OLD_ROWS = 108; // fim do bloco norte — nada acima disso muda
 export const DARK_START = 110; // início da Floresta Sombria
 export const MAP_ROWS = 176; // + 68 linhas de floresta sombria
@@ -131,6 +132,21 @@ export function buildMap(): MapGrid {
       for (let c = Math.max(0, c0); c <= Math.min(MAP_COLS - 1, c1); c++)
         ground[r][c] = paveTile(c, r);
   };
+
+  // Expansão leste: uma península mineral azul-escura separada do mapa antigo
+  // por um canal. A avenida vira a única ponte caminhável para a região.
+  for (let r = 1; r <= 44; r++) {
+    for (let c = ORIGINAL_MAP_COLS; c < MAP_COLS - 1; c++) {
+      ground[r][c] = (r + c) % 5 === 0 ? TERRAIN_TILES.DARK_MOSS : TERRAIN_TILES.DARK_STONE;
+    }
+  }
+  for (let r = 1; r <= 44; r++) {
+    for (let c = ORIGINAL_MAP_COLS + 1; c <= ORIGINAL_MAP_COLS + 4; c++) {
+      ground[r][c] = c === ORIGINAL_MAP_COLS + 1 || c === ORIGINAL_MAP_COLS + 4
+        ? TERRAIN_TILES.WATER_SHALLOW
+        : TERRAIN_TILES.WATER_DEEP;
+    }
+  }
 
   // 2. RUAS PRINCIPAIS
   // Avenida Central Vertical (N-S) — cols 33..38 (só o bloco norte; a

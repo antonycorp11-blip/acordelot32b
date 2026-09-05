@@ -100,7 +100,7 @@ export const WorldMapScreen: React.FC<Props> = ({ open, onClose, engine }) => {
         ctx.fillText(text, x, y);
       };
       label('Vila Encantada', 36, 19);
-      label('Arena do Órgão', 129, 4, '#e9d5ff');
+      label('Domínio do Órgão', 169, 4, '#e9d5ff');
       label('Floresta Sombria', 72, 137, '#d1fae5');
 
       for (const remote of engine.remotePlayers.values()) {

@@ -58,6 +58,8 @@ export async function syncWorldMapFromCloud(engine: GameEngine): Promise<boolean
 
     // Recarrega o mapa no engine se ele já estiver inicializado
     engine.loadMapFromStorage();
+    engine.ensureBossArena();
+    engine.rebuildColliderGrid();
     return true;
   } catch (err) {
     console.warn('[WorldMapSync] Falha ao sincronizar mapa do Supabase:', err);

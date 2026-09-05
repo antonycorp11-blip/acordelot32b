@@ -1,20 +1,30 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { X } from 'lucide-react';
-import { ITEM_META, MAX_CARRY_WEIGHT, inventoryWeight } from '../game/engine';
+import { ITEM_META, inventoryWeight, inventorySellOffer } from '../game/engine';
 
 interface InventoryProps {
   open: boolean;
   onClose: () => void;
   items: Record<string, number>;
   coins: number;
+  maxCarryWeight: number;
+  onSell: (item: string) => { ok: boolean; message: string } | undefined;
+  onDiscard: (item: string) => { ok: boolean; message: string } | undefined;
 }
 
 const SLOT_COUNT = 32;
 
 /** Inventário em paisagem: grade larga + painel de detalhe do item. */
-export const Inventory: React.FC<InventoryProps> = ({ open, onClose, items, coins }) => {
+export const Inventory: React.FC<InventoryProps> = ({ open, onClose, items, coins, maxCarryWeight, onSell, onDiscard }) => {
   const [active, setActive] = useState<string | null>(null);
+  const [pendingAction, setPendingAction] = useState<'sell' | 'discard' | null>(null);
+  const [message, setMessage] = useState<string | null>(null);
   const pressTimer = useRef<number | null>(null);
+
+  useEffect(() => {
+    setPendingAction(null);
+    setMessage(null);
+  }, [active]);
 
   if (!open) return null;
 
@@ -25,10 +35,25 @@ export const Inventory: React.FC<InventoryProps> = ({ open, onClose, items, coin
   ].slice(0, Math.max(SLOT_COUNT, entries.length));
 
   const weight = inventoryWeight(items);
-  const pct = Math.min(100, (weight / MAX_CARRY_WEIGHT) * 100);
-  const full = weight >= MAX_CARRY_WEIGHT - 0.05;
+  const pct = Math.min(100, (weight / maxCarryWeight) * 100);
+  const full = weight >= maxCarryWeight - 0.05;
   const barColor = full ? '#f87171' : pct > 80 ? '#fbbf24' : '#4ade80';
   const meta = active ? ITEM_META[active] : null;
+  const sellOffer = active ? inventorySellOffer(active) : null;
+
+  const runConfirmedAction = (kind: 'sell' | 'discard') => {
+    if (!active) return;
+    if (pendingAction !== kind) {
+      setPendingAction(kind);
+      setMessage('Toque novamente para confirmar.');
+      return;
+    }
+    const result = kind === 'sell' ? onSell(active) : onDiscard(active);
+    setPendingAction(null);
+    setMessage(result?.message ?? null);
+    if (kind === 'discard' && (items[active] || 0) <= 1) setActive(null);
+    if (kind === 'sell' && sellOffer && (items[active] || 0) <= sellOffer.quantity) setActive(null);
+  };
 
   const holdStart = (key: string) => {
     if (pressTimer.current) window.clearTimeout(pressTimer.current);
@@ -53,11 +78,19 @@ export const Inventory: React.FC<InventoryProps> = ({ open, onClose, items, coin
               <img src="/assets/items/clave.png" alt="clave" className="w-4 h-4 object-contain" />
               {coins}
             </span>
+            <span className="flex items-center gap-1 text-xs font-black px-2 py-0.5 rounded-full bg-yellow-500/10 border border-yellow-500/30 text-yellow-200" title="Ouro bruto coletado">
+              <img src="/assets/items/props/gold_raw.png" alt="ouro bruto" className="w-4 h-4 object-contain" />
+              {items.gold_raw || 0}
+            </span>
+            <span className="flex items-center gap-1 text-xs font-black px-2 py-0.5 rounded-full bg-yellow-100/10 border border-yellow-100/30 text-yellow-100" title="Ouro sintetizado">
+              <img src="/assets/items/props/gold_refined.png" alt="ouro sintetizado" className="w-4 h-4 object-contain" />
+              {items.gold_refined || 0}
+            </span>
           </div>
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-1.5 w-40">
               <span className={`text-[10px] font-bold ${full ? 'text-rose-400' : 'text-slate-400'}`}>
-                {weight.toFixed(1)}/{MAX_CARRY_WEIGHT}kg
+                {weight.toFixed(1)}/{maxCarryWeight}kg
               </span>
               <div className="flex-1 h-1.5 rounded-full bg-slate-950 border border-slate-700 overflow-hidden">
                 <div className="h-full transition-all" style={{ width: `${pct}%`, backgroundColor: barColor }} />
@@ -129,6 +162,28 @@ export const Inventory: React.FC<InventoryProps> = ({ open, onClose, items, coin
                   </div>
                 </div>
                 <p className="text-[11px] text-slate-300 leading-relaxed">{meta.desc ?? '—'}</p>
+                <div className="mt-auto pt-3 space-y-1.5">
+                  {sellOffer ? (
+                    <button
+                      type="button"
+                      disabled={(items[active!] || 0) < sellOffer.quantity}
+                      onClick={() => runConfirmedAction('sell')}
+                      className={`w-full rounded-lg py-1.5 text-[10px] font-black transition disabled:bg-slate-800 disabled:text-slate-600 ${pendingAction === 'sell' ? 'bg-amber-300 text-slate-950' : 'bg-emerald-700 text-white'}`}
+                    >
+                      {pendingAction === 'sell' ? 'Confirmar venda?' : `Vender ${sellOffer.quantity} por ◈ ${sellOffer.goldRaw}`}
+                    </button>
+                  ) : (
+                    <p className="text-[9px] text-center text-slate-600">Moedas não podem ser vendidas</p>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => runConfirmedAction('discard')}
+                    className={`w-full rounded-lg py-1.5 text-[10px] font-bold transition ${pendingAction === 'discard' ? 'bg-rose-400 text-slate-950' : 'bg-rose-950/70 text-rose-300 border border-rose-900'}`}
+                  >
+                    {pendingAction === 'discard' ? 'Confirmar descarte?' : 'Descartar 1'}
+                  </button>
+                  {message && <p className="text-[9px] text-center text-slate-400 leading-tight">{message}</p>}
+                </div>
               </>
             ) : (
               <p className="text-[11px] text-slate-500 m-auto text-center">

@@ -8,10 +8,13 @@ interface PlayerHudProps {
   questObjective?: { title: string; text: string; ready: boolean } | null;
   onOpenQuests?: () => void;
   portraitSrc?: string;
+  coins?: number;
+  goldRaw?: number;
+  goldRefined?: number;
 }
 
 /** Canto superior esquerdo: retrato + barra de vida + barra de XP + objetivo da missão ativa. */
-export const PlayerHud: React.FC<PlayerHudProps> = ({ stats, onOpenSheet, questObjective, onOpenQuests, portraitSrc }) => {
+export const PlayerHud: React.FC<PlayerHudProps> = ({ stats, onOpenSheet, questObjective, onOpenQuests, portraitSrc, coins = 0, goldRaw = 0, goldRefined = 0 }) => {
   const hpPct = Math.max(0, Math.min(100, (stats.hp / stats.maxHp) * 100));
   const xpPct = Math.max(0, Math.min(100, (stats.xp / stats.xpNext) * 100));
   const energyPct = Math.max(0, Math.min(100, (stats.energy / stats.maxEnergy) * 100));
@@ -66,6 +69,17 @@ export const PlayerHud: React.FC<PlayerHudProps> = ({ stats, onOpenSheet, questO
             <div className="h-full bg-gradient-to-r from-violet-600 to-fuchsia-300 transition-all duration-200" style={{ width: `${energyPct}%` }} />
           </div>
           <span className="text-[8px] font-bold text-fuchsia-200 tabular-nums drop-shadow-[0_1px_2px_rgba(0,0,0,.9)]">{Math.round(stats.energy)}/{Math.round(stats.maxEnergy)}</span>
+        </div>
+        <div className="mt-1 flex items-center gap-1 text-[8px] font-black drop-shadow-[0_1px_2px_rgba(0,0,0,.9)]">
+          <span className="flex items-center gap-0.5 rounded bg-slate-950/80 border border-amber-500/30 px-1 text-amber-300" title="Claves">
+            <img src="/assets/items/clave.png" alt="" className="w-3 h-3 object-contain" /> {coins}
+          </span>
+          <span className="flex items-center gap-0.5 rounded bg-slate-950/80 border border-yellow-600/30 px-1 text-yellow-300" title="Ouro bruto">
+            <img src="/assets/items/props/gold_raw.png" alt="" className="w-3 h-3 object-contain" /> {goldRaw}
+          </span>
+          <span className="flex items-center gap-0.5 rounded bg-slate-950/80 border border-yellow-100/30 px-1 text-yellow-100" title="Ouro sintetizado">
+            <img src="/assets/items/props/gold_refined.png" alt="" className="w-3 h-3 object-contain" /> {goldRefined}
+          </span>
         </div>
 
         {/* Objetivo da missão diária ativa */}

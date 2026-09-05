@@ -39,6 +39,7 @@ export interface CharacterState {
 
 export type NpcSprite =
   | 'merchant'
+  | 'guard'
   | 'cadencia'
   | 'tonico'
   | 'setimo'
@@ -61,6 +62,7 @@ export interface NPC extends CharacterState {
   dialogue?: string[];
   // falas curtas aleatórias quando o Akles se aproxima
   barks?: string[];
+  isMerchant?: boolean;
   // rota de patrulha (waypoints em px de mundo)
   route?: Point[];
   routeIdx?: number;

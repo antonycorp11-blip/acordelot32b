@@ -690,41 +690,7 @@ export function buildMap(): MapGrid {
     else dprop(`dr${did++}`, 'stoneQuarry', x, y, 140, 140);
   }
 
-  // 10. MERCADOR GILDOR (lado leste da praça)
-  const mX = 42 * TILE_SIZE;
-  const mY = 27 * TILE_SIZE;
-  npcs.push({
-    id: 'merchant_ruins',
-    name: 'Gildor, o Mercador Místico',
-    title: 'Mercador da Vila Encantada',
-    spriteType: 'merchant',
-    x: mX,
-    y: mY,
-    vx: 0,
-    vy: 0,
-    direction: 'down',
-    frame: 0,
-    isMoving: false,
-    stepTimer: 0,
-    width: 64,
-    height: 72,
-    homeX: mX,
-    homeY: mY,
-    patrolRadius: 0,
-    wanderTimer: 0,
-    idleTimer: 0,
-    wanderTarget: null,
-    speed: 0,
-    collider: { offsetX: 16, offsetY: 44, w: 32, h: 20 },
-    dialogue: [
-      'Que a luz da Vila Encantada guie seus passos, viajante.',
-      'A praça da Fonte é o coração de Acordelot — daqui partem as duas grandes avenidas.',
-      'Passe nas lojas: a ferraria ao norte, a padaria a leste, e a taverna mais ao sul.',
-    ],
-  });
-  solidColliders.push({ x: mX + 16, y: mY + 44, w: 32, h: 20 });
-
-  // 11. NPCs COM ROTA (tema musical de Acordelot)
+  // 10. NPCs COM ROTA (tema musical de Acordelot)
   const T = TILE_SIZE;
   const addNpc = (o: {
     id: string;
@@ -736,6 +702,7 @@ export function buildMap(): MapGrid {
     route: Array<[number, number]>;
     dialogue: string[];
     barks?: string[];
+    isMerchant?: boolean;
   }) => {
     const route = o.route.map(([c, r]) => ({ x: c * T, y: r * T }));
     npcs.push({
@@ -764,11 +731,50 @@ export function buildMap(): MapGrid {
       collider: { offsetX: 8, offsetY: 28, w: 12, h: 10 },
       dialogue: o.dialogue,
       barks: o.barks,
+      isMerchant: o.isMerchant,
       route,
       routeIdx: 1 % route.length,
       routePause: Math.random() * 2,
     });
   };
+
+  // Mercador atual junto ao prédio Padaria & Mercado. A posição definitiva é
+  // sincronizada pela engine depois que o layout editável é carregado.
+  addNpc({
+    id: 'npc_mercador_cidade',
+    name: 'Miro do Mercado',
+    title: 'Mercador de Suprimentos',
+    sprite: 'tonico',
+    accent: '#f59e0b',
+    speed: 0,
+    route: [[43, 25]],
+    isMerchant: true,
+    dialogue: [
+      'Bem-vindo ao Mercado de Acordelot. Tudo aqui é negociado com ouro da própria terra.',
+      'O estoque é limitado por viajante e volta a ser abastecido todos os dias.',
+    ],
+    barks: ['Ouro bruto ou em barra: aqui os dois têm valor.', 'Estoque novo a cada dia!'],
+  });
+
+  // Guarda fixo das muralhas e patrulheiros urbanos. Usa a arte de cavaleiro
+  // já existente no jogo, sem manter o mercador da coleção antiga.
+  addNpc({
+    id: 'guard_muralha', name: 'Sentinela Forte', title: 'Guarda das Muralhas', sprite: 'guard', accent: '#60a5fa', speed: 0,
+    route: [[32, 69]], dialogue: ['As muralhas de Acordelot permanecem sob vigilância.', 'Além do portão, mantenha sua arma pronta.'],
+    barks: ['Portão seguro.', 'Tudo tranquilo nas muralhas.'],
+  });
+  addNpc({
+    id: 'guard_portao_leste', name: 'Guarda Leste', title: 'Patrulha da Cidade', sprite: 'guard', accent: '#93c5fd', speed: 34,
+    route: [[45, 21], [55, 21], [55, 30], [45, 30]], dialogue: ['Patrulhamos a avenida para manter o mercado seguro.'],
+  });
+  addNpc({
+    id: 'guard_portao_oeste', name: 'Guarda Oeste', title: 'Patrulha da Cidade', sprite: 'guard', accent: '#93c5fd', speed: 34,
+    route: [[18, 21], [27, 21], [27, 31], [18, 31]], dialogue: ['A floresta está inquieta. Viaje com cuidado.'],
+  });
+  addNpc({
+    id: 'guard_praca', name: 'Guarda da Praça', title: 'Patrulha da Cidade', sprite: 'guard', accent: '#facc15', speed: 30,
+    route: [[33, 24], [40, 24], [40, 32], [33, 32]], dialogue: ['A praça e o mercado estão protegidos.'],
+  });
 
   addNpc({
     id: 'npc_cadencia',

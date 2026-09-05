@@ -29,7 +29,7 @@ import {
   CloudRain,
 } from 'lucide-react';
 import type { PlayerStats } from '../game/engine';
-import { GameEngine, InteractionState, SelectedPropInfo, TimeOfDay, CHARACTER_ROSTER, CHARACTER_PORTRAITS } from '../game/engine';
+import { GameEngine, InteractionState, SelectedPropInfo, TimeOfDay, CHARACTER_ROSTER, CHARACTER_PORTRAITS, SHOP_ITEMS } from '../game/engine';
 import { TouchControls } from './TouchControls';
 import { Inventory } from './Inventory';
 import { PlayerHud } from './PlayerHud';
@@ -492,6 +492,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
   });
   const [dialogueIdx, setDialogueIdx] = useState(0);
   const [showShop, setShowShop] = useState(false);
+  const [shopMessage, setShopMessage] = useState<string | null>(null);
 
   // Inventário / coleta / ficha
   const [inventory, setInventory] = useState<Record<string, number>>({});
@@ -930,7 +931,14 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
   const handleCloseDialogue = () => {
     engineRef.current?.closeDialogue();
     setShowShop(false);
+    setShopMessage(null);
     setDialogueIdx(0);
+  };
+
+  const handleShopPurchase = (id: string) => {
+    const result = engineRef.current?.buyShopItem(id);
+    if (!result) return;
+    setShopMessage(result.message);
   };
 
   const toggleEditMode = () => {
@@ -1518,6 +1526,9 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
           questObjective={engineRef.current?.activeQuestObjective ?? null}
           onOpenQuests={() => setShowQuests(true)}
           portraitSrc={engineRef.current?.activeCharacterPortrait}
+          coins={coins}
+          goldRaw={inventory.gold_raw || 0}
+          goldRefined={inventory.gold_refined || 0}
         />
       )}
 
@@ -1687,6 +1698,9 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
         onClose={() => setShowInventory(false)}
         items={inventory}
         coins={coins}
+        maxCarryWeight={engineRef.current?.maxCarryWeight ?? 40}
+        onSell={(item) => engineRef.current?.sellInventoryItem(item)}
+        onDiscard={(item) => engineRef.current?.discardInventoryItem(item)}
       />
 
       <SynthesisScreen
@@ -1975,37 +1989,56 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
                 </div>
               </div>
             ) : (
-              <div>
-                <p className="text-xs text-slate-300 mb-3">Artefatos e suprimentos disponíveis:</p>
-                <div className="grid grid-cols-3 gap-2 mb-4">
-                  <div className="bg-slate-900 border border-slate-800 rounded-xl p-2.5 flex flex-col items-center text-center">
-                    <img
-                      src="/assets/ancient-ruins/Characters/NPC Merchant-icons-potion.png"
-                      alt="Poção"
-                      className="w-8 h-8 object-contain mb-1"
-                    />
-                    <span className="text-[11px] font-bold text-slate-200">Elixir Arcano</span>
-                    <span className="text-[10px] text-amber-400 font-mono">25 Moedas</span>
-                  </div>
-                  <div className="bg-slate-900 border border-slate-800 rounded-xl p-2.5 flex flex-col items-center text-center">
-                    <img
-                      src="/assets/ancient-ruins/Characters/NPC Merchant-icons-sword.png"
-                      alt="Espada"
-                      className="w-8 h-8 object-contain mb-1"
-                    />
-                    <span className="text-[11px] font-bold text-slate-200">Lâmina Rúnica</span>
-                    <span className="text-[10px] text-amber-400 font-mono">80 Moedas</span>
-                  </div>
-                  <div className="bg-slate-900 border border-slate-800 rounded-xl p-2.5 flex flex-col items-center text-center">
-                    <img
-                      src="/assets/ancient-ruins/Characters/NPC Merchant-icons-bow.png"
-                      alt="Arco"
-                      className="w-8 h-8 object-contain mb-1"
-                    />
-                    <span className="text-[11px] font-bold text-slate-200">Arco Élfico</span>
-                    <span className="text-[10px] text-amber-400 font-mono">65 Moedas</span>
+              <div className="max-h-[62vh] overflow-y-auto pr-1">
+                <div className="flex items-center justify-between gap-2 mb-3">
+                  <p className="text-xs text-slate-300">Estoque diário de suprimentos</p>
+                  <div className="flex gap-2 text-[10px] font-bold whitespace-nowrap">
+                    <span className="text-amber-300">◈ {inventory.gold_raw || 0} bruto</span>
+                    <span className="text-yellow-100">◆ {inventory.gold_refined || 0} sintetizado</span>
                   </div>
                 </div>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-3">
+                  {SHOP_ITEMS.map((item) => {
+                    const bought = engineRef.current?.getShopBought(item.id) ?? 0;
+                    const remaining = Math.max(0, item.dailyLimit - bought);
+                    const canPay = (inventory[item.currency] || 0) >= item.price;
+                    const maxedBag = item.item === 'bag_expansion' && (engineRef.current?.bagLevel ?? 0) >= 5;
+                    const soldOut = remaining <= 0 || maxedBag;
+                    return (
+                      <div key={item.id} className="bg-slate-900 border border-slate-800 rounded-xl p-2 flex flex-col min-h-[132px]">
+                        <div className="flex items-start gap-2">
+                          {item.img ? (
+                            <img src={item.img} alt="" className="w-8 h-8 object-contain shrink-0" />
+                          ) : (
+                            <span className="w-8 h-8 grid place-items-center text-xl shrink-0">{item.icon}</span>
+                          )}
+                          <div className="min-w-0">
+                            <p className="text-[11px] leading-tight font-black text-slate-100">{item.name}</p>
+                            <p className="text-[9px] leading-tight text-slate-400 mt-0.5">{item.description}</p>
+                          </div>
+                        </div>
+                        <div className="mt-auto pt-2">
+                          <div className="flex justify-between text-[9px] mb-1.5">
+                            <span className={item.currency === 'gold_raw' ? 'text-amber-300' : 'text-yellow-100'}>
+                              {item.currency === 'gold_raw' ? '◈' : '◆'} {item.price}
+                            </span>
+                            <span className={soldOut ? 'text-rose-400' : 'text-slate-400'}>{maxedBag ? 'máximo' : `${remaining}/${item.dailyLimit} hoje`}</span>
+                          </div>
+                          <button
+                            type="button"
+                            disabled={soldOut || !canPay}
+                            onClick={() => handleShopPurchase(item.id)}
+                            className="w-full rounded-lg py-1 text-[10px] font-black bg-amber-400 text-slate-950 disabled:bg-slate-800 disabled:text-slate-500 active:scale-95 transition"
+                          >
+                            {soldOut ? 'Esgotado' : canPay ? `Comprar${item.quantity > 1 ? ` ×${item.quantity}` : ''}` : 'Sem ouro'}
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+                {shopMessage && <p className="text-[10px] text-center text-amber-200 mb-2">{shopMessage}</p>}
+                <p className="text-[9px] text-slate-500 mb-3">◆ Ouro sintetizado é produzido a partir do ouro bruto na tela de Síntese.</p>
                 <div className="flex justify-end">
                   <button
                     type="button"

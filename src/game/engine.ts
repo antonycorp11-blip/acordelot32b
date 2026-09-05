@@ -180,7 +180,7 @@ export interface ItemMeta {
   weight: number; // peso por unidade
   heal?: number; // cura de vida
   xp?: number; // XP concedido ao usar (partituras)
-  buff?: { label: string; duration: number }; // item de buff temporário (uso futuro)
+  buff?: { label: string; duration: number; kind?: 'basic' | 'shield' | 'farm'; value?: number };
   img?: string; // ícone em arquivo (opcional)
   desc?: string; // descrição (tooltip)
 }
@@ -213,6 +213,10 @@ export const ITEM_META: Record<string, ItemMeta> = {
   stone: { name: 'Pedra', icon: '🪨', weight: 1.6, desc: 'Rocha bruta extraída de pedreiras.' },
   ore: { name: 'Minério', icon: '🪙', weight: 2.2, desc: 'Minério bruto com veios ressonantes.' },
   berry: { name: 'Frutinha', icon: '🍓', weight: 0.2, heal: 8, desc: 'Colhida de arbustos. Restaura um pouco de vida.' },
+  potion_heal: { name: 'Poção de Cura', icon: '🧪', weight: 0.25, heal: 45, img: '/assets/ancient-ruins/Characters/NPC Merchant-icons-potion.png', desc: 'Restaura 45 de vida.' },
+  potion_basic: { name: 'Tônico de Combate', icon: '⚔️', weight: 0.25, buff: { label: '+20% ataque básico', duration: 300, kind: 'basic', value: .20 }, img: '/assets/ancient-ruins/Characters/NPC Merchant-icons-sword.png', desc: 'Aumenta o dano dos ataques básicos por 5 minutos.' },
+  potion_shield: { name: 'Poção de Escudo', icon: '🛡️', weight: 0.25, buff: { label: 'Escudo 25%', duration: 300, kind: 'shield', value: .25 }, img: '/assets/ancient-ruins/Characters/NPC Merchant-icons-potion.png', desc: 'Reduz o dano recebido em 25% por 5 minutos.' },
+  potion_farm: { name: 'Essência do Coletor', icon: '🌿', weight: 0.25, buff: { label: '+50% coleta', duration: 600, kind: 'farm', value: .50 }, img: '/assets/ancient-ruins/Characters/NPC Merchant-icons-potion.png', desc: 'Aumenta os recursos obtidos na coleta por 10 minutos.' },
   clave: {
     name: 'Clave Musical',
     icon: '🎼',
@@ -252,6 +256,46 @@ export const ITEM_META: Record<string, ItemMeta> = {
     desc: `Obra-prima. Subir de nível na ficha (+${PARTITURA_DEFS.ouro.xp} XP).`,
   },
 };
+
+export interface ShopItemDef {
+  id: string;
+  item: string | 'fragment_pack' | 'bag_expansion';
+  name: string;
+  description: string;
+  quantity: number;
+  dailyLimit: number;
+  currency: 'gold_raw' | 'gold_refined';
+  price: number;
+  img?: string;
+  icon: string;
+}
+
+export const SHOP_ITEMS: ShopItemDef[] = [
+  { id: 'refine_gold', item: 'gold_refined', name: 'Síntese de Ouro', description: 'Converte 5 ouros brutos em 1 barra.', quantity: 1, dailyLimit: 10, currency: 'gold_raw', price: 5, img: '/assets/items/props/gold_refined.png', icon: '◆' },
+  { id: 'bag_expansion', item: 'bag_expansion', name: 'Expansão da Mochila', description: '+10 kg permanentes (máximo de 5).', quantity: 1, dailyLimit: 1, currency: 'gold_refined', price: 4, icon: '🎒' },
+  { id: 'heal', item: 'potion_heal', name: 'Poção de Cura', description: 'Recupera 45 de vida.', quantity: 1, dailyLimit: 5, currency: 'gold_raw', price: 3, img: ITEM_META.potion_heal.img, icon: '🧪' },
+  { id: 'basic', item: 'potion_basic', name: 'Tônico de Combate', description: '+20% no ataque básico por 5 min.', quantity: 1, dailyLimit: 2, currency: 'gold_refined', price: 1, img: ITEM_META.potion_basic.img, icon: '⚔️' },
+  { id: 'shield', item: 'potion_shield', name: 'Poção de Escudo', description: '-25% de dano recebido por 5 min.', quantity: 1, dailyLimit: 2, currency: 'gold_refined', price: 2, img: ITEM_META.potion_shield.img, icon: '🛡️' },
+  { id: 'farm', item: 'potion_farm', name: 'Essência do Coletor', description: '+50% de recursos coletados por 10 min.', quantity: 1, dailyLimit: 1, currency: 'gold_refined', price: 3, img: ITEM_META.potion_farm.img, icon: '🌿' },
+  { id: 'wood', item: 'wood', name: 'Lote de Madeira', description: 'Pacote com 5 madeiras.', quantity: 5, dailyLimit: 4, currency: 'gold_raw', price: 2, icon: '🪵' },
+  { id: 'stone', item: 'stone', name: 'Lote de Pedra', description: 'Pacote com 5 pedras.', quantity: 5, dailyLimit: 4, currency: 'gold_raw', price: 2, icon: '🪨' },
+  { id: 'fragments', item: 'fragment_pack', name: 'Fragmentos de Nota', description: '3 fragmentos de notas aleatórias.', quantity: 3, dailyLimit: 3, currency: 'gold_refined', price: 1, icon: '◆' },
+];
+
+export function inventorySellOffer(item: string): { quantity: number; goldRaw: number } | null {
+  if (item === 'clave' || item === 'gold_raw' || item === 'gold_refined') return null;
+  if (item.startsWith('frag_')) return { quantity: 5, goldRaw: 1 };
+  if (item === 'wood' || item === 'stone' || item === 'berry') return { quantity: 5, goldRaw: 1 };
+  if (item === 'ore' || item.endsWith('_raw')) return { quantity: 3, goldRaw: 1 };
+  if (item === 'potion_farm') return { quantity: 1, goldRaw: 3 };
+  if (item === 'potion_shield') return { quantity: 1, goldRaw: 2 };
+  if (item === 'potion_heal' || item === 'potion_basic') return { quantity: 1, goldRaw: 1 };
+  if (item === 'partitura_ouro') return { quantity: 1, goldRaw: 12 };
+  if (item === 'partitura_prata') return { quantity: 1, goldRaw: 5 };
+  if (item === 'partitura_bronze') return { quantity: 1, goldRaw: 2 };
+  if (item.endsWith('_refined')) return { quantity: 1, goldRaw: 2 };
+  return { quantity: 3, goldRaw: 1 };
+}
 // pares bruto/refinado dos nós de extração
 const REFINE_PAIRS: Array<[string, string, string, number, string, string]> = [
   ['wood2', 'Tora Melódica', 'Prancha Afinada', 0.8, 'Madeira nobre que ressoa ao toque.', 'Madeira polida e afinada, pronta para luteria.'],
@@ -1288,6 +1332,12 @@ export class GameEngine {
   onInventoryChange?: (inv: Record<string, number>) => void;
   onHarvestPopup?: (text: string, worldX: number, worldY: number) => void;
   private actionHitDone = false;
+  bagLevel = 0;
+  get maxCarryWeight() { return MAX_CARRY_WEIGHT + Math.min(5, this.bagLevel) * 10; }
+  shopPurchases: { date: string; counts: Record<string, number> } = {
+    date: new Date().toISOString().slice(0, 10),
+    counts: {},
+  };
 
   // Ferramentas de coleta (Akles NÃO segura na mão — a ferramenta aparece ao
   // lado dele e bate no alvo durante a coleta; ele fica parado).
@@ -1767,10 +1817,12 @@ export class GameEngine {
 
   // ---- multiplicadores derivados das passivas ----
   get basicAtkMul() {
+    const marketBuff = this.activeBuffValue('basic');
     return (
       1 +
       (this.activeCharacter === 'akles' ? this.passiveValue('afinacaoPermanente') + this.passiveValue('forcaRessonante') + this.passiveValue('maestriaDaLamina') : 0) +
-      (this.equipStat('atkPct') + this.equipStat('basicDmgPct')) / 100
+      (this.equipStat('atkPct') + this.equipStat('basicDmgPct')) / 100 +
+      marketBuff
     );
   }
   get skillDmgMul() {
@@ -1804,7 +1856,8 @@ export class GameEngine {
   // (cap em 65% de redução pra não anular o combate).
   get incomingDmgMul() {
     const baseDefReduction = this.stats.defense / (100 + this.stats.defense);
-    return Math.max(0.35, 1 - baseDefReduction - (this.equipStat('defPct') + this.equipStat('resistPct')) / 100);
+    const base = Math.max(0.35, 1 - baseDefReduction - (this.equipStat('defPct') + this.equipStat('resistPct')) / 100);
+    return base * (1 - this.activeBuffValue('shield'));
   }
 
   get effectiveHarmonicPower(): number {
@@ -2470,7 +2523,7 @@ export class GameEngine {
       title: n.title,
       accent: n.accent ?? '#f59e0b',
       dialogue: n.dialogue ?? ['...'],
-      isMerchant: n.spriteType === 'merchant',
+      isMerchant: n.isMerchant === true || n.spriteType === 'merchant',
     };
   }
 
@@ -2484,7 +2537,7 @@ export class GameEngine {
       isTalking: !!talking,
       npc: talking ? this.npcToInteraction(talking) : undefined,
       // compat
-      nearMerchant: near?.spriteType === 'merchant',
+      nearMerchant: near?.isMerchant === true || near?.spriteType === 'merchant',
       merchantName: talking?.name,
       merchantTitle: talking?.title,
       dialogue: talking?.dialogue,
@@ -3050,11 +3103,31 @@ export class GameEngine {
       }
 
       this.props = rebuiltProps;
+      this.syncFixedNpcPositions();
       // O mapa pode ser reconstruído novamente pelo sincronismo online depois
       // do construtor. Reanexa a coleta aqui, no mesmo ponto da reconstrução.
       this.initHarvestables();
     } catch (err) {
       console.warn('Failed to load custom map from storage:', err);
+    }
+  }
+
+  private syncFixedNpcPositions() {
+    const market = this.props.find((p) => p.id === 'b_bakery_front') ?? this.props.find((p) => p.type === 'bldgBakeryFront');
+    const merchant = this.npcs.find((n) => n.id === 'npc_mercador_cidade');
+    if (market && merchant) {
+      merchant.x = market.x + market.w / 2 - merchant.width / 2;
+      merchant.y = market.y + market.h + 4;
+      merchant.homeX = merchant.x; merchant.homeY = merchant.y;
+      merchant.route = [{ x: merchant.x, y: merchant.y }]; merchant.routeIdx = 0;
+    }
+    const gate = this.props.find((p) => p.type === 'wallGate');
+    const guard = this.npcs.find((n) => n.id === 'guard_muralha');
+    if (gate && guard) {
+      guard.x = gate.x + gate.w * .22;
+      guard.y = gate.y + gate.h - guard.height - 12;
+      guard.homeX = guard.x; guard.homeY = guard.y;
+      guard.route = [{ x: guard.x, y: guard.y }]; guard.routeIdx = 0;
     }
   }
 
@@ -4103,7 +4176,7 @@ export class GameEngine {
     let barkNpc: NPC | null = null;
     let bd = 128;
     for (const n of this.npcs) {
-      if (n.spriteType === 'merchant' || !n.barks || !n.barks.length) continue;
+      if (n.spriteType === 'merchant' || n.isMerchant || !n.barks || !n.barks.length) continue;
       const d = Math.hypot(px - (n.x + n.width / 2), py - (n.y + n.height / 2));
       if (d < bd) {
         bd = d;
@@ -4140,7 +4213,7 @@ export class GameEngine {
 
   updateNpcs(dt: number) {
     for (const npc of this.npcs) {
-      if (npc.spriteType === 'merchant') continue;
+      if (npc.spriteType === 'merchant' || npc.isMerchant) continue;
       const talking = this.talkingNpcId === npc.id;
       const route = npc.route;
       if (talking || !route || route.length < 2) {
@@ -4199,7 +4272,7 @@ export class GameEngine {
   addToInventory(item: string, qty: number): number {
     if (qty <= 0) return 0;
     const unit = ITEM_META[item]?.weight ?? 1;
-    const free = MAX_CARRY_WEIGHT - this.carryWeight;
+    const free = this.maxCarryWeight - this.carryWeight;
     const fits = unit > 0 ? Math.floor((free + 1e-6) / unit) : qty;
     const add = Math.max(0, Math.min(qty, fits));
     if (add <= 0) {
@@ -4247,9 +4320,14 @@ export class GameEngine {
     return true;
   }
 
-  // Botão de poção 2 — itens de buff temporário (nenhum item ainda existe;
-  // fica pronto pra quando tiver, mesmo padrão da poção de cura).
-  activeBuffs: Array<{ label: string; until: number }> = [];
+  activeBuffs: Array<{ label: string; until: number; kind?: 'basic' | 'shield' | 'farm'; value?: number }> = [];
+  private activeBuffValue(kind: 'basic' | 'shield' | 'farm'): number {
+    this.activeBuffs = this.activeBuffs.filter((b) => b.until > this.timeElapsed);
+    return this.activeBuffs
+      .filter((b) => b.kind === kind)
+      .reduce((best, b) => Math.max(best, b.value ?? 0), 0);
+  }
+
   useBuffItem(): boolean {
     for (const [k, qty] of Object.entries(this.inventory)) {
       if (qty <= 0) continue;
@@ -4257,7 +4335,9 @@ export class GameEngine {
       if (!buff) continue;
       this.inventory[k] -= 1;
       if (this.inventory[k] <= 0) delete this.inventory[k];
-      this.activeBuffs.push({ label: buff.label, until: this.timeElapsed + buff.duration });
+      // Reusar a mesma categoria renova/substitui o efeito, sem empilhar.
+      if (buff.kind) this.activeBuffs = this.activeBuffs.filter((b) => b.kind !== buff.kind);
+      this.activeBuffs.push({ label: buff.label, until: this.timeElapsed + buff.duration, kind: buff.kind, value: buff.value });
       this.onInventoryChange?.({ ...this.inventory });
       this.addDamageText(this.player.x + 12, this.player.y - 10, buff.label, '#f472b6');
       for (let i = 0; i < 10; i++) this.addMiningSpark(this.player.x + 12, this.player.y + 6);
@@ -4265,6 +4345,86 @@ export class GameEngine {
     }
     this.addDamageText(this.player.x + 12, this.player.y - 8, 'sem buff', '#94a3b8');
     return false;
+  }
+
+  private refreshDailyShop() {
+    const today = new Date().toISOString().slice(0, 10);
+    if (this.shopPurchases.date !== today) this.shopPurchases = { date: today, counts: {} };
+  }
+
+  getShopBought(id: string): number {
+    this.refreshDailyShop();
+    return this.shopPurchases.counts[id] ?? 0;
+  }
+
+  buyShopItem(id: string): { ok: boolean; message: string } {
+    this.refreshDailyShop();
+    const def = SHOP_ITEMS.find((item) => item.id === id);
+    if (!def) return { ok: false, message: 'Item indisponível.' };
+    const bought = this.getShopBought(id);
+    if (bought >= def.dailyLimit) return { ok: false, message: 'Limite diário atingido.' };
+    if ((this.inventory[def.currency] || 0) < def.price) {
+      return { ok: false, message: def.currency === 'gold_raw' ? 'Ouro bruto insuficiente.' : 'Ouro sintetizado insuficiente.' };
+    }
+    if (def.item === 'bag_expansion' && this.bagLevel >= 5) {
+      return { ok: false, message: 'Sua mochila já está no nível máximo.' };
+    }
+
+    const rewardWeight = def.item === 'bag_expansion' ? 0 : def.item === 'fragment_pack'
+      ? (ITEM_META.frag_c?.weight ?? .08) * def.quantity
+      : (ITEM_META[def.item]?.weight ?? 1) * def.quantity;
+    const paidWeight = (ITEM_META[def.currency]?.weight ?? 0) * def.price;
+    if (this.carryWeight - paidWeight + rewardWeight > this.maxCarryWeight + 1e-6) {
+      return { ok: false, message: 'Sem espaço suficiente na mochila.' };
+    }
+
+    this.inventory[def.currency] -= def.price;
+    if (this.inventory[def.currency] <= 0) delete this.inventory[def.currency];
+    if (def.item === 'bag_expansion') {
+      this.bagLevel++;
+    } else if (def.item === 'fragment_pack') {
+      for (let i = 0; i < def.quantity; i++) this.addFragment(Math.floor(Math.random() * NOTE_KEY.length), 1);
+    } else {
+      this.inventory[def.item] = (this.inventory[def.item] || 0) + def.quantity;
+    }
+    this.shopPurchases.counts[id] = bought + 1;
+    this.onInventoryChange?.({ ...this.inventory });
+    this.onHarvestPopup?.(`Comprado: ${def.name}`, this.player.x, this.player.y - 18);
+    return { ok: true, message: `${def.name} comprado.` };
+  }
+
+  private removeInventoryUnits(item: string, quantity: number) {
+    this.inventory[item] = Math.max(0, (this.inventory[item] || 0) - quantity);
+    if (this.inventory[item] <= 0) delete this.inventory[item];
+    if (item === 'clave') {
+      this.coins = Math.max(0, this.coins - quantity);
+      this.onCoinsChange?.(this.coins);
+    } else if (item.startsWith('frag_')) {
+      const note = NOTE_KEY.indexOf(item.slice(5));
+      if (note >= 0) {
+        this.fragments[note] = Math.max(0, this.fragments[note] - quantity);
+        this.onFragmentsChange?.({ fragments: [...this.fragments], built: [...this.notesBuilt] });
+      }
+    }
+  }
+
+  sellInventoryItem(item: string): { ok: boolean; message: string } {
+    const offer = inventorySellOffer(item);
+    if (!offer) return { ok: false, message: 'Esta moeda não pode ser vendida.' };
+    if ((this.inventory[item] || 0) < offer.quantity) {
+      return { ok: false, message: `São necessárias ${offer.quantity} unidades para vender.` };
+    }
+    this.removeInventoryUnits(item, offer.quantity);
+    this.inventory.gold_raw = (this.inventory.gold_raw || 0) + offer.goldRaw;
+    this.onInventoryChange?.({ ...this.inventory });
+    return { ok: true, message: `Vendido por ${offer.goldRaw} ouro bruto.` };
+  }
+
+  discardInventoryItem(item: string, quantity = 1): { ok: boolean; message: string } {
+    if ((this.inventory[item] || 0) < quantity) return { ok: false, message: 'Item não disponível.' };
+    this.removeInventoryUnits(item, quantity);
+    this.onInventoryChange?.({ ...this.inventory });
+    return { ok: true, message: `${quantity} unidade descartada.` };
   }
 
   private harvestReach() {
@@ -4522,12 +4682,14 @@ export class GameEngine {
     }
 
     // golpe: derruba 1 unidade no chão (não vai direto pro inventário)
-    this.spawnDropScattered(ix, iy, h.drop, 1);
+    const farmBonus = this.activeBuffValue('farm');
+    const boostedQty = (qty: number) => qty + Math.floor(qty * farmBonus) + (Math.random() < (qty * farmBonus) % 1 ? 1 : 0);
+    this.spawnDropScattered(ix, iy, h.drop, boostedQty(1));
     this.gainXp(3);
 
     if (h.hp <= 0) {
       const bonus = h.dropMin + Math.floor(Math.random() * (h.dropMax - h.dropMin + 1));
-      this.spawnDropScattered(ix, iy, h.drop, bonus);
+      this.spawnDropScattered(ix, iy, h.drop, boostedQty(bonus));
       this.gainXp(h.kind === 'rock' ? 14 : 9);
       h.downUntil = this.timeElapsed + h.respawnSecs;
       h.hp = 0;
@@ -4768,7 +4930,7 @@ export class GameEngine {
     const nearId = near?.id ?? null;
     if (nearId !== this.nearestNpcId) {
       this.nearestNpcId = nearId;
-      this.isNearMerchant = near?.spriteType === 'merchant';
+      this.isNearMerchant = near?.isMerchant === true || near?.spriteType === 'merchant';
       this.emitInteraction();
     }
     if (!near && this.talkingNpcId) {
@@ -6310,6 +6472,26 @@ export class GameEngine {
       ctx.ellipse(cx + 32, cy + 62, 20, 8, 0, 0, Math.PI * 2);
       ctx.fill();
       ctx.drawImage(this.assets.merchantIdle, sx, 0, frameW, frameH, cx, cy, 64, 72);
+      return;
+    }
+
+    if (npc.spriteType === 'guard' && this.assets?.knightIdle && this.assets?.knightWalk) {
+      const sheet = npc.isMoving ? this.assets.knightWalk : this.assets.knightIdle;
+      const fw = 40, fh = 48;
+      const row = AKLES_DIR_ROW[npc.direction];
+      const col = npc.isMoving ? Math.floor(npc.stepTimer) % 4 : Math.floor(npc.stepTimer * .35) % 4;
+      ctx.fillStyle = 'rgba(0,0,0,0.28)';
+      ctx.beginPath();
+      ctx.ellipse(cx + npc.width / 2, cy + npc.height - 2, 11, 4.5, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.drawImage(sheet, col * fw, row * fh, fw, fh, cx - 5, cy - 7, 38, 46);
+      if (this.nearestNpcId === npc.id && !this.talkingNpcId) {
+        const my = cy - 8 + Math.sin(this.timeElapsed * 5) * 2;
+        ctx.fillStyle = npc.accent ?? '#60a5fa';
+        ctx.beginPath(); ctx.arc(cx + npc.width / 2, my, 3, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#0f172a'; ctx.font = 'bold 8px monospace'; ctx.textAlign = 'center';
+        ctx.fillText('E', cx + npc.width / 2, my + 3);
+      }
       return;
     }
 

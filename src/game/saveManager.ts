@@ -117,6 +117,8 @@ export function serializeEngineSave(engine: GameEngine, userId: string): Omit<Ac
     settings: {
       fragments: [...(engine.fragments || [])],
       notes_built: [...(engine.notesBuilt || [])],
+      shop_purchases: { ...engine.shopPurchases, counts: { ...engine.shopPurchases.counts } },
+      bag_level: engine.bagLevel,
       hud_layout: (() => {
         try {
           const raw = localStorage.getItem('acordelot_hud_layout_v3');
@@ -326,6 +328,14 @@ export function applySaveToEngine(engine: GameEngine, save: Partial<AcordelotSav
     if (s.fragments || s.notes_built) {
       engine.onFragmentsChange?.({ fragments: [...engine.fragments], built: [...engine.notesBuilt] });
     }
+    if (s.shop_purchases && typeof s.shop_purchases === 'object') {
+      const shop = s.shop_purchases as { date?: string; counts?: Record<string, number> };
+      engine.shopPurchases = {
+        date: typeof shop.date === 'string' ? shop.date : new Date().toISOString().slice(0, 10),
+        counts: shop.counts && typeof shop.counts === 'object' ? { ...shop.counts } : {},
+      };
+    }
+    if (typeof s.bag_level === 'number') engine.bagLevel = Math.max(0, Math.min(5, Math.floor(s.bag_level)));
     try {
       if (s.hud_layout) {
         localStorage.setItem('acordelot_hud_layout_v3', JSON.stringify(s.hud_layout));

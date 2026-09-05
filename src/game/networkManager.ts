@@ -45,17 +45,160 @@ export interface EnemyDamageEvent {
   fromY: number;
 }
 
+type PeerPacket =
+  | { kind: 'move'; payload: RemotePlayerState }
+  | { kind: 'chat'; payload: ChatMessage }
+  | { kind: 'enemy_damage'; payload: EnemyDamageEvent };
+
+interface RtcSignal {
+  from: string;
+  to: string;
+  description?: RTCSessionDescriptionInit;
+  candidate?: RTCIceCandidateInit;
+}
+
+interface PeerConnection {
+  pc: RTCPeerConnection;
+  fast?: RTCDataChannel;
+  reliable?: RTCDataChannel;
+  pendingCandidates: RTCIceCandidateInit[];
+}
+
 class NetworkManager {
   private currentRoomId: string | null = null;
   private channel: RealtimeChannel | null = null;
   private lastMoveBroadcast = 0;
+  private lastRelayBroadcast = 0;
   private lastBroadcastPayload: string = '';
+  private localUserId: string | null = null;
+  private presentPlayerIds = new Set<string>();
+  private peers = new Map<string, PeerConnection>();
 
   public onRemotePlayerUpdate?: (player: RemotePlayerState) => void;
   public onRemotePlayerLeave?: (playerId: string) => void;
   public onChatMessage?: (msg: ChatMessage) => void;
   public onRoomPresenceSync?: (players: RemotePlayerState[]) => void;
   public onEnemyDamage?: (event: EnemyDamageEvent) => void;
+
+  private handlePeerPacket(packet: PeerPacket) {
+    if (packet.kind === 'move') this.onRemotePlayerUpdate?.(packet.payload);
+    if (packet.kind === 'chat') this.onChatMessage?.(packet.payload);
+    if (packet.kind === 'enemy_damage') this.onEnemyDamage?.(packet.payload);
+  }
+
+  private bindDataChannel(peer: PeerConnection, channel: RTCDataChannel) {
+    if (channel.label === 'acordelot-fast') peer.fast = channel;
+    else peer.reliable = channel;
+    channel.onmessage = (event) => {
+      try {
+        this.handlePeerPacket(JSON.parse(event.data) as PeerPacket);
+      } catch {
+        // Pacote inválido ou de uma versão antiga: ignora sem derrubar a sala.
+      }
+    };
+  }
+
+  private sendSignal(signal: Omit<RtcSignal, 'from'>) {
+    if (!this.channel || !this.localUserId) return;
+    this.channel.send({
+      type: 'broadcast',
+      event: 'rtc_signal',
+      payload: { ...signal, from: this.localUserId } satisfies RtcSignal,
+    });
+  }
+
+  private async ensurePeer(remoteId: string) {
+    if (!this.localUserId || remoteId === this.localUserId || this.peers.has(remoteId)) return;
+
+    const peer: PeerConnection = {
+      pc: new RTCPeerConnection({
+        iceServers: [{ urls: 'stun:stun.l.google.com:19302' }],
+      }),
+      pendingCandidates: [],
+    };
+    this.peers.set(remoteId, peer);
+
+    peer.pc.onicecandidate = ({ candidate }) => {
+      if (candidate) this.sendSignal({ to: remoteId, candidate: candidate.toJSON() });
+    };
+    peer.pc.ondatachannel = ({ channel }) => this.bindDataChannel(peer, channel);
+    peer.pc.onconnectionstatechange = () => {
+      if (['failed', 'closed'].includes(peer.pc.connectionState)) this.closePeer(remoteId);
+    };
+
+    // Só o menor id cria os canais/oferta, evitando duas negociações simultâneas.
+    if (this.localUserId.localeCompare(remoteId) < 0) {
+      this.bindDataChannel(peer, peer.pc.createDataChannel('acordelot-fast', {
+        ordered: false,
+        maxRetransmits: 0,
+      }));
+      this.bindDataChannel(peer, peer.pc.createDataChannel('acordelot-reliable'));
+      const offer = await peer.pc.createOffer();
+      await peer.pc.setLocalDescription(offer);
+      this.sendSignal({ to: remoteId, description: offer });
+    }
+  }
+
+  private async handleRtcSignal(signal: RtcSignal) {
+    if (!this.localUserId || signal.to !== this.localUserId || signal.from === this.localUserId) return;
+    await this.ensurePeer(signal.from);
+    const peer = this.peers.get(signal.from);
+    if (!peer) return;
+
+    try {
+      if (signal.description) {
+        await peer.pc.setRemoteDescription(signal.description);
+        for (const candidate of peer.pendingCandidates.splice(0)) await peer.pc.addIceCandidate(candidate);
+        if (signal.description.type === 'offer') {
+          const answer = await peer.pc.createAnswer();
+          await peer.pc.setLocalDescription(answer);
+          this.sendSignal({ to: signal.from, description: answer });
+        }
+      } else if (signal.candidate) {
+        if (peer.pc.remoteDescription) await peer.pc.addIceCandidate(signal.candidate);
+        else peer.pendingCandidates.push(signal.candidate);
+      }
+    } catch (error) {
+      console.warn('[NetworkManager] Falha ao negociar conexão direta:', error);
+    }
+  }
+
+  private closePeer(remoteId: string) {
+    const peer = this.peers.get(remoteId);
+    if (!peer) return;
+    peer.fast?.close();
+    peer.reliable?.close();
+    peer.pc.close();
+    this.peers.delete(remoteId);
+  }
+
+  private sendToPeers(packet: PeerPacket, reliable: boolean) {
+    const encoded = JSON.stringify(packet);
+    const delivered = new Set<string>();
+    for (const [id, peer] of this.peers) {
+      const channel = reliable ? peer.reliable : peer.fast;
+      if (channel?.readyState === 'open' && channel.bufferedAmount < 64_000) {
+        channel.send(encoded);
+        delivered.add(id);
+      }
+    }
+    return delivered;
+  }
+
+  private relayToMissing(event: string, payload: unknown, delivered: Set<string>) {
+    if (!this.channel) return;
+    const targetIds = [...this.presentPlayerIds].filter((id) => !delivered.has(id));
+    if (targetIds.length === 0) return;
+    this.channel.send({ type: 'broadcast', event, payload: { payload, targetIds } });
+  }
+
+  private unwrapRelay<T>(raw: unknown): T | null {
+    const relay = raw as { payload?: T; targetIds?: string[] };
+    if (Array.isArray(relay?.targetIds)) {
+      return this.localUserId && relay.targetIds.includes(this.localUserId) ? (relay.payload ?? null) : null;
+    }
+    return raw as T;
+  }
 
   /**
    * Busca todas as salas com vagas disponíveis (máx 4).
@@ -172,6 +315,7 @@ class NetworkManager {
   ) {
     this.disconnectFromRoom();
     this.currentRoomId = roomId;
+    this.localUserId = user.id;
 
     const userName = user?.user_metadata?.username || user?.email?.split('@')[0] || 'Aventureiro';
 
@@ -184,7 +328,7 @@ class NetworkManager {
 
     // 1. Ouve movimento de outros jogadores
     ch.on('broadcast', { event: 'player_move' }, (payload) => {
-      const p = payload.payload as RemotePlayerState;
+      const p = this.unwrapRelay<RemotePlayerState>(payload.payload);
       if (p && p.id !== user.id) {
         this.onRemotePlayerUpdate?.(p);
       }
@@ -192,26 +336,33 @@ class NetworkManager {
 
     // 2. Ouve mensagens de chat e balões de fala
     ch.on('broadcast', { event: 'chat_message' }, (payload) => {
-      const msg = payload.payload as ChatMessage;
+      const msg = this.unwrapRelay<ChatMessage>(payload.payload);
       if (msg) {
         this.onChatMessage?.(msg);
       }
     });
 
     ch.on('broadcast', { event: 'enemy_damage' }, (payload) => {
-      const event = payload.payload as EnemyDamageEvent;
+      const event = this.unwrapRelay<EnemyDamageEvent>(payload.payload);
       if (event?.attackerId && event.attackerId !== user.id) this.onEnemyDamage?.(event);
+    });
+
+    ch.on('broadcast', { event: 'rtc_signal' }, (payload) => {
+      void this.handleRtcSignal(payload.payload as RtcSignal);
     });
 
     // 3. Ouve sincronização de presença (quem entra / sai da sala)
     ch.on('presence', { event: 'sync' }, () => {
       const state = ch.presenceState();
       const allMembers: RemotePlayerState[] = [];
+      const presentIds = new Set<string>();
       for (const [key, presences] of Object.entries(state)) {
         if (Array.isArray(presences) && presences[0]) {
           const presence = presences[0] as any;
           const id = presence.user_id || key;
           if (id === user.id) continue;
+          presentIds.add(id);
+          void this.ensurePeer(id);
           allMembers.push({
             id,
             name: presence.user_name || 'Aventureiro',
@@ -225,11 +376,17 @@ class NetworkManager {
           });
         }
       }
+      for (const peerId of this.peers.keys()) {
+        if (!presentIds.has(peerId)) this.closePeer(peerId);
+      }
+      this.presentPlayerIds = presentIds;
       this.onRoomPresenceSync?.(allMembers);
     });
 
     ch.on('presence', { event: 'leave' }, ({ key }) => {
       if (key && key !== user.id) {
+        this.presentPlayerIds.delete(key);
+        this.closePeer(key);
         this.onRemotePlayerLeave?.(key);
       }
     });
@@ -268,8 +425,8 @@ class NetworkManager {
     if (!this.channel || !this.currentRoomId || !user) return;
 
     const now = Date.now();
-    // 4 FPS + interpolação local: suave e abaixo do teto de 100 msg/s do Free.
-    if (now - this.lastMoveBroadcast < 240) return;
+    // P2P pode ser suave (8 FPS) sem consumir mensagens de gameplay do Supabase.
+    if (now - this.lastMoveBroadcast < 120) return;
 
     const payload: RemotePlayerState = {
       id: user.id,
@@ -283,23 +440,26 @@ class NetworkManager {
       lastUpdate: now,
     };
 
-    const strKey = `${payload.x},${payload.y},${direction},${isMoving}`;
-    if (strKey === this.lastBroadcastPayload && !isMoving && now - this.lastMoveBroadcast < 2000) return;
+    const strKey = `${payload.x},${payload.y},${direction},${isMoving},${character}`;
+    if (strKey === this.lastBroadcastPayload && !isMoving && now - this.lastMoveBroadcast < 8000) return;
 
     this.lastBroadcastPayload = strKey;
     this.lastMoveBroadcast = now;
 
-    this.channel.send({
-      type: 'broadcast',
-      event: 'player_move',
-      payload,
-    });
+    const delivered = this.sendToPeers({ kind: 'move', payload }, false);
+
+    // Fallback econômico para redes móveis/NAT onde WebRTC não conectar: 0,25 FPS.
+    if (now - this.lastRelayBroadcast >= 4000) {
+      this.lastRelayBroadcast = now;
+      this.relayToMissing('player_move', payload, delivered);
+    }
   }
 
   broadcastEnemyDamage(user: any, enemyId: string, damage: number, fromX: number, fromY: number) {
     if (!this.channel || !this.currentRoomId || !user) return;
     const payload: EnemyDamageEvent = { attackerId: user.id, enemyId, damage, fromX, fromY };
-    this.channel.send({ type: 'broadcast', event: 'enemy_damage', payload });
+    const delivered = this.sendToPeers({ kind: 'enemy_damage', payload }, true);
+    this.relayToMissing('enemy_damage', payload, delivered);
   }
 
   /**
@@ -316,11 +476,8 @@ class NetworkManager {
       timestamp: Date.now(),
     };
 
-    this.channel.send({
-      type: 'broadcast',
-      event: 'chat_message',
-      payload: msg,
-    });
+    const delivered = this.sendToPeers({ kind: 'chat', payload: msg }, true);
+    this.relayToMissing('chat_message', msg, delivered);
 
     return msg;
   }
@@ -333,8 +490,12 @@ class NetworkManager {
     const leavingChannel = this.channel;
     this.currentRoomId = null;
     this.channel = null;
+    this.localUserId = null;
+    this.presentPlayerIds.clear();
+    for (const peerId of [...this.peers.keys()]) this.closePeer(peerId);
     this.lastBroadcastPayload = '';
     this.lastMoveBroadcast = 0;
+    this.lastRelayBroadcast = 0;
 
     if (leavingRoomId && userId) {
       // Remove do banco de dados se aplicável

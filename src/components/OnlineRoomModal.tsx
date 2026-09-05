@@ -56,7 +56,8 @@ export const OnlineRoomModal: React.FC<OnlineRoomModalProps> = ({
   useEffect(() => {
     if (open && tab === 'rooms_list') {
       fetchRooms();
-      const interval = setInterval(fetchRooms, 4000);
+      // A lista só fica aberta por pouco tempo; 15 s evita consultas desnecessárias.
+      const interval = setInterval(fetchRooms, 15000);
       return () => clearInterval(interval);
     }
   }, [open, tab]);

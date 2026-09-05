@@ -24,9 +24,12 @@ channelB.on('presence', { event: 'sync' }, () => {
 
 const subscribe = (channel) => new Promise((resolve, reject) => {
   const timer = setTimeout(() => reject(new Error('timeout de inscrição Realtime')), 8000);
-  channel.subscribe((status) => {
+  channel.subscribe((status, error) => {
     if (status === 'SUBSCRIBED') { clearTimeout(timer); resolve(); }
-    if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') { clearTimeout(timer); reject(new Error(status)); }
+    if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+      clearTimeout(timer);
+      reject(new Error(`${status}${error ? `: ${error.message || JSON.stringify(error)}` : ''}`));
+    }
   });
 });
 

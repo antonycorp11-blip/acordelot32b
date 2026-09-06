@@ -5960,10 +5960,12 @@ export class GameEngine {
     const px = this.player.x + 12;
     const py = this.player.y + 20;
     let near: NPC | null = null;
-    let nearD = 74;
+    let nearD = 88;
     for (const n of this.npcs) {
+      // NPCs estacionários (ferreiro, lojista) têm raio de detecção maior
+      const radius = (n.id === 'npc_ferreiro' || n.isMerchant || n.spriteType === 'merchant') ? 110 : 88;
       const d = Math.hypot(px - (n.x + n.width / 2), py - (n.y + n.height / 2));
-      if (d < nearD) {
+      if (d < radius && d < nearD) {
         nearD = d;
         near = n;
       }
@@ -5974,11 +5976,8 @@ export class GameEngine {
       this.isNearMerchant = near?.isMerchant === true || near?.spriteType === 'merchant';
       this.emitInteraction();
     }
-    if (!near && this.talkingNpcId) {
-      this.talkingNpcId = null;
-      this.isTalkingToMerchant = false;
-      this.emitInteraction();
-    }
+    // Não cancela o diálogo enquanto o jogador está em conversa — só closeDialogue() pode fazer isso
+    // (evita que micro-movimentos durante o diálogo encerrem a fala antes do fim)
 
     this.updateBubbles(dt, px, py);
 

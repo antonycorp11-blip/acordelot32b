@@ -29,6 +29,8 @@ export interface AcordelotSaveData {
     equippedPick: ToolTier;
     ownedAxes: ToolTier[];
     ownedPicks: ToolTier[];
+    equippedResonator?: ToolTier;
+    ownedResonators?: ToolTier[];
   };
   passives: Record<string, unknown>;
   quests: {
@@ -158,6 +160,8 @@ export function serializeEngineSave(engine: GameEngine, userId: string): Omit<Ac
       equippedPick: engine.equippedPick,
       ownedAxes: [...engine.ownedAxes],
       ownedPicks: [...engine.ownedPicks],
+      equippedResonator: engine.equippedResonator,
+      ownedResonators: [...engine.ownedResonators],
     },
     passives: {
       ...(anyEngine.passiveLevels || {}),
@@ -174,6 +178,8 @@ export function serializeEngineSave(engine: GameEngine, userId: string): Omit<Ac
       aquilles_flow_reset_version: AQUILLES_FLOW_RESET_VERSION,
       fragments: [...(engine.fragments || [])],
       notes_built: [...(engine.notesBuilt || [])],
+      scales_built: { ...engine.scalesBuilt },
+      echo_tutorial_stage: engine.echoTutorialStage,
       shop_purchases: { ...engine.shopPurchases, counts: { ...engine.shopPurchases.counts } },
       bag_level: engine.bagLevel,
       hud_layout: (() => {
@@ -346,6 +352,8 @@ export function applySaveToEngine(engine: GameEngine, save: Partial<AcordelotSav
     if (save.tools.equippedPick) engine.equippedPick = save.tools.equippedPick;
     if (Array.isArray(save.tools.ownedAxes)) engine.ownedAxes = [...save.tools.ownedAxes];
     if (Array.isArray(save.tools.ownedPicks)) engine.ownedPicks = [...save.tools.ownedPicks];
+    if (save.tools.equippedResonator) engine.equippedResonator = save.tools.equippedResonator;
+    if (Array.isArray(save.tools.ownedResonators)) engine.ownedResonators = [...save.tools.ownedResonators];
     engine.onToolsChange?.({ axe: engine.equippedAxe, pick: engine.equippedPick });
   }
 
@@ -384,6 +392,10 @@ export function applySaveToEngine(engine: GameEngine, save: Partial<AcordelotSav
     }
     if (Array.isArray(s.notes_built) && s.notes_built.length === 12) {
       engine.notesBuilt = [...s.notes_built];
+    }
+    if (s.scales_built && typeof s.scales_built === 'object') engine.scalesBuilt = { ...s.scales_built };
+    if (typeof s.echo_tutorial_stage === 'string' && ['locked', 'forge_resonator', 'return_to_lucian', 'capture_echo', 'synthesize_note', 'synthesize_scale', 'completed'].includes(s.echo_tutorial_stage)) {
+      engine.echoTutorialStage = s.echo_tutorial_stage as typeof engine.echoTutorialStage;
     }
     if (s.fragments || s.notes_built) {
       engine.onFragmentsChange?.({ fragments: [...engine.fragments], built: [...engine.notesBuilt] });

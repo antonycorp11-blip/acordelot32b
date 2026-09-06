@@ -234,10 +234,12 @@ export const TouchControls: React.FC<TouchControlsProps> = ({
 
   const [activeChar, setActiveChar] = useState<PlayerCharacterKey>('akles');
   const [unlockedChars, setUnlockedChars] = useState<PlayerCharacterKey[]>(['akles']);
+  const [hasResonator, setHasResonator] = useState(false);
   useEffect(() => {
     const iv = setInterval(() => {
       const eng = engineRef.current;
       if (!eng) return;
+      setHasResonator(eng.canUseResonator);
       setActiveChar(eng.activeCharacter);
       setUnlockedChars((current) => {
         const next = eng.availableCharacters;
@@ -470,6 +472,11 @@ export const TouchControls: React.FC<TouchControlsProps> = ({
       <D id="btn_collect" className={`${actionBtn} absolute w-12 h-12 border-emerald-400/70 bg-emerald-950/90 text-emerald-100`} title="Coletar recurso próximo" onAction={() => engineRef.current?.harvestAction()} style={{ left: 'calc(206px + env(safe-area-inset-left))', bottom: 'calc(170px + env(safe-area-inset-bottom))' }}>
         <HudIcon name="collect" className="w-9 h-9" />
       </D>
+      {hasResonator && (
+        <D id="btn_resonator" className={`${actionBtn} absolute w-12 h-12 overflow-hidden border-violet-300/70 bg-violet-950/90 text-violet-100`} title="Ressoar Eco próximo" onAction={() => engineRef.current?.captureEchoAction()} style={{ left: 'calc(262px + env(safe-area-inset-left))', bottom: 'calc(170px + env(safe-area-inset-bottom))' }}>
+          <img src="/assets/tools/echo_resonator.png" alt="" className="h-11 w-11 object-contain drop-shadow-[0_0_8px_rgba(167,139,250,.75)]" />
+        </D>
+      )}
       </>}
 
       {/* Ataque básico tem função única: recursos nunca tomam este botão. */}

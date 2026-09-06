@@ -210,6 +210,52 @@ export const ForgeScreen: React.FC<Props> = ({ open, onClose, engine, inventory,
                     </div>
                   </div>
                 ))}
+                <div className="rounded-xl border border-violet-500/35 bg-violet-950/20 p-3">
+                  <div className="mb-2 flex items-center gap-2">
+                    <img src="/assets/tools/echo_resonator.png" alt="" className="h-9 w-9 object-contain drop-shadow-[0_0_10px_rgba(129,140,248,.65)]" />
+                    <div>
+                      <h3 className="text-xs font-black text-violet-200">Ressonador de Ecos</h3>
+                      <p className="text-[9px] text-violet-300/65">Captura sem ferir · tiers maiores preservam mais pó e fragmentos</p>
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    {(['wood', 'gold', 'crystal'] as ToolTier[]).map((tier) => {
+                      const owned = engine.ownedResonators.includes(tier);
+                      const cost = engine.resonatorForgeCost(tier);
+                      const can = engine.canForgeResonator(tier);
+                      const label = tier === 'wood' ? 'Básico' : tier === 'gold' ? 'Dourado' : 'Cristalino';
+                      const yieldText = tier === 'wood' ? '3–5 frag · 1–2 pó' : tier === 'gold' ? '7–11 frag · 3–5 pó' : '13–20 frag · 6–9 pó';
+                      return (
+                        <div key={tier} className="flex items-center gap-3 rounded-lg border border-violet-300/10 bg-slate-950/55 p-2">
+                          <img
+                            src="/assets/tools/echo_resonator.png"
+                            alt=""
+                            className="h-10 w-10 shrink-0 object-contain"
+                            style={{ filter: tier === 'wood' ? 'saturate(.62)' : tier === 'gold' ? 'drop-shadow(0 0 7px #f59e0b)' : 'hue-rotate(25deg) drop-shadow(0 0 8px #67e8f9)' }}
+                          />
+                          <div className="min-w-0 flex-1">
+                            <p className="text-[11px] font-black text-white">{label}</p>
+                            <p className="text-[9px] text-violet-200/70">{yieldText}</p>
+                            <div className="mt-1"><CostRow cost={cost} inventory={inventory} /></div>
+                          </div>
+                          <button
+                            type="button"
+                            disabled={owned || !can}
+                            onClick={() => {
+                              if (engine.forgeResonator(tier)) {
+                                setMessage(`Lucian: "Ressonador ${label} afinado. Agora escute antes de tocar."`);
+                                refresh();
+                              }
+                            }}
+                            className={`shrink-0 rounded-lg px-3 py-1.5 text-[10px] font-black ${owned ? 'border border-emerald-700/40 bg-emerald-900/50 text-emerald-400' : can ? 'bg-violet-600 text-white active:scale-95' : 'bg-slate-800 text-slate-500'}`}
+                          >
+                            {owned ? '✓ Forjado' : 'Forjar'}
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
               </div>
             </div>
           )}

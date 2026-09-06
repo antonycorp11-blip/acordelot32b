@@ -232,7 +232,12 @@ export const ITEM_META: Record<string, ItemMeta> = {
     icon: '✨',
     weight: 0.05,
     img: '/assets/items/props/eco_essence_raw.png',
-    desc: 'Resíduo cintilante de um Eco dissipado. Usada para invocar novos Ecos.',
+    desc: 'Pó harmônico obtido ao ressoar um Eco sem feri-lo.',
+  },
+  resonator: {
+    name: 'Ressonador de Ecos', icon: '◉', weight: 0,
+    img: '/assets/tools/echo_resonator.png',
+    desc: 'Ferramenta de luteria usada para capturar a assinatura de um Eco.',
   },
   partitura_bronze: {
     name: 'Partitura de Bronze',
@@ -331,6 +336,13 @@ NOTE_KEY.forEach((k, i) => {
     weight: 0.08,
     img: `/assets/items/fragments/${FRAG_FILE[i]}.png`,
     desc: `Joia comutativa da nota ${NOTE_NAMES[i]}. ${FRAGMENTS_PER_NOTE} montam uma nota inteira na Síntese.`,
+  };
+});
+NOTE_KEY.forEach((k, i) => {
+  ITEM_META['scale_' + k + '_major'] = {
+    name: `Escala de ${NOTE_NAMES[i]} Maior`, icon: '♬', weight: 0,
+    img: '/assets/items/notes/tom.png',
+    desc: 'Escala maior construída pelo padrão Tom–Tom–Semitom–Tom–Tom–Tom–Semitom.',
   };
 });
 
@@ -1392,11 +1404,16 @@ export class GameEngine {
   // Começa sem ferramentas — Akles forja as primeiras na Ferraria Harmônica com Dório.
   ownedAxes: ToolTier[] = [];
   ownedPicks: ToolTier[] = [];
+  ownedResonators: ToolTier[] = [];
   equippedAxe: ToolTier = 'wood';
   equippedPick: ToolTier = 'wood';
+  equippedResonator: ToolTier = 'wood';
   onToolsChange?: (t: { axe: ToolTier; pick: ToolTier }) => void;
   // alvo da coleta atual (para a ferramenta apontar/bater no lugar certo)
   private harvestFxNode: WorldProp | null = null;
+
+  echoTutorialStage: 'locked' | 'forge_resonator' | 'return_to_lucian' | 'capture_echo' | 'synthesize_note' | 'synthesize_scale' | 'completed' = 'locked';
+  scalesBuilt: Record<string, number> = {};
 
   // ---- SISTEMA DE ARMA FLUTUANTE + SKILLS DE AKLES ----
   // A arma é 100% separada do personagem: nunca fica nas sheets dele. Trocar
@@ -1505,6 +1522,50 @@ export class GameEngine {
       this.onHarvestPopup?.('✓ Kit básico forjado. Agora você pode coletar!', this.player.x, this.player.y - 20);
     }
     return true;
+  }
+
+  resonatorForgeCost(tier: ToolTier): Record<string, number> {
+    if (tier === 'wood') return { wood: 3, stone: 2 };
+    if (tier === 'gold') return { wood: 6, ore: 6, eco_dust: 8 };
+    return { gold_refined: 2, crystal_blue_refined: 2, eco_dust: 20 };
+  }
+
+  canForgeResonator(tier: ToolTier): boolean {
+    if (this.ownedResonators.includes(tier)) return false;
+    if (tier !== 'wood') {
+      const prior: ToolTier = tier === 'crystal' ? 'gold' : 'wood';
+      if (!this.ownedResonators.includes(prior)) return false;
+    }
+    return Object.entries(this.resonatorForgeCost(tier)).every(([key, amount]) => (this.inventory[key] || 0) >= amount);
+  }
+
+  forgeResonator(tier: ToolTier): boolean {
+    if (!this.canForgeResonator(tier)) return false;
+    for (const [key, amount] of Object.entries(this.resonatorForgeCost(tier))) {
+      this.inventory[key] = Math.max(0, (this.inventory[key] || 0) - amount);
+      if (this.inventory[key] === 0) delete this.inventory[key];
+    }
+    this.ownedResonators.push(tier);
+    this.equippedResonator = tier;
+    if (tier === 'wood' && this.echoTutorialStage === 'forge_resonator') {
+      this.echoTutorialStage = 'return_to_lucian';
+      this.storyObjective = {
+        title: 'O Ofício dos Ecos',
+        text: 'Ressonador forjado! Volte a Lucian na oficina de madeira',
+        progress: 1, target: 4, ready: false,
+      };
+      this.onQuestsChange?.();
+    }
+    this.saveTools();
+    this.onInventoryChange?.({ ...this.inventory });
+    this.onToolsChange?.({ axe: this.equippedAxe, pick: this.equippedPick });
+    return true;
+  }
+
+  equipResonator(tier: ToolTier) {
+    if (!this.ownedResonators.includes(tier)) return;
+    this.equippedResonator = tier;
+    this.saveTools();
   }
   // Troca a arma equipada (catálogo — sem gate de posse por enquanto).
   equipWeapon(key: string): boolean {
@@ -1974,6 +2035,14 @@ export class GameEngine {
       return hasMaterials ? npcPoint('npc_mercador_cidade') : null;
     }
     if (this.marketIntroStage === 'completed' && !this.lucianMeetingRewarded) return npcPoint('story_lucian');
+    if (this.lucianMeetingRewarded) {
+      if (this.echoTutorialStage === 'forge_resonator') return npcPoint('npc_ferreiro') ?? propPoint('b_blacksmith');
+      if (this.echoTutorialStage === 'return_to_lucian') return npcPoint('story_lucian');
+      if (this.echoTutorialStage === 'capture_echo') {
+        const echo = this.enemies.find((enemy) => enemy.id === 'enemy_91001' && enemy.state !== 'dead');
+        return echo ? { x: echo.x, y: echo.y } : null;
+      }
+    }
     return null;
   }
 
@@ -1993,6 +2062,7 @@ export class GameEngine {
     if (this.marketIntroStage === 'collecting') ids.push('SQ_COLETA_EM_ANDAMENTO');
     if (this.marketIntroStage === 'completed') ids.push('SQ_MERCADO_PRIMEIRA_COLETA');
     if (this.lucianMeetingRewarded) ids.push('MQ_C1_003_AS_VOZES_DE_ACORDELOT');
+    if (this.echoTutorialStage !== 'locked') ids.push(`MQ_C1_004_ECOS_${this.echoTutorialStage.toUpperCase()}`);
     return ids;
   }
 
@@ -2016,6 +2086,36 @@ export class GameEngine {
     if (ids.includes('MQ_C1_003_AS_VOZES_DE_ACORDELOT')) {
       this.lucianMeetingRewarded = true;
     }
+    const echoStageId = ids.find((id) => id.startsWith('MQ_C1_004_ECOS_'));
+    if (echoStageId) {
+      const restored = echoStageId.slice('MQ_C1_004_ECOS_'.length).toLowerCase();
+      if (['forge_resonator', 'return_to_lucian', 'capture_echo', 'synthesize_note', 'synthesize_scale', 'completed'].includes(restored)) {
+        this.echoTutorialStage = restored as typeof this.echoTutorialStage;
+      }
+    }
+    const echoObjectives: Partial<Record<typeof this.echoTutorialStage, NonNullable<typeof this.storyObjective>>> = {
+      forge_resonator: {
+        title: 'O Ofício dos Ecos', text: 'Vá à ferraria e forje o Ressonador Básico',
+        progress: 0, target: 4, ready: false,
+      },
+      return_to_lucian: {
+        title: 'O Ofício dos Ecos', text: 'Ressonador forjado! Volte a Lucian na oficina de madeira',
+        progress: 1, target: 4, ready: false,
+      },
+      synthesize_note: {
+        title: 'O Ofício dos Ecos', text: 'Abra a Síntese e transforme 30 fragmentos em uma Nota Dó',
+        progress: 2, target: 4, ready: false,
+      },
+      synthesize_scale: {
+        title: 'O Ofício dos Ecos', text: 'Na Síntese, reúna as sete notas e forme a Escala de Dó Maior',
+        progress: 3, target: 4, ready: false,
+      },
+      completed: {
+        title: 'O Ofício dos Ecos', text: 'Ressonador, Nota e Escala dominados',
+        progress: 4, target: 4, ready: true,
+      },
+    };
+    if (echoObjectives[this.echoTutorialStage]) this.storyObjective = echoObjectives[this.echoTutorialStage] ?? null;
     if (this.openingMissionComplete) {
       const antony = this.ensureSrAntony();
       if (this.antonyMissionComplete) {
@@ -2030,6 +2130,7 @@ export class GameEngine {
       this.storyStage = 'idle';
       this.storyControlLocked = true;
     }
+    if (this.echoTutorialStage === 'capture_echo') this.beginEchoCaptureTutorial();
     this.onQuestsChange?.();
   }
 
@@ -2118,6 +2219,30 @@ export class GameEngine {
             ? 'Materiais prontos! Fale com Miro no Mercado.'
             : `Madeira: ${woodCount}/3 | Pedra: ${stoneCount}/3 (use machado e picareta)`,
       }] : []),
+      {
+        id: 'MQ_C1_004_O_OFICIO_DOS_ECOS',
+        chapter: 'Capítulo I',
+        title: 'O Ofício dos Ecos',
+        description: 'Forje um Ressonador, capture um Eco sem feri-lo e transforme sua assinatura em nota e escala.',
+        status: !this.lucianMeetingRewarded
+          ? ('locked' as const)
+          : this.echoTutorialStage === 'completed'
+            ? ('completed' as const)
+            : ('active' as const),
+        objective: !this.lucianMeetingRewarded
+          ? 'Conheça Lucian durante As Vozes de Acordelot.'
+          : this.echoTutorialStage === 'forge_resonator'
+            ? 'Forje o Ressonador Básico na Ferraria Harmônica.'
+            : this.echoTutorialStage === 'return_to_lucian'
+              ? 'Volte a Lucian na oficina de madeira.'
+              : this.echoTutorialStage === 'capture_echo'
+                ? 'Acompanhe Lucian e Pippo e ressoe o Eco de Dó.'
+                : this.echoTutorialStage === 'synthesize_note'
+                  ? 'Sintetize 30 fragmentos em uma Nota Dó.'
+                  : this.echoTutorialStage === 'synthesize_scale'
+                    ? 'Monte Dó Maior pelo padrão T–T–S–T–T–T–S.'
+                    : 'Fragmentos, notas e escalas dominados.',
+      },
     ];
   }
 
@@ -2517,6 +2642,10 @@ export class GameEngine {
     }
     if (!this.isEditMode && e.code === 'Space') {
       this.triggerAction('attack');
+      return;
+    }
+    if (!this.isEditMode && e.code === 'KeyR') {
+      this.captureEchoAction();
       return;
     }
 
@@ -2970,6 +3099,34 @@ export class GameEngine {
     return lucian;
   }
 
+  private beginEchoCaptureTutorial() {
+    this.echoTutorialStage = 'capture_echo';
+    const lucian = this.ensureLucian();
+    const pippo = this.npcs.find((npc) => npc.id === 'story_pippo')
+      ?? this.ensureStoryNpc('story_pippo', 'Pippo', 'seminima', lucian.x - 34, lucian.y + 4, '#fbbf24');
+    const candidates = [
+      { c: 17, r: 35 }, { c: 18, r: 36 }, { c: 16, r: 36 }, { c: 19, r: 35 },
+    ];
+    let echo = this.enemies.find((enemy) => enemy.id === 'enemy_91001');
+    if (!echo) {
+      for (const point of candidates) {
+        if (this.spawnEnemy('eco_c', point.c, point.r, 91001, 1)) break;
+      }
+      echo = this.enemies.find((enemy) => enemy.id === 'enemy_91001');
+    }
+    if (echo) {
+      echo.respawnAt = 0;
+      this.moveStoryActor('npc', lucian.id, echo.x - 42, echo.y + 8, 64);
+      this.moveStoryActor('npc', pippo.id, echo.x - 18, echo.y + 34, 72);
+    }
+    this.storyObjective = {
+      title: 'O Ofício dos Ecos',
+      text: 'Siga Lucian e Pippo; perto do Eco de Dó, use o Ressonador',
+      progress: 1, target: 4, ready: false,
+    };
+    this.onQuestsChange?.();
+  }
+
   finishAntonyMeeting() {
     this.clearInputState();
     this.storyStage = 'complete';
@@ -3030,7 +3187,8 @@ export class GameEngine {
         : this.enemies.find((enemy) => enemy.id === move.id);
       if (!actor) return false;
       const guidedActor = (this.storyStage === 'follow_echoes' && move.kind === 'enemy' && this.storyEchoIds.has(move.id))
-        || ((this.storyStage === 'follow_pippo' || this.storyStage === 'follow_pippo_antony') && move.kind === 'npc' && move.id === 'story_pippo');
+        || ((this.storyStage === 'follow_pippo' || this.storyStage === 'follow_pippo_antony') && move.kind === 'npc' && move.id === 'story_pippo')
+        || (this.echoTutorialStage === 'capture_echo' && move.kind === 'npc' && (move.id === 'story_pippo' || move.id === 'story_lucian'));
       if (guidedActor && Math.hypot(actor.x - this.player.x, actor.y - this.player.y) > 105) {
         if ('isMoving' in actor) actor.isMoving = false;
         return true;
@@ -3339,18 +3497,31 @@ export class GameEngine {
     if (n.id === 'story_lucian') {
       let dialogue = n.dialogue ?? ['...'];
       if (this.marketIntroStage === 'completed') {
-        if (this.lucianMeetingRewarded) {
-          dialogue = [
-            'A música da cidade soa mais viva com você aqui, Akles.',
-            'Continue explorando Acordelot e aperfeiçoando suas habilidades!',
-          ];
-        } else {
+        if (!this.lucianMeetingRewarded) {
           dialogue = [
             'Saudações, Akles. Pippo contou que os Ecos guiaram você até o portão e que ele mostrou o caminho até Mirella.',
             'Sou Lucian, pai dele e mestre luthier. Obrigado por tratar a curiosidade do meu filho com mais paciência que a maioria.',
-            'Tome estas 60 moedas. Considere um adiantamento pela história que ainda vai contar a esta cidade.',
-            'Sempre que o som do mundo parecer desafinado, lembre-se: a verdadeira harmonia começa em nós mesmos!',
+            'Você viu Ecos, mas ainda não os ressoou. Um Eco não deve ser abatido: sua assinatura deve ser capturada sem ferir a criatura.',
+            'Para isso usamos um Ressonador. Leve este projeto e estes materiais a Dório; a forja dará corpo ao instrumento que desenhei.',
+            'Depois volte. Pippo e eu acompanharemos sua primeira captura.',
           ];
+        } else if (this.echoTutorialStage === 'forge_resonator' || this.echoTutorialStage === 'locked') {
+          dialogue = ['Dório consegue forjar o Ressonador Básico com o projeto e os materiais que entreguei.', 'Volte quando a câmara de cristal responder ao toque.'];
+        } else if (this.echoTutorialStage === 'return_to_lucian') {
+          dialogue = [
+            'Excelente. Segure o Ressonador perto do Eco e deixe a frequência estabilizar antes de ativá-lo.',
+            'A raridade muda a fidelidade da captura: o Básico recolhe pouco pó e poucos fragmentos; Dourado e Cristalino preservam muito mais da assinatura.',
+            'Ataques comuns não capturam Ecos. Eles apenas assustam a melodia. Use somente o botão do Ressonador.',
+            'Pippo, venha conosco. Uma explicação melhora quando alguém faz perguntas inconvenientes.',
+          ];
+        } else if (this.echoTutorialStage === 'capture_echo') {
+          dialogue = ['Aproxime-se do Eco de Dó e ative o Ressonador. Nós esperamos por você.'];
+        } else if (this.echoTutorialStage === 'synthesize_note') {
+          dialogue = ['A captura separou a assinatura em fragmentos. Abra a Síntese e reúna trinta deles em uma Nota Dó.'];
+        } else if (this.echoTutorialStage === 'synthesize_scale') {
+          dialogue = ['Notas isoladas são alturas. Uma escala é um caminho: T–T–S–T–T–T–S. Monte Dó Maior na Síntese.'];
+        } else {
+          dialogue = ['Você já sabe ouvir sem ferir, Akles. Essa diferença importa mais do que parece.'];
         }
       } else {
         dialogue = [
@@ -3371,7 +3542,13 @@ export class GameEngine {
 
     if (n.id === 'npc_ferreiro') {
       const firstVisit = this.voicesMissionAccepted && this.marketIntroStage === 'smith_intro';
-      const dialogue = firstVisit ? [
+      const resonatorVisit = this.echoTutorialStage === 'forge_resonator';
+      const dialogue = resonatorVisit ? [
+        'Esse desenho só pode ser de Lucian. Elegante, exagerado e com três anotações dizendo “não bater com martelo”.',
+        'O Ressonador não aprisiona o Eco. Ele copia sua frequência e deixa a criatura seguir cantando.',
+        'Na aba Ferramentas, forje o modelo Básico com os materiais que Lucian entregou. Tiers maiores preservam muito mais pó e fragmentos.',
+        'E, por favor, não conte a Lucian que usei um martelo. Usei dois.',
+      ] : firstVisit ? [
         'Então você é Akles. Miro disse que viria alguém sem memória. Eu esperava alguém menos... inteiro.',
         'Sou Dório. Esta é a Ferraria Harmônica: o único lugar seguro para sintetizar metais e cristais.',
         'Madeira inicia uma ferramenta. Ouro dá ritmo ao impacto. Cristal faz a matéria lembrar onde deve quebrar.',
@@ -3457,6 +3634,12 @@ export class GameEngine {
           this.addToInventory('potion_heal', 1);
           this.gainXp(35);
           this.marketIntroStage = 'completed';
+          const lucian = this.ensureLucian();
+          const pippo = this.npcs.find((npc) => npc.id === 'story_pippo');
+          if (pippo) {
+            pippo.x = lucian.x - 34; pippo.y = lucian.y + 4;
+            pippo.homeX = pippo.x; pippo.homeY = pippo.y;
+          }
           this.storyObjective = {
             title: 'As Vozes de Acordelot',
             text: 'Conheça Lucian, pai de Pippo, na oficina a oeste da praça',
@@ -3489,15 +3672,23 @@ export class GameEngine {
       if (this.marketIntroStage === 'completed' && !this.lucianMeetingRewarded) {
         this.lucianMeetingRewarded = true;
         this.addCoins(60);
-        this.gainXp(40);
+        this.addToInventory('wood', 3);
+        this.addToInventory('stone', 2);
+        this.echoTutorialStage = 'forge_resonator';
         this.storyObjective = {
-          title: 'As Vozes de Acordelot',
-          text: 'Missão concluída! Você conheceu os artesãos de Acordelot',
-          progress: 2,
-          target: 2,
-          ready: true,
+          title: 'O Ofício dos Ecos',
+          text: 'Forje o Ressonador Básico na Ferraria Harmônica',
+          progress: 0, target: 4, ready: false,
         };
         this.onQuestsChange?.();
+      } else if (this.marketIntroStage === 'completed' && this.lucianMeetingRewarded && this.echoTutorialStage === 'locked') {
+        this.addToInventory('wood', 3);
+        this.addToInventory('stone', 2);
+        this.echoTutorialStage = 'forge_resonator';
+        this.storyObjective = { title: 'O Ofício dos Ecos', text: 'Forje o Ressonador Básico na Ferraria Harmônica', progress: 0, target: 4, ready: false };
+        this.onQuestsChange?.();
+      } else if (this.echoTutorialStage === 'return_to_lucian') {
+        this.beginEchoCaptureTutorial();
       }
     }
 
@@ -4230,16 +4421,68 @@ export class GameEngine {
   addFragment(note: number, qty = 1) {
     this.fragments[note] += qty;
     this.addToInventory('frag_' + NOTE_KEY[note], qty);
-    while (this.fragments[note] >= FRAGMENTS_PER_NOTE) {
-      this.fragments[note] -= FRAGMENTS_PER_NOTE;
-      this.notesBuilt[note] += 1;
-      // consome os fragmentos do inventário ao montar a nota
-      const key = 'frag_' + NOTE_KEY[note];
-      this.inventory[key] = Math.max(0, (this.inventory[key] || 0) - FRAGMENTS_PER_NOTE);
-      this.onInventoryChange?.({ ...this.inventory });
-      this.onHarvestPopup?.(`♪ Nota ${NOTE_NAMES[note]} montada!`, this.player.x, this.player.y - 24);
+    this.onFragmentsChange?.({ fragments: [...this.fragments], built: [...this.notesBuilt] });
+  }
+
+  synthesizeNote(note: number): boolean {
+    if (this.echoTutorialStage === 'synthesize_note' && note !== 0) return false;
+    if (note < 0 || note >= 12 || this.fragments[note] < FRAGMENTS_PER_NOTE) return false;
+    this.fragments[note] -= FRAGMENTS_PER_NOTE;
+    this.notesBuilt[note] += 1;
+    const key = 'frag_' + NOTE_KEY[note];
+    this.inventory[key] = Math.max(0, (this.inventory[key] || 0) - FRAGMENTS_PER_NOTE);
+    if (this.inventory[key] === 0) delete this.inventory[key];
+    if (this.echoTutorialStage === 'synthesize_note') {
+      // Lucian empresta as seis notas restantes para demonstrar a primeira
+      // escala. A nota capturada pelo jogador continua sendo a peça central.
+      [2, 4, 5, 7, 9, 11].forEach((index) => { this.notesBuilt[index] += 1; });
+      this.echoTutorialStage = 'synthesize_scale';
+      this.storyObjective = {
+        title: 'O Ofício dos Ecos',
+        text: 'Monte a Escala de Dó Maior: T–T–S–T–T–T–S',
+        progress: 3, target: 4, ready: false,
+      };
+      this.bubbles.push({ who: 'npc', npcId: 'story_lucian', text: 'Agora ordene as notas: dois tons, um semitom, três tons e um semitom.', born: this.timeElapsed, ttl: 7 });
+      this.bubbles.push({ who: 'npc', npcId: 'story_pippo', text: 'Eu lembro assim: T–T–S, T–T–T–S!', born: this.timeElapsed + .5, ttl: 7 });
+      this.onStoryVoice?.('Agora ordene as notas: dois tons, um semitom, três tons e um semitom.', 'lucian');
+      this.onQuestsChange?.();
     }
     this.onFragmentsChange?.({ fragments: [...this.fragments], built: [...this.notesBuilt] });
+    this.onInventoryChange?.({ ...this.inventory });
+    this.onHarvestPopup?.(`♪ Nota ${NOTE_NAMES[note]} sintetizada!`, this.player.x, this.player.y - 24);
+    return true;
+  }
+
+  majorScaleNotes(tonic: number): number[] {
+    return [0, 2, 4, 5, 7, 9, 11].map((step) => (tonic + step) % 12);
+  }
+
+  canSynthesizeMajorScale(tonic: number): boolean {
+    return this.majorScaleNotes(tonic).every((note) => (this.notesBuilt[note] || 0) > 0);
+  }
+
+  synthesizeMajorScale(tonic: number): boolean {
+    if (!this.canSynthesizeMajorScale(tonic)) return false;
+    this.majorScaleNotes(tonic).forEach((note) => { this.notesBuilt[note] -= 1; });
+    const key = `scale_${NOTE_KEY[tonic]}_major`;
+    this.scalesBuilt[key] = (this.scalesBuilt[key] || 0) + 1;
+    this.inventory[key] = (this.inventory[key] || 0) + 1;
+    if (this.echoTutorialStage === 'synthesize_scale' && tonic === 0) {
+      this.echoTutorialStage = 'completed';
+      this.storyObjective = {
+        title: 'O Ofício dos Ecos',
+        text: 'Tutorial concluído: fragmento → nota → escala',
+        progress: 4, target: 4, ready: true,
+      };
+      this.bubbles.push({ who: 'npc', npcId: 'story_lucian', text: 'Perfeito. Uma escala não é uma coleção: é um caminho entre alturas.', born: this.timeElapsed, ttl: 7 });
+      this.bubbles.push({ who: 'npc', npcId: 'story_pippo', text: 'E dessa vez o caminho não passou atrás de nenhuma casa!', born: this.timeElapsed + .5, ttl: 7 });
+      this.onStoryVoice?.('Perfeito. Uma escala não é uma coleção: é um caminho entre alturas.', 'lucian');
+      this.onQuestsChange?.();
+    }
+    this.onFragmentsChange?.({ fragments: [...this.fragments], built: [...this.notesBuilt] });
+    this.onInventoryChange?.({ ...this.inventory });
+    this.onHarvestPopup?.(`♬ Escala de ${NOTE_NAMES[tonic]} Maior criada!`, this.player.x, this.player.y - 24);
+    return true;
   }
 
   addCoins(n: number) {
@@ -4521,6 +4764,12 @@ export class GameEngine {
     if (e.state === 'dead') return;
     // Os três Ecos da abertura são guias narrativos, não alvos de combate.
     if (this.storyEchoIds.has(e.id) && this.storyStage !== 'complete') return;
+    // Ecos comuns também não são monstros: golpes não geram recursos nem os
+    // eliminam. A assinatura só pode ser recolhida com um Ressonador.
+    if (!e.hostile && e.note !== undefined) {
+      this.onHarvestPopup?.('Este Eco não é um inimigo — use o Ressonador', e.x, e.y - 24);
+      return;
+    }
     this.lastCombatAt = this.timeElapsed;
     // Impacto Harmônico (Amplificação) — inimigo "com a DEF reduzida"
     if (!opts.networkFinal) {
@@ -4709,7 +4958,7 @@ export class GameEngine {
   private rangedBasicAim(maxRange: number): { dx: number; dy: number; x: number; y: number; targetId?: string } {
     const origin = this.aimOrigin();
     const candidates = this.enemies
-      .filter((e) => e.state !== 'dead')
+      .filter((e) => e.state !== 'dead' && e.hostile)
       .map((e) => ({ e, dist: Math.hypot(e.x + 8 - origin.x, e.y - origin.y) }))
       .filter(({ dist }) => dist <= maxRange)
       .sort((a, b) => {
@@ -5579,6 +5828,62 @@ export class GameEngine {
     this.triggerAction('chop');
   }
 
+  get canUseResonator() { return this.ownedResonators.length > 0; }
+
+  captureEchoAction(): boolean {
+    if (!this.canUseResonator) {
+      this.onHarvestPopup?.('🔒 Forje um Ressonador com Dório', this.player.x, this.player.y - 20);
+      return false;
+    }
+    const px = this.player.x + 12, py = this.player.y + 18;
+    let target: Enemy | null = null;
+    let nearest = 92;
+    for (const enemy of this.enemies) {
+      if (enemy.hostile || enemy.note === undefined || enemy.state === 'dead') continue;
+      const distance = Math.hypot(enemy.x - px, enemy.y - py);
+      if (distance < nearest) { nearest = distance; target = enemy; }
+    }
+    if (!target) {
+      this.onHarvestPopup?.('Nenhum Eco ao alcance do Ressonador', this.player.x, this.player.y - 20);
+      return false;
+    }
+
+    const tier = this.equippedResonator;
+    const ranges: Record<ToolTier, { dust: [number, number]; fragments: [number, number] }> = {
+      wood: { dust: [1, 2], fragments: [3, 5] },
+      gold: { dust: [3, 5], fragments: [7, 11] },
+      crystal: { dust: [6, 9], fragments: [13, 20] },
+    };
+    const roll = ([min, max]: [number, number]) => min + Math.floor(Math.random() * (max - min + 1));
+    const tutorialCapture = target.id === 'enemy_91001' && this.echoTutorialStage === 'capture_echo';
+    const fragments = tutorialCapture ? FRAGMENTS_PER_NOTE : roll(ranges[tier].fragments);
+    const dust = roll(ranges[tier].dust);
+    const note = target.note;
+    this.addToInventory('eco_dust', dust);
+    this.addFragment(note, fragments);
+    target.state = 'dead';
+    target.frame = 0;
+    target.stateTimer = 0;
+    target.respawnAt = this.timeElapsed + ENEMY_DEFS[target.kind].respawnSecs;
+    for (let i = 0; i < 22; i++) this.addMiningSpark(target.x + 8 + (Math.random() - .5) * 24, target.y + (Math.random() - .5) * 28);
+    this.onHarvestPopup?.(`◉ Eco de ${NOTE_NAMES[note]} ressoado: +${fragments} fragmentos · +${dust} pó`, target.x, target.y - 30);
+
+    if (tutorialCapture) {
+      this.echoTutorialStage = 'synthesize_note';
+      this.storyObjective = {
+        title: 'O Ofício dos Ecos',
+        text: 'Abra a Síntese e transforme 30 fragmentos em uma Nota Dó',
+        progress: 2, target: 4, ready: false,
+      };
+      this.bubbles.push({ who: 'npc', npcId: 'story_lucian', text: 'Captura estável. O Eco partiu ileso; você guardou apenas sua assinatura.', born: this.timeElapsed, ttl: 7 });
+      this.bubbles.push({ who: 'npc', npcId: 'story_pippo', text: 'E agora os pedacinhos viram uma nota inteira, certo?', born: this.timeElapsed + .4, ttl: 7 });
+      this.onStoryVoice?.('Captura estável. O Eco partiu ileso; você guardou apenas sua assinatura.', 'lucian');
+      this.onQuestsChange?.();
+    }
+    this.onInventoryChange?.({ ...this.inventory });
+    return true;
+  }
+
   private tryHarvestNode(node: WorldProp) {
     const def = HARVEST_DEFS[node.type];
     if (!def) return;
@@ -5621,7 +5926,10 @@ export class GameEngine {
     try {
       localStorage.setItem(
         'acordelot_tools_v1',
-        JSON.stringify({ axe: this.equippedAxe, pick: this.equippedPick, ownedAxes: this.ownedAxes, ownedPicks: this.ownedPicks }),
+        JSON.stringify({
+          axe: this.equippedAxe, pick: this.equippedPick, resonator: this.equippedResonator,
+          ownedAxes: this.ownedAxes, ownedPicks: this.ownedPicks, ownedResonators: this.ownedResonators,
+        }),
       );
     } catch {}
   }
@@ -5634,6 +5942,7 @@ export class GameEngine {
       const tiers = GameEngine.TOOL_TIERS;
       if (Array.isArray(t.ownedAxes)) this.ownedAxes = t.ownedAxes.filter((tier: ToolTier) => tiers.includes(tier));
       if (Array.isArray(t.ownedPicks)) this.ownedPicks = t.ownedPicks.filter((tier: ToolTier) => tiers.includes(tier));
+      if (Array.isArray(t.ownedResonators)) this.ownedResonators = t.ownedResonators.filter((tier: ToolTier) => tiers.includes(tier));
       if (tiers.includes(t.axe)) {
         this.equippedAxe = t.axe;
         if (!this.ownedAxes.includes(t.axe)) this.ownedAxes.push(t.axe);
@@ -5641,6 +5950,10 @@ export class GameEngine {
       if (tiers.includes(t.pick)) {
         this.equippedPick = t.pick;
         if (!this.ownedPicks.includes(t.pick)) this.ownedPicks.push(t.pick);
+      }
+      if (tiers.includes(t.resonator)) {
+        this.equippedResonator = t.resonator;
+        if (!this.ownedResonators.includes(t.resonator)) this.ownedResonators.push(t.resonator);
       }
     } catch {}
   }

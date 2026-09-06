@@ -2212,6 +2212,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
         onClose={() => setShowSynth(false)}
         fragments={fragments}
         built={notesBuilt}
+        engine={engineRef.current}
       />
 
       <PartituraScreen
@@ -2235,7 +2236,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
         onClose={() => setShowForge(false)}
         engine={engineRef.current}
         inventory={inventory}
-        openOnTools={engineRef.current?.marketIntroStage === 'forge_tools'}
+        openOnTools={engineRef.current?.marketIntroStage === 'forge_tools' || engineRef.current?.echoTutorialStage === 'forge_resonator'}
       />
 
       <CatalogScreen

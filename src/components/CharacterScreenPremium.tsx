@@ -253,11 +253,31 @@ export const CharacterScreen: React.FC<Props> = ({ open, onClose, stats, power, 
   if (!open || !engine) return null;
   const title = tab === 'ficha' ? 'Personagem' : tab === 'skills' ? 'Skills' : tab === 'equipamentos' ? 'Equipamentos' : 'Atributos Avançados';
   return <div className="fixed inset-0 z-40 grid place-items-center p-[clamp(6px,2vw,30px)] pointer-events-auto">
+    <style>{`
+      /* O PWA do iPhone entrega somente ~393px CSS em paisagem. Nessa
+         altura, preservamos o desenho 16:9 e reduzimos o miolo como uma
+         unidade, em vez de transformar cada painel numa página rolável. */
+      @media (max-height: 650px) and (orientation: landscape) {
+        .ac-sheet { width: calc(100vw - 12px) !important; height: calc(100vh - 12px) !important; border-radius: 18px !important; }
+        .ac-sheet-head { height: 50px !important; padding-left: 20px !important; padding-right: 20px !important; }
+        .ac-sheet-head > svg:first-child { width: 25px !important; height: 25px !important; margin-right: 12px !important; }
+        .ac-sheet-head > button svg { width: 23px !important; height: 23px !important; }
+        .ac-sheet-main { zoom: .76; }
+        .ac-sheet-nav { height: 56px !important; }
+        .ac-sheet-nav button { gap: 0 !important; font-size: 10px !important; }
+        .ac-sheet-nav button svg { width: 18px !important; height: 18px !important; }
+      }
+      @media (max-height: 330px) and (orientation: landscape) {
+        .ac-sheet-main { zoom: .68; }
+        .ac-sheet-head { height: 44px !important; }
+        .ac-sheet-nav { height: 48px !important; }
+      }
+    `}</style>
     <div className="absolute inset-0 bg-[#020817]/65 backdrop-blur-[4px]" onClick={onClose} />
-    <div className="relative flex h-[min(890px,94vh)] w-[min(1540px,96vw)] flex-col overflow-hidden rounded-[26px] border border-[#a87516] bg-[radial-gradient(circle_at_40%_0%,#10233f_0%,#071326_38%,#040d1d_100%)] text-[#dce6f8] shadow-[0_24px_80px_rgba(0,0,0,.75),inset_0_0_50px_rgba(24,66,110,.08)]">
-      <header className="flex h-[72px] shrink-0 items-center border-b border-[#263854] px-8"><Music2 className="mr-5 h-9 w-9 text-[#f6ce62]" /><h1 className="text-[clamp(18px,1.6vw,28px)] font-black text-[#f8d96f]">{title} — {engine.stats.name || stats.name}</h1>{tab === 'skills' && <div className="ml-auto mr-6 flex items-center gap-3 rounded-xl border border-[#263854] bg-[#071326] px-4 py-2 text-xs text-[#b8c6dd]"><span className="grid h-7 w-7 place-items-center rounded-full border border-[#c38c1f] bg-[#563b0b] text-[#ffe06b]">♪</span>Níveis de Skill <b className="text-xl text-[#ffe06b]">{engine.skillLevels[engine.activeCharacter].reduce((a,b) => a + b, 0)}</b></div>}<button type="button" onClick={onClose} className={`${tab !== 'skills' ? 'ml-auto' : ''} text-[#8fa2c3] hover:text-white`}><X className="h-8 w-8" /></button></header>
-      <main className="min-h-0 flex-1 overflow-hidden">{tab === 'ficha' && <CharacterTab engine={engine} power={power} canLevelUp={canLevelUp} onLevelUp={onLevelUp} inventory={inventory} refresh={refresh} />}{tab === 'skills' && <SkillsTab engine={engine} inventory={inventory} />}{tab === 'equipamentos' && <EquipmentTab engine={engine} inventory={inventory} />}{tab === 'ferramentas' && <AdvancedTab engine={engine} onSpend={onSpend} />}</main>
-      <nav className="grid h-[84px] shrink-0 grid-cols-4 border-t border-[#263854] bg-[#061123]/95">{TABS.map(({ key, label, icon: Icon }) => <button key={key} type="button" onClick={() => setTab(key)} className={`relative flex flex-col items-center justify-center gap-1 border-r border-[#172842] text-sm font-black transition ${tab === key ? 'bg-[#3e2d11]/38 text-[#ffd535]' : 'text-[#7386a6] hover:bg-[#0b1930] hover:text-[#bac8dc]'}`}>{tab === key && <span className="absolute inset-x-0 top-0 h-[3px] bg-[#ffc928] shadow-[0_0_12px_#ffc928]" />}<Icon className="h-6 w-6" />{label}</button>)}</nav>
+    <div className="ac-sheet relative flex h-[min(890px,94vh)] w-[min(1540px,96vw)] flex-col overflow-hidden rounded-[26px] border border-[#a87516] bg-[radial-gradient(circle_at_40%_0%,#10233f_0%,#071326_38%,#040d1d_100%)] text-[#dce6f8] shadow-[0_24px_80px_rgba(0,0,0,.75),inset_0_0_50px_rgba(24,66,110,.08)]">
+      <header className="ac-sheet-head flex h-[72px] shrink-0 items-center border-b border-[#263854] px-8"><Music2 className="mr-5 h-9 w-9 text-[#f6ce62]" /><h1 className="text-[clamp(18px,1.6vw,28px)] font-black text-[#f8d96f]">{title} — {engine.stats.name || stats.name}</h1>{tab === 'skills' && <div className="ml-auto mr-6 flex items-center gap-3 rounded-xl border border-[#263854] bg-[#071326] px-4 py-2 text-xs text-[#b8c6dd]"><span className="grid h-7 w-7 place-items-center rounded-full border border-[#c38c1f] bg-[#563b0b] text-[#ffe06b]">♪</span>Níveis de Skill <b className="text-xl text-[#ffe06b]">{engine.skillLevels[engine.activeCharacter].reduce((a,b) => a + b, 0)}</b></div>}<button type="button" onClick={onClose} className={`${tab !== 'skills' ? 'ml-auto' : ''} text-[#8fa2c3] hover:text-white`}><X className="h-8 w-8" /></button></header>
+      <main className="ac-sheet-main min-h-0 flex-1 overflow-hidden">{tab === 'ficha' && <CharacterTab engine={engine} power={power} canLevelUp={canLevelUp} onLevelUp={onLevelUp} inventory={inventory} refresh={refresh} />}{tab === 'skills' && <SkillsTab engine={engine} inventory={inventory} />}{tab === 'equipamentos' && <EquipmentTab engine={engine} inventory={inventory} />}{tab === 'ferramentas' && <AdvancedTab engine={engine} onSpend={onSpend} />}</main>
+      <nav className="ac-sheet-nav grid h-[84px] shrink-0 grid-cols-4 border-t border-[#263854] bg-[#061123]/95">{TABS.map(({ key, label, icon: Icon }) => <button key={key} type="button" onClick={() => setTab(key)} className={`relative flex flex-col items-center justify-center gap-1 border-r border-[#172842] text-sm font-black transition ${tab === key ? 'bg-[#3e2d11]/38 text-[#ffd535]' : 'text-[#7386a6] hover:bg-[#0b1930] hover:text-[#bac8dc]'}`}>{tab === key && <span className="absolute inset-x-0 top-0 h-[3px] bg-[#ffc928] shadow-[0_0_12px_#ffc928]" />}<Icon className="h-6 w-6" />{label}</button>)}</nav>
     </div>
   </div>;
 };

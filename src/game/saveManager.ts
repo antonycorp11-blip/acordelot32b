@@ -42,6 +42,32 @@ export interface AcordelotSaveData {
 }
 
 const LOCAL_SAVE_PREFIX = 'acordelot_player_save_';
+export const PROGRESSION_VERSION = '2026-09-06-campaign-reset-1';
+const PROGRESSION_MARKER_KEY = 'acordelot_progression_version';
+
+/**
+ * Invalida somente progresso local antigo. Login, preferências de áudio,
+ * layout do HUD e mapa publicado permanecem intactos.
+ */
+export function prepareProgressionVersion(): void {
+  try {
+    if (localStorage.getItem(PROGRESSION_MARKER_KEY) === PROGRESSION_VERSION) return;
+    for (let i = localStorage.length - 1; i >= 0; i -= 1) {
+      const key = localStorage.key(i);
+      if (key?.startsWith(LOCAL_SAVE_PREFIX)) localStorage.removeItem(key);
+    }
+    localStorage.removeItem('acordelot_tools_v1');
+    localStorage.removeItem('acordelot_skill_progress_v1');
+    localStorage.removeItem('acordelot_daily_quests_v1');
+    localStorage.setItem(PROGRESSION_MARKER_KEY, PROGRESSION_VERSION);
+  } catch {
+    // O jogo ainda funciona sem cache local (ex.: modo privado restritivo).
+  }
+}
+
+function isCurrentProgression(save: AcordelotSaveData | null): save is AcordelotSaveData {
+  return !!save && (save.settings as Record<string, unknown> | undefined)?.progression_version === PROGRESSION_VERSION;
+}
 
 /**
  * Converte o estado atual do GameEngine em um payload completo para salvar.
@@ -117,6 +143,7 @@ export function serializeEngineSave(engine: GameEngine, userId: string): Omit<Ac
       mainCompleted: engine.completedMainQuestIds,
     },
     settings: {
+      progression_version: PROGRESSION_VERSION,
       fragments: [...(engine.fragments || [])],
       notes_built: [...(engine.notesBuilt || [])],
       shop_purchases: { ...engine.shopPurchases, counts: { ...engine.shopPurchases.counts } },
@@ -381,7 +408,11 @@ export async function saveToCloud(engine: GameEngine, userId: string): Promise<b
  * Se o local tiver mais progresso (ex: fechamento rápido de aba), o local é priorizado.
  */
 export async function loadCloudSave(userId: string): Promise<AcordelotSaveData | null> {
-  const localSave = getLocalInstantSave(userId);
+  const cached = getLocalInstantSave(userId);
+  const localSave = isCurrentProgression(cached) ? cached : null;
+  if (cached && !localSave) {
+    try { localStorage.removeItem(LOCAL_SAVE_PREFIX + userId); } catch {}
+  }
 
   try {
     const { data, error } = await supabase
@@ -395,6 +426,9 @@ export async function loadCloudSave(userId: string): Promise<AcordelotSaveData |
     }
 
     const cloudSave = data as AcordelotSaveData;
+    // Saves anteriores ao reset global nunca podem ressuscitar a progressão
+    // apagada no PWA. O primeiro autosave grava o estado inicial versionado.
+    if (!isCurrentProgression(cloudSave)) return localSave;
 
     // Se o local tiver nível maior ou timestamp mais recente que a nuvem, prioriza o local
     if (localSave) {

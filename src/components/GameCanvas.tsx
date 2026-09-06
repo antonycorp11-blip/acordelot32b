@@ -48,7 +48,7 @@ import { ChatBox } from './ChatBox';
 import { WorldMapScreen } from './WorldMapScreen';
 import { publishMapToCode, getGhToken, setGhToken } from '../game/mapPersist';
 import { saveWorldMapToCloud } from '../game/worldMapSync';
-import { loadCloudSave, applySaveToEngine, setupAutoSave, saveToCloud } from '../game/saveManager';
+import { loadCloudSave, applySaveToEngine, prepareProgressionVersion, setupAutoSave, saveToCloud } from '../game/saveManager';
 import { saveGlobalHudLayout } from '../game/hudSync';
 import { networkManager, ChatMessage } from '../game/networkManager';
 import { playMusicalTone, speakMusically, stopMusicalVoice, unlockMusicalVoice } from '../game/musicalVoice';
@@ -632,6 +632,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
   const [saveReady, setSaveReady] = useState(false);
   const [openingPhase, setOpeningPhase] = useState<OpeningPhase | null>(null);
   const [openingLine, setOpeningLine] = useState(0);
+  const [showOpeningVideo, setShowOpeningVideo] = useState(false);
   const [tutorialStage, setTutorialStage] = useState<TutorialStage>('cinematic');
   const openingStarted = useRef(false);
   const [showMobileHudEditor, setShowMobileHudEditor] = useState(false);
@@ -730,6 +731,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
 
     if (!canvasRef.current || !containerRef.current) return;
 
+    prepareProgressionVersion();
     const engine = new GameEngine(canvasRef.current);
     engineRef.current = engine;
 
@@ -952,12 +954,23 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
       setOpeningPhase(null);
       return;
     }
-    // A primeira missão já está concluída; acorda na casa da Mirella pela manhã rumo ao Sr. Antony
-    engineRef.current.startAtMorningScene();
     setTutorialStage('cinematic');
     setOpeningLine(0);
+    if (!engineRef.current.isOpeningComplete) {
+      engineRef.current.beginOpeningScene();
+      setOpeningPhase(null);
+      setShowOpeningVideo(true);
+      return;
+    }
+    engineRef.current.startAtMorningScene();
     setOpeningPhase('morning');
   }, [assetsLoaded, saveReady, user?.id]);
+
+  const finishOpeningVideo = () => {
+    setShowOpeningVideo(false);
+    setOpeningLine(0);
+    setOpeningPhase('awakening');
+  };
 
   const currentOpeningLine = openingPhase ? OPENING_LINES[openingPhase][openingLine] : null;
 
@@ -1787,6 +1800,28 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
           </span>
         </div>
 
+        {showOpeningVideo && (
+          <div className="fixed inset-0 z-[70] bg-black pointer-events-auto">
+            <video
+              src="/assets/videos/abertura_floresta.mp4"
+              className="h-full w-full object-cover"
+              autoPlay
+              muted
+              playsInline
+              preload="auto"
+              onEnded={finishOpeningVideo}
+              onError={finishOpeningVideo}
+            />
+            <button
+              type="button"
+              onClick={finishOpeningVideo}
+              className="absolute right-[max(14px,env(safe-area-inset-right))] top-[max(14px,env(safe-area-inset-top))] rounded-full border border-white/30 bg-black/55 px-4 py-2 text-[10px] font-black uppercase tracking-[.16em] text-white backdrop-blur-sm"
+            >
+              Pular abertura
+            </button>
+          </div>
+        )}
+
         {openingPhase && currentOpeningLine && (
           <div className="fixed inset-0 z-[60] pointer-events-auto select-none flex items-end justify-center pb-[max(8px,env(safe-area-inset-bottom))]">
             <div className="absolute left-3 top-3 rounded-lg border border-violet-300/20 bg-slate-950/78 px-3 py-1.5 backdrop-blur-sm">
@@ -2132,6 +2167,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
         onClose={() => setShowForge(false)}
         engine={engineRef.current}
         inventory={inventory}
+        openOnTools={engineRef.current?.marketIntroStage === 'forge_tools'}
       />
 
       <CatalogScreen

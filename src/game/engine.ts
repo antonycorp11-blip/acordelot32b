@@ -371,6 +371,7 @@ export function inventoryWeight(inv: Record<string, number>): number {
 
 interface HarvestDef {
   kind: 'tree' | 'rock';
+  minTier: ToolTier;
   maxHp: number;
   drop: string;
   dropMin: number;
@@ -397,26 +398,26 @@ const NPC_SHEET: Record<string, keyof LoadedAssets> = {
 };
 
 export const HARVEST_DEFS: Record<string, HarvestDef> = {
-  oak: { kind: 'tree', maxHp: 4, drop: 'wood', dropMin: 2, dropMax: 4, respawnSecs: 22 },
-  pine: { kind: 'tree', maxHp: 3, drop: 'wood', dropMin: 2, dropMax: 3, respawnSecs: 20 },
-  blossomTree: { kind: 'tree', maxHp: 3, drop: 'wood', dropMin: 2, dropMax: 3, respawnSecs: 24 },
-  bush: { kind: 'tree', maxHp: 2, drop: 'berry', dropMin: 1, dropMax: 3, respawnSecs: 14 },
-  stoneQuarry: { kind: 'rock', maxHp: 8, drop: 'ore', dropMin: 4, dropMax: 7, respawnSecs: 45 },
-  limestoneBoulders: { kind: 'rock', maxHp: 5, drop: 'stone', dropMin: 3, dropMax: 5, respawnSecs: 32 },
-  rockCluster: { kind: 'rock', maxHp: 3, drop: 'stone', dropMin: 2, dropMax: 3, respawnSecs: 24 },
-  rockPair: { kind: 'rock', maxHp: 3, drop: 'stone', dropMin: 2, dropMax: 3, respawnSecs: 24 },
-  rockMonolith: { kind: 'rock', maxHp: 4, drop: 'stone', dropMin: 2, dropMax: 4, respawnSecs: 28 },
-  rockFlatSlab: { kind: 'rock', maxHp: 2, drop: 'stone', dropMin: 1, dropMax: 2, respawnSecs: 18 },
-  spot_wood: { kind: 'tree', maxHp: 4, drop: 'wood2_raw', dropMin: 2, dropMax: 4, respawnSecs: 40 },
-  spot_mineral: { kind: 'rock', maxHp: 6, drop: 'mineral_raw', dropMin: 2, dropMax: 4, respawnSecs: 45 },
-  spot_gold: { kind: 'rock', maxHp: 7, drop: 'gold_raw', dropMin: 1, dropMax: 3, respawnSecs: 55 },
-  spot_crystal_blue: { kind: 'rock', maxHp: 6, drop: 'crystal_blue_raw', dropMin: 1, dropMax: 3, respawnSecs: 50 },
-  spot_crystal_red: { kind: 'rock', maxHp: 8, drop: 'crystal_red_raw', dropMin: 1, dropMax: 2, respawnSecs: 60 },
-  spot_eco_essence: { kind: 'rock', maxHp: 5, drop: 'eco_dust', dropMin: 2, dropMax: 4, respawnSecs: 40 },
-  dark_icecrystal: { kind: 'rock', maxHp: 5, drop: 'crystal_blue_raw', dropMin: 1, dropMax: 3, respawnSecs: 45 },
-  dark_bigrock: { kind: 'rock', maxHp: 6, drop: 'stone', dropMin: 3, dropMax: 5, respawnSecs: 35 },
-  dark_deadtree: { kind: 'tree', maxHp: 3, drop: 'wood', dropMin: 1, dropMax: 3, respawnSecs: 25 },
-  dark_bigpine: { kind: 'tree', maxHp: 5, drop: 'wood', dropMin: 3, dropMax: 6, respawnSecs: 34 },
+  oak: { kind: 'tree', minTier: 'wood', maxHp: 4, drop: 'wood', dropMin: 2, dropMax: 4, respawnSecs: 22 },
+  pine: { kind: 'tree', minTier: 'wood', maxHp: 3, drop: 'wood', dropMin: 2, dropMax: 3, respawnSecs: 20 },
+  blossomTree: { kind: 'tree', minTier: 'wood', maxHp: 3, drop: 'wood', dropMin: 2, dropMax: 3, respawnSecs: 24 },
+  bush: { kind: 'tree', minTier: 'wood', maxHp: 2, drop: 'berry', dropMin: 1, dropMax: 3, respawnSecs: 14 },
+  stoneQuarry: { kind: 'rock', minTier: 'wood', maxHp: 8, drop: 'ore', dropMin: 4, dropMax: 7, respawnSecs: 45 },
+  limestoneBoulders: { kind: 'rock', minTier: 'wood', maxHp: 5, drop: 'stone', dropMin: 3, dropMax: 5, respawnSecs: 32 },
+  rockCluster: { kind: 'rock', minTier: 'wood', maxHp: 3, drop: 'stone', dropMin: 2, dropMax: 3, respawnSecs: 24 },
+  rockPair: { kind: 'rock', minTier: 'wood', maxHp: 3, drop: 'stone', dropMin: 2, dropMax: 3, respawnSecs: 24 },
+  rockMonolith: { kind: 'rock', minTier: 'wood', maxHp: 4, drop: 'stone', dropMin: 2, dropMax: 4, respawnSecs: 28 },
+  rockFlatSlab: { kind: 'rock', minTier: 'wood', maxHp: 2, drop: 'stone', dropMin: 1, dropMax: 2, respawnSecs: 18 },
+  spot_wood: { kind: 'tree', minTier: 'gold', maxHp: 4, drop: 'wood2_raw', dropMin: 2, dropMax: 4, respawnSecs: 40 },
+  spot_mineral: { kind: 'rock', minTier: 'gold', maxHp: 6, drop: 'mineral_raw', dropMin: 2, dropMax: 4, respawnSecs: 45 },
+  spot_gold: { kind: 'rock', minTier: 'gold', maxHp: 7, drop: 'gold_raw', dropMin: 1, dropMax: 3, respawnSecs: 55 },
+  spot_crystal_blue: { kind: 'rock', minTier: 'gold', maxHp: 6, drop: 'crystal_blue_raw', dropMin: 1, dropMax: 3, respawnSecs: 50 },
+  spot_crystal_red: { kind: 'rock', minTier: 'crystal', maxHp: 8, drop: 'crystal_red_raw', dropMin: 1, dropMax: 2, respawnSecs: 60 },
+  spot_eco_essence: { kind: 'rock', minTier: 'crystal', maxHp: 5, drop: 'eco_dust', dropMin: 2, dropMax: 4, respawnSecs: 40 },
+  dark_icecrystal: { kind: 'rock', minTier: 'gold', maxHp: 5, drop: 'crystal_blue_raw', dropMin: 1, dropMax: 3, respawnSecs: 45 },
+  dark_bigrock: { kind: 'rock', minTier: 'wood', maxHp: 6, drop: 'stone', dropMin: 3, dropMax: 5, respawnSecs: 35 },
+  dark_deadtree: { kind: 'tree', minTier: 'wood', maxHp: 3, drop: 'wood', dropMin: 1, dropMax: 3, respawnSecs: 25 },
+  dark_bigpine: { kind: 'tree', minTier: 'wood', maxHp: 5, drop: 'wood', dropMin: 3, dropMax: 6, respawnSecs: 34 },
 };
 
 export const CLASS_PASSIVE_DEFS: Record<string, {
@@ -1155,10 +1156,10 @@ export class GameEngine {
   onStoryBeat?: (beat: 'movement_learned' | 'attack_learned' | 'opening_sound_found' | 'shinkers_appear' | 'shinkers_defeated' | 'three_echoes_found' | 'gate_arrival' | 'mirella_arrival' | 'house_entered' | 'morning_arrival' | 'opening_mission_complete' | 'antony_arrival' | 'second_mission_complete') => void;
   private openingSoundTarget: Point | null = null;
   private storyStage: 'idle' | 'follow_vibration' | 'sol_bemol_scene' | 'find_origin' | 'encounter_scene' | 'fight' | 'aftermath' | 'find_echoes' | 'echo_scene' | 'follow_echoes' | 'gate_scene' | 'follow_pippo' | 'mirella_scene' | 'entering_house' | 'rest_scene' | 'morning_scene' | 'follow_pippo_antony' | 'antony_scene' | 'complete' = 'idle';
-  private openingMissionComplete = true;
+  private openingMissionComplete = false;
   private antonyMissionComplete = false;
   voicesMissionAccepted = false;
-  marketIntroStage: 'not_started' | 'intro' | 'smith_intro' | 'collecting' | 'completed' = 'not_started';
+  marketIntroStage: 'not_started' | 'intro' | 'smith_intro' | 'forge_tools' | 'collecting' | 'completed' = 'not_started';
   lucianMeetingRewarded = false;
   private storyMoveOrigin: Point | null = null;
   private storyMovementTaught = false;
@@ -1460,7 +1461,9 @@ export class GameEngine {
   toolForgeCost(tier: ToolTier): Record<string, number> | null {
     if (tier === 'wood') return { wood: 3, stone: 3 };
     return tier === 'gold'
-      ? { wood: 5, stone: 5, gold_refined: 1 }
+      // O tier dourado precisa ser alcançável antes da primeira pepita:
+      // minério comum é extraído com a picareta básica e temperado por Dório.
+      ? { wood: 5, stone: 5, ore: 6 }
       : { wood: 8, stone: 8, gold_refined: 2, crystal_blue_refined: 2 };
   }
 
@@ -1488,6 +1491,19 @@ export class GameEngine {
     this.equipTool(kind, tier);
     this.saveTools();
     this.onInventoryChange?.({ ...this.inventory });
+    if (tier === 'wood' && this.marketIntroStage === 'forge_tools'
+      && this.ownedAxes.includes('wood') && this.ownedPicks.includes('wood')) {
+      this.marketIntroStage = 'collecting';
+      this.storyObjective = {
+        title: 'A Primeira Coleta do Mercado',
+        text: 'Ferramentas prontas! Colete Madeira (0/3) e Pedra (0/3) para Miro',
+        progress: 0,
+        target: 2,
+        ready: false,
+      };
+      this.onQuestsChange?.();
+      this.onHarvestPopup?.('✓ Kit básico forjado. Agora você pode coletar!', this.player.x, this.player.y - 20);
+    }
     return true;
   }
   // Troca a arma equipada (catálogo — sem gate de posse por enquanto).
@@ -1927,10 +1943,12 @@ export class GameEngine {
   get isAntonyMissionComplete() { return this.antonyMissionComplete; }
 
   get completedMainQuestIds() {
-    const ids: string[] = ['MQ_C1_001_DESPERTAR_SEM_NOME'];
+    const ids: string[] = [];
+    if (this.openingMissionComplete) ids.push('MQ_C1_001_DESPERTAR_SEM_NOME');
     if (this.antonyMissionComplete) ids.push('MQ_C1_002_ESTRADA_PARA_ACORDELOT');
     if (this.voicesMissionAccepted) ids.push('MQ_C1_003_AS_VOZES_DE_ACORDELOT_ACCEPTED');
     if (this.marketIntroStage === 'smith_intro') ids.push('SQ_FERRARIA_APRESENTADA');
+    if (this.marketIntroStage === 'forge_tools') ids.push('SQ_FERRAMENTAS_INICIAIS');
     if (this.marketIntroStage === 'collecting') ids.push('SQ_COLETA_EM_ANDAMENTO');
     if (this.marketIntroStage === 'completed') ids.push('SQ_MERCADO_PRIMEIRA_COLETA');
     if (this.lucianMeetingRewarded) ids.push('MQ_C1_003_AS_VOZES_DE_ACORDELOT');
@@ -1938,7 +1956,7 @@ export class GameEngine {
   }
 
   restoreMainQuestProgress(ids: string[]) {
-    this.openingMissionComplete = true;
+    this.openingMissionComplete = ids.includes('MQ_C1_001_DESPERTAR_SEM_NOME');
     this.antonyMissionComplete = ids.includes('MQ_C1_002_ESTRADA_PARA_ACORDELOT')
       || ids.includes('MQ_C1_002_ESTRADA_ACORDELOT');
     this.voicesMissionAccepted = ids.includes('MQ_C1_003_AS_VOZES_DE_ACORDELOT_ACCEPTED')
@@ -1947,6 +1965,8 @@ export class GameEngine {
       this.marketIntroStage = 'completed';
     } else if (ids.includes('SQ_COLETA_EM_ANDAMENTO')) {
       this.marketIntroStage = 'collecting';
+    } else if (ids.includes('SQ_FERRAMENTAS_INICIAIS')) {
+      this.marketIntroStage = 'forge_tools';
     } else if (ids.includes('SQ_FERRARIA_APRESENTADA')) {
       this.marketIntroStage = 'smith_intro';
     } else if (this.voicesMissionAccepted) {
@@ -1965,6 +1985,9 @@ export class GameEngine {
         pippo.direction = 'right';
         this.ensureLucian();
       }
+    } else {
+      this.storyStage = 'idle';
+      this.storyControlLocked = true;
     }
     this.onQuestsChange?.();
   }
@@ -1995,16 +2018,20 @@ export class GameEngine {
         chapter: 'Capítulo I',
         title: 'Despertar sem Nome',
         description: 'Acorde na floresta, reconheça a vibração, enfrente as criaturas e siga os Ecos até Pippo e Mirella.',
-        status: 'completed' as const,
-        objective: 'Você encontrou abrigo antes do amanhecer.',
+        status: this.openingMissionComplete ? ('completed' as const) : ('active' as const),
+        objective: this.openingMissionComplete
+          ? 'Você encontrou abrigo antes do amanhecer.'
+          : (this.storyObjective?.text ?? 'Desperte e descubra quem o chamou na floresta.'),
       },
       {
         id: 'MQ_C1_002_ESTRADA_PARA_ACORDELOT',
         chapter: 'Capítulo I',
         title: 'A Estrada para Acordelot',
         description: 'Viaje até o centro da cidade e procure o Sr. Antony, líder de Acordelot.',
-        status: this.antonyMissionComplete ? ('completed' as const) : ('active' as const),
-        objective: this.antonyMissionComplete ? 'Você conheceu o líder de Acordelot.' : (this.storyObjective?.text ?? 'Procure o Sr. Antony no centro da cidade.'),
+        status: !this.openingMissionComplete ? ('locked' as const) : this.antonyMissionComplete ? ('completed' as const) : ('active' as const),
+        objective: !this.openingMissionComplete
+          ? 'Complete Despertar sem Nome.'
+          : this.antonyMissionComplete ? 'Você conheceu o líder de Acordelot.' : (this.storyObjective?.text ?? 'Procure o Sr. Antony no centro da cidade.'),
       },
       {
         id: 'MQ_C1_003_AS_VOZES_DE_ACORDELOT',
@@ -2024,6 +2051,8 @@ export class GameEngine {
             ? 'Apresente-se a Miro no Mercado de Acordelot.'
             : this.marketIntroStage === 'smith_intro'
               ? 'Conheça Dório na Ferraria Harmônica, a oeste da praça.'
+            : this.marketIntroStage === 'forge_tools'
+              ? 'Forje o Machado Básico e a Picareta Básica com o presente de Dório.'
             : this.marketIntroStage === 'collecting'
               ? hasMaterials
                 ? 'Materiais reunidos! Fale com Miro no Mercado para entregar.'
@@ -2032,7 +2061,7 @@ export class GameEngine {
                 ? 'Miro visitado! Conheça Lucian na oficina ao oeste da praça.'
                 : 'Você conheceu os cidadãos influentes de Acordelot!',
       },
-      ...(this.marketIntroStage === 'smith_intro' || this.marketIntroStage === 'collecting' || this.marketIntroStage === 'completed' ? [{
+      ...(this.marketIntroStage === 'smith_intro' || this.marketIntroStage === 'forge_tools' || this.marketIntroStage === 'collecting' || this.marketIntroStage === 'completed' ? [{
         id: 'SQ_MERCADO_PRIMEIRA_COLETA',
         chapter: 'Secundária',
         title: 'A Primeira Coleta do Mercado',
@@ -2042,6 +2071,8 @@ export class GameEngine {
           ? 'Materiais entregues a Miro! Recompensa recebida.'
           : this.marketIntroStage === 'smith_intro'
             ? 'Antes da coleta, aprenda sobre ferramentas e síntese com Dório na ferraria.'
+          : this.marketIntroStage === 'forge_tools'
+            ? 'Na aba Ferramentas, forje o Machado Básico e a Picareta Básica.'
           : hasMaterials
             ? 'Materiais prontos! Fale com Miro no Mercado.'
             : `Madeira: ${woodCount}/3 | Pedra: ${stoneCount}/3 (use machado e picareta)`,
@@ -3217,6 +3248,11 @@ export class GameEngine {
           'Antes de coletar, procure Dório na Ferraria Harmônica, a oeste da praça. Ele ensinará ferramentas, síntese e forja.',
           'E não peça desconto dizendo que foi enviado por mim. Ele aumenta o preço só para me irritar.',
         ];
+      } else if (this.voicesMissionAccepted && this.marketIntroStage === 'forge_tools') {
+        dialogue = [
+          'A madeira e a pedra que Dório entregou são para a forja, Akles — não são a minha encomenda.',
+          'Forje primeiro o Machado Básico e a Picareta Básica. Depois colha materiais novos com as próprias mãos.',
+        ];
       } else if (this.voicesMissionAccepted && this.marketIntroStage === 'collecting') {
         if (hasMaterials) {
           dialogue = [
@@ -3388,12 +3424,10 @@ export class GameEngine {
         this.addToInventory('wood', 6);
         this.addToInventory('stone', 6);
         this.onInventoryChange?.({ ...this.inventory });
-        this.marketIntroStage = 'collecting';
-        const woodCount = Math.min(3, this.inventory['wood'] || 0);
-        const stoneCount = Math.min(3, this.inventory['stone'] || 0);
+        this.marketIntroStage = 'forge_tools';
         this.storyObjective = {
           title: 'A Primeira Coleta do Mercado',
-          text: `Forje as ferramentas na ferraria, depois colete Madeira (${woodCount}/3) e Pedra (${stoneCount}/3) para Miro`,
+          text: 'Use o presente de Dório para forjar o Machado Básico e a Picareta Básica',
           progress: 0,
           target: 2,
           ready: false,
@@ -5473,17 +5507,34 @@ export class GameEngine {
     if (['chop', 'mine', 'attack', 'spin', 'cast'].includes(this.player.actionState as string)) return;
     const tree = this.findNearestHarvestable('tree');
     const rock = this.findNearestHarvestable('rock');
-    if (tree && !rock) return this.triggerAction('chop');
-    if (rock && !tree) return this.triggerAction('mine');
+    if (tree && !rock) return this.tryHarvestNode(tree);
+    if (rock && !tree) return this.tryHarvestNode(rock);
     if (tree && rock) {
       const px = this.player.x + 12;
       const py = this.player.y + 24;
       const dt = Math.hypot(px - (tree.x + tree.w / 2), py - (tree.y + tree.h * 0.75));
       const dr = Math.hypot(px - (rock.x + rock.w / 2), py - (rock.y + rock.h * 0.75));
-      return this.triggerAction(dt <= dr ? 'chop' : 'mine');
+      return this.tryHarvestNode(dt <= dr ? tree : rock);
     }
     // nada por perto: ainda faz o gesto pra dar feedback
     this.triggerAction('chop');
+  }
+
+  private tryHarvestNode(node: WorldProp) {
+    const def = HARVEST_DEFS[node.type];
+    if (!def) return;
+    const kind = def.kind === 'tree' ? 'axe' : 'pick';
+    const owned = kind === 'axe' ? this.ownedAxes : this.ownedPicks;
+    const equipped = kind === 'axe' ? this.equippedAxe : this.equippedPick;
+    const tierRank = (tier: ToolTier) => GameEngine.TOOL_TIERS.indexOf(tier);
+    const toolName = kind === 'axe' ? 'Machado' : 'Picareta';
+    const tierName = def.minTier === 'wood' ? 'Básico' : def.minTier === 'gold' ? 'Dourado' : 'Cristalino';
+    if (!owned.includes(equipped) || tierRank(equipped) < tierRank(def.minTier)) {
+      this.onHarvestPopup?.(`🔒 Requer ${toolName} ${tierName}`, this.player.x, this.player.y - 20);
+      return;
+    }
+    this.harvestFxNode = node;
+    this.triggerAction(def.kind === 'tree' ? 'chop' : 'mine');
   }
 
   // Botão único (HUD): recurso próximo sempre tem prioridade. O bloqueio por
@@ -5711,6 +5762,11 @@ export class GameEngine {
     const kind: 'tree' | 'rock' = this.player.actionState === 'mine' ? 'rock' : 'tree';
     const node = this.findNearestHarvestable(kind);
     if (!node || !node.harvest) return;
+    const def = HARVEST_DEFS[node.type];
+    const owned = kind === 'tree' ? this.ownedAxes : this.ownedPicks;
+    const equipped = kind === 'tree' ? this.equippedAxe : this.equippedPick;
+    if (!def || !owned.includes(equipped)
+      || GameEngine.TOOL_TIERS.indexOf(equipped) < GameEngine.TOOL_TIERS.indexOf(def.minTier)) return;
     const h = node.harvest;
 
     h.hp -= 1;
@@ -5976,7 +6032,7 @@ export class GameEngine {
     const px = this.player.x + 12;
     const py = this.player.y + 20;
     let near: NPC | null = null;
-    let nearD = 88;
+    let nearD = Number.POSITIVE_INFINITY;
     for (const n of this.npcs) {
       // NPCs estacionários (ferreiro, lojista) têm raio de detecção maior
       const radius = (n.id === 'npc_ferreiro' || n.isMerchant || n.spriteType === 'merchant') ? 110 : 88;

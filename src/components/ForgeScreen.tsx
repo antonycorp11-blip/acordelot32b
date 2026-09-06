@@ -45,7 +45,7 @@ export const ForgeScreen: React.FC<Props> = ({ open, onClose, engine, inventory,
 
   React.useEffect(() => {
     if (open) {
-      const firstForge = openOnTools || engine?.marketIntroStage === 'collecting';
+      const firstForge = openOnTools || engine?.marketIntroStage === 'forge_tools';
       setTab(firstForge ? 'tools' : 'refine');
       setShowGift(!!firstForge);
       setMessage('Dório: "Escolha o trabalho. A bigorna não gosta de indecisão."');

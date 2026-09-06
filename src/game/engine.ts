@@ -1936,6 +1936,47 @@ export class GameEngine {
     };
   }
 
+  /** Destino físico da etapa narrativa atual, usado pela bússola ao lado do herói. */
+  private get questGuidanceTarget(): Point | null {
+    if (this.storyControlLocked || this.isEditMode) return null;
+    const npcPoint = (id: string): Point | null => {
+      const npc = this.npcs.find((candidate) => candidate.id === id);
+      return npc ? { x: npc.x + npc.width / 2, y: npc.y + npc.height * .75 } : null;
+    };
+    const propPoint = (id: string): Point | null => {
+      const prop = this.props.find((candidate) => candidate.id === id);
+      return prop ? { x: prop.x + prop.w / 2, y: prop.y + prop.h + 10 } : null;
+    };
+
+    if (this.storyStage === 'follow_vibration' || this.storyStage === 'find_origin') {
+      return this.openingSoundTarget;
+    }
+    if (this.storyStage === 'find_echoes' || this.storyStage === 'follow_echoes') {
+      const echoes = [...this.storyEchoIds]
+        .map((id) => this.enemies.find((enemy) => enemy.id === id && enemy.state !== 'dead'))
+        .filter((enemy): enemy is Enemy => !!enemy);
+      if (echoes.length) {
+        return {
+          x: echoes.reduce((sum, echo) => sum + echo.x, 0) / echoes.length,
+          y: echoes.reduce((sum, echo) => sum + echo.y, 0) / echoes.length,
+        };
+      }
+    }
+    if (this.storyStage === 'follow_pippo' || this.storyStage === 'follow_pippo_antony') {
+      return npcPoint('story_pippo');
+    }
+    if (this.storyStage !== 'complete' || !this.voicesMissionAccepted) return null;
+    if (this.marketIntroStage === 'intro') return npcPoint('npc_mercador_cidade');
+    if (this.marketIntroStage === 'smith_intro') return npcPoint('npc_ferreiro') ?? propPoint('b_blacksmith');
+    if (this.marketIntroStage === 'forge_tools') return npcPoint('npc_ferreiro') ?? propPoint('b_blacksmith');
+    if (this.marketIntroStage === 'collecting') {
+      const hasMaterials = (this.inventory.wood || 0) >= 3 && (this.inventory.stone || 0) >= 3;
+      return hasMaterials ? npcPoint('npc_mercador_cidade') : null;
+    }
+    if (this.marketIntroStage === 'completed' && !this.lucianMeetingRewarded) return npcPoint('story_lucian');
+    return null;
+  }
+
   /** Registro da campanha. As diárias só serão abertas por uma missão futura. */
   get dailyQuestsUnlocked() { return false; }
 
@@ -2907,9 +2948,13 @@ export class GameEngine {
   }
 
   ensureLucian() {
-    const lodge = this.props.find((prop) => prop.id === 'b_blacksmith') ?? this.props.find((prop) => prop.type === 'blacksmithFront');
-    const x = lodge ? lodge.x + lodge.w + 12 : 24 * TILE_SIZE;
-    const y = lodge ? lodge.y + lodge.h + 6 : 23 * TILE_SIZE;
+    // A antiga posição ao lado da ferraria confundia Lucian com Dório e ainda
+    // podia deixá-lo fora da rua. A oficina de madeira combina com o luthier e
+    // fica numa rota livre a oeste da praça.
+    const workshop = this.props.find((prop) => prop.id === 'b_back_woodshed')
+      ?? this.props.find((prop) => prop.type === 'houseBackBlueWoodshed');
+    const x = workshop ? workshop.x + workshop.w / 2 - 14 : 10 * TILE_SIZE;
+    const y = workshop ? workshop.y + workshop.h + 8 : 32 * TILE_SIZE;
     const lucian = this.ensureStoryNpc('story_lucian', 'Lucian', 'lucian', x, y, '#eab308');
     lucian.title = 'Mestre Luthier';
     lucian.direction = 'down';
@@ -2920,7 +2965,7 @@ export class GameEngine {
     lucian.barks = [
       'Ouça essa ressonância...',
       'Uma madeira bem curada canta por gerações.',
-      'Estou ao lado da ferraria — Pippo diz que assim ninguém consegue me perder.',
+      'Minha oficina de madeira fica a oeste da praça.',
     ];
     return lucian;
   }
@@ -3248,7 +3293,7 @@ export class GameEngine {
       let dialogue = n.dialogue ?? ['...'];
       if (this.voicesMissionAccepted && this.marketIntroStage === 'intro') {
         dialogue = [
-          'Você deve ser o rapaz sem memória. O Sr. Antony descreveu o cabelo; Pippo descreveu o apetite.',
+          'Você deve ser o rapaz sem memória. O Sr. Antony descreveu o cabelo; Pippo descreveu o olhar perdido.',
           'Sou Miro. Vendo poções, compro histórias e finjo não ouvir boatos depois do terceiro sino.',
           'Preciso de 3 Madeiras e 3 Pedras. Parece pouco até uma árvore decidir cair para o lado errado.',
           'Antes de coletar, procure Dório na Ferraria Harmônica, a oeste da praça. Ele ensinará ferramentas, síntese e forja.',
@@ -3301,9 +3346,9 @@ export class GameEngine {
           ];
         } else {
           dialogue = [
-            'Saudações, Akles! Pippo me contou tudo sobre como você o salvou na floresta.',
-            'Como pai e mestre luthier desta cidade, minha gratidão a você é eterna.',
-            'Tome estas 60 moedas e este elixir de experiência para fortalecer sua jornada.',
+            'Saudações, Akles. Pippo contou que os Ecos guiaram você até o portão e que ele mostrou o caminho até Mirella.',
+            'Sou Lucian, pai dele e mestre luthier. Obrigado por tratar a curiosidade do meu filho com mais paciência que a maioria.',
+            'Tome estas 60 moedas. Considere um adiantamento pela história que ainda vai contar a esta cidade.',
             'Sempre que o som do mundo parecer desafinado, lembre-se: a verdadeira harmonia começa em nós mesmos!',
           ];
         }
@@ -4081,10 +4126,12 @@ export class GameEngine {
       smith.homeX = smith.x; smith.homeY = smith.y;
       smith.route = [{ x: smith.x, y: smith.y }]; smith.routeIdx = 0;
     }
+    const workshop = this.props.find((p) => p.id === 'b_back_woodshed')
+      ?? this.props.find((p) => p.type === 'houseBackBlueWoodshed');
     const lucian = this.npcs.find((n) => n.id === 'story_lucian');
-    if (forge && lucian) {
-      lucian.x = forge.x + forge.w + 12;
-      lucian.y = forge.y + forge.h + 6;
+    if (workshop && lucian) {
+      lucian.x = workshop.x + workshop.w / 2 - lucian.width / 2;
+      lucian.y = workshop.y + workshop.h + 8;
       lucian.homeX = lucian.x; lucian.homeY = lucian.y;
       lucian.route = [{ x: lucian.x, y: lucian.y }]; lucian.routeIdx = 0;
     }
@@ -6753,6 +6800,10 @@ export class GameEngine {
       ctx.restore();
     }
 
+    // Guia de missão fica acima da iluminação e dos elementos do cenário.
+    // Ele aponta continuamente para o destino, mas desaparece ao chegar.
+    this.drawQuestGuidance(camX, camY);
+
     // 5. Interaction Prompt
     if (!this.isEditMode && this.isNearMerchant && !this.isTalkingToMerchant) {
       const merchant = this.npcs.find((n) => n.spriteType === 'merchant');
@@ -6805,6 +6856,46 @@ export class GameEngine {
     if (this.isEditMode) {
       this.renderEditorGizmos(ctx, camX, camY);
     }
+  }
+
+  private drawQuestGuidance(camX: number, camY: number) {
+    const target = this.questGuidanceTarget;
+    if (!target) return;
+    const playerX = this.player.x + 12;
+    const playerY = this.player.y + 18;
+    const dx = target.x - playerX;
+    const dy = target.y - playerY;
+    const distance = Math.hypot(dx, dy);
+    if (distance < 54) return;
+
+    const angle = Math.atan2(dy, dx);
+    const pulse = .86 + Math.sin(this.timeElapsed * 6) * .14;
+    const radius = 34 + Math.sin(this.timeElapsed * 5) * 1.8;
+    const x = Math.round(playerX - camX + Math.cos(angle) * radius);
+    const y = Math.round(playerY - camY + Math.sin(angle) * radius);
+    const ctx = this.ctx;
+
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(angle);
+    ctx.shadowColor = '#facc15';
+    ctx.shadowBlur = 11 * pulse;
+    ctx.fillStyle = `rgba(8,15,30,${.82 * pulse})`;
+    ctx.strokeStyle = `rgba(253,224,71,${pulse})`;
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.arc(0, 0, 11, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = '#fde047';
+    ctx.beginPath();
+    ctx.moveTo(8, 0);
+    ctx.lineTo(-4, -6);
+    ctx.lineTo(-1, 0);
+    ctx.lineTo(-4, 6);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
   }
 
   renderLightingShader(mainCtx: CanvasRenderingContext2D, camX: number, camY: number) {

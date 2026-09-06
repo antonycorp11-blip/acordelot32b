@@ -48,7 +48,7 @@ import { ChatBox } from './ChatBox';
 import { WorldMapScreen } from './WorldMapScreen';
 import { publishMapToCode, getGhToken, setGhToken } from '../game/mapPersist';
 import { saveWorldMapToCloud } from '../game/worldMapSync';
-import { loadCloudSave, applySaveToEngine, prepareProgressionVersion, setupAutoSave, saveToCloud } from '../game/saveManager';
+import { loadCloudSave, applySaveToEngine, prepareProgressionVersion, prepareAccountFlowReset, setupAutoSave, saveToCloud } from '../game/saveManager';
 import { saveGlobalHudLayout } from '../game/hudSync';
 import { networkManager, ChatMessage } from '../game/networkManager';
 import { playMusicalTone, speakMusically, stopMusicalVoice, unlockMusicalVoice } from '../game/musicalVoice';
@@ -111,7 +111,7 @@ const OPENING_LINES: Record<OpeningPhase, OpeningLine[]> = {
     { speaker: 'Narração', voice: 'narrator', text: 'A manhã trará um mundo novo — e perguntas que ninguém parece disposto a responder.' },
   ],
   morning: [
-    { speaker: 'Mirella', voice: 'mirella', text: 'Bom dia. A estrada até Acordelot é longa, mas você precisa falar com quem pode ajudá-lo.' },
+    { speaker: 'Mirella', voice: 'mirella', text: 'Bom dia. O caminho até o centro de Acordelot é longo, mas você precisa falar com quem pode ajudá-lo.' },
     { speaker: 'Mirella', voice: 'mirella', text: 'Vá ao centro da cidade e procure o Sr. Antony. Ele é o líder de Acordelot.' },
     { speaker: 'Pippo', voice: 'pippo', text: 'Eu mostro o caminho pela avenida. Você anda por conta própria e eu espero sempre que precisar.', choices: [
       { label: 'Vamos encontrar o líder.', reply: 'Certo. Talvez o Sr. Antony tenha respostas.' },
@@ -749,6 +749,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
     if (!canvasRef.current || !containerRef.current) return;
 
     prepareProgressionVersion();
+    prepareAccountFlowReset(user?.id, user?.email);
     const engine = new GameEngine(canvasRef.current);
     engineRef.current = engine;
 
@@ -775,7 +776,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
     };
 
     if (userId) {
-      loadCloudSave(userId).then((save) => {
+      loadCloudSave(userId, user?.email).then((save) => {
         if (save) {
           applySaveToEngine(engine, save);
         }

@@ -44,6 +44,10 @@ export interface AcordelotSaveData {
 const LOCAL_SAVE_PREFIX = 'acordelot_player_save_';
 export const PROGRESSION_VERSION = '2026-09-06-campaign-reset-1';
 const PROGRESSION_MARKER_KEY = 'acordelot_progression_version';
+// Reset único e direcionado para a conta de testes do criador. O marcador é
+// gravado no primeiro autosave novo; portanto não afeta outras contas nem
+// reinicia Áquilles novamente nos acessos seguintes.
+const AQUILLES_FLOW_RESET_VERSION = '2026-09-06-opening-flow-test-1';
 
 /**
  * Invalida somente progresso local antigo. Login, preferências de áudio,
@@ -65,8 +69,31 @@ export function prepareProgressionVersion(): void {
   }
 }
 
+/** Limpa caches globais do jogo uma única vez na conta de testes de Áquilles. */
+export function prepareAccountFlowReset(userId?: string | null, email?: string | null): void {
+  const emailPrefix = String(email || '').trim().toLowerCase().split('@')[0];
+  if (!userId || emailPrefix !== 'antonycorp11') return;
+  const browserMarker = 'acordelot_aquilles_flow_reset_version';
+  try {
+    if (localStorage.getItem(browserMarker) === AQUILLES_FLOW_RESET_VERSION) return;
+    localStorage.removeItem(LOCAL_SAVE_PREFIX + userId);
+    localStorage.removeItem('acordelot_tools_v1');
+    localStorage.removeItem('acordelot_skill_progress_v1');
+    localStorage.removeItem('acordelot_daily_quests_v1');
+    localStorage.setItem(browserMarker, AQUILLES_FLOW_RESET_VERSION);
+  } catch {
+    // A validação do save em nuvem ainda garante o reset sem localStorage.
+  }
+}
+
 function isCurrentProgression(save: AcordelotSaveData | null): save is AcordelotSaveData {
   return !!save && (save.settings as Record<string, unknown> | undefined)?.progression_version === PROGRESSION_VERSION;
+}
+
+function isCurrentAccountReset(save: AcordelotSaveData | null, email?: string | null): boolean {
+  const emailPrefix = String(email || '').trim().toLowerCase().split('@')[0];
+  if (emailPrefix !== 'antonycorp11') return true;
+  return (save?.settings as Record<string, unknown> | undefined)?.aquilles_flow_reset_version === AQUILLES_FLOW_RESET_VERSION;
 }
 
 /**
@@ -144,6 +171,7 @@ export function serializeEngineSave(engine: GameEngine, userId: string): Omit<Ac
     },
     settings: {
       progression_version: PROGRESSION_VERSION,
+      aquilles_flow_reset_version: AQUILLES_FLOW_RESET_VERSION,
       fragments: [...(engine.fragments || [])],
       notes_built: [...(engine.notesBuilt || [])],
       shop_purchases: { ...engine.shopPurchases, counts: { ...engine.shopPurchases.counts } },
@@ -407,9 +435,9 @@ export async function saveToCloud(engine: GameEngine, userId: string): Promise<b
  * Carrega o save combinando o cache local instantâneo e a nuvem do Supabase.
  * Se o local tiver mais progresso (ex: fechamento rápido de aba), o local é priorizado.
  */
-export async function loadCloudSave(userId: string): Promise<AcordelotSaveData | null> {
+export async function loadCloudSave(userId: string, email?: string | null): Promise<AcordelotSaveData | null> {
   const cached = getLocalInstantSave(userId);
-  const localSave = isCurrentProgression(cached) ? cached : null;
+  const localSave = isCurrentProgression(cached) && isCurrentAccountReset(cached, email) ? cached : null;
   if (cached && !localSave) {
     try { localStorage.removeItem(LOCAL_SAVE_PREFIX + userId); } catch {}
   }
@@ -428,7 +456,7 @@ export async function loadCloudSave(userId: string): Promise<AcordelotSaveData |
     const cloudSave = data as AcordelotSaveData;
     // Saves anteriores ao reset global nunca podem ressuscitar a progressão
     // apagada no PWA. O primeiro autosave grava o estado inicial versionado.
-    if (!isCurrentProgression(cloudSave)) return localSave;
+    if (!isCurrentProgression(cloudSave) || !isCurrentAccountReset(cloudSave, email)) return localSave;
 
     // Se o local tiver nível maior ou timestamp mais recente que a nuvem, prioriza o local
     if (localSave) {

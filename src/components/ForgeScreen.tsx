@@ -122,8 +122,10 @@ export const ForgeScreen: React.FC<Props> = ({ open, onClose, engine, inventory,
                   const can = have >= r.need;
                   return (
                     <div key={r.key} className="flex items-center gap-3 rounded-xl border border-amber-800/35 bg-black/40 p-3">
-                      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-black/40 border border-white/10 text-xl">
-                        {r.icon}
+                      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-black/30 border border-white/10">
+                        {ITEM_META[r.refined]?.img
+                          ? <img src={ITEM_META[r.refined].img} alt={r.label} className="h-10 w-10 object-contain" />
+                          : <span className="text-xl">{r.icon}</span>}
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="text-xs font-black text-amber-100">{r.label}</p>

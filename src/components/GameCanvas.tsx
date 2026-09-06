@@ -945,15 +945,11 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
       setOpeningPhase(null);
       return;
     }
-    if (engineRef.current.isOpeningComplete) {
-      setTutorialStage('follow');
-      setOpeningPhase(null);
-      return;
-    }
-    engineRef.current.beginOpeningScene();
+    // A primeira missão já está concluída; acorda na casa da Mirella pela manhã rumo ao Sr. Antony
+    engineRef.current.startAtMorningScene();
     setTutorialStage('cinematic');
     setOpeningLine(0);
-    setOpeningPhase('awakening');
+    setOpeningPhase('morning');
   }, [assetsLoaded, saveReady, user?.id]);
 
   const currentOpeningLine = openingPhase ? OPENING_LINES[openingPhase][openingLine] : null;

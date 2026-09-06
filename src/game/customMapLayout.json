@@ -13279,27 +13279,6 @@
     "scale": 1
   },
   {
-    "id": "d19",
-    "type": "dark_thorn",
-    "x": 1086,
-    "y": 3553,
-    "scale": 1
-  },
-  {
-    "id": "d20",
-    "type": "dark_deadtree",
-    "x": 1146,
-    "y": 3549,
-    "scale": 1
-  },
-  {
-    "id": "d21",
-    "type": "dark_thorn",
-    "x": 1186,
-    "y": 3549,
-    "scale": 1
-  },
-  {
     "id": "d22",
     "type": "dark_bigpine",
     "x": 1210,
@@ -13769,20 +13748,6 @@
     "scale": 1
   },
   {
-    "id": "d89",
-    "type": "dark_thorn",
-    "x": 1126,
-    "y": 3588,
-    "scale": 1
-  },
-  {
-    "id": "d90",
-    "type": "pine",
-    "x": 1154,
-    "y": 3578,
-    "scale": 1
-  },
-  {
     "id": "d91",
     "type": "dark_deadtree",
     "x": 1245,
@@ -14238,20 +14203,6 @@
     "scale": 1
   },
   {
-    "id": "d156",
-    "type": "dark_bigpine",
-    "x": 1124,
-    "y": 3618,
-    "scale": 1
-  },
-  {
-    "id": "d157",
-    "type": "dark_thorn",
-    "x": 1153,
-    "y": 3611,
-    "scale": 1
-  },
-  {
     "id": "d158",
     "type": "dark_deadtree",
     "x": 1310,
@@ -14675,13 +14626,6 @@
     "id": "d218",
     "type": "dark_bigrock",
     "x": 988,
-    "y": 3653,
-    "scale": 1
-  },
-  {
-    "id": "d219",
-    "type": "pine",
-    "x": 1127,
     "y": 3653,
     "scale": 1
   },
@@ -15120,27 +15064,6 @@
     "scale": 1
   },
   {
-    "id": "d282",
-    "type": "dark_deadtree",
-    "x": 1082,
-    "y": 3675,
-    "scale": 1
-  },
-  {
-    "id": "d283",
-    "type": "dark_deadtree",
-    "x": 1119,
-    "y": 3682,
-    "scale": 1
-  },
-  {
-    "id": "d284",
-    "type": "dark_thorn",
-    "x": 1152,
-    "y": 3685,
-    "scale": 1
-  },
-  {
     "id": "d285",
     "type": "dark_bigpine",
     "x": 1216,
@@ -15561,27 +15484,6 @@
     "scale": 1
   },
   {
-    "id": "d345",
-    "type": "pine",
-    "x": 1121,
-    "y": 3707,
-    "scale": 1
-  },
-  {
-    "id": "d346",
-    "type": "dark_bigpine",
-    "x": 1150,
-    "y": 3706,
-    "scale": 1
-  },
-  {
-    "id": "d347",
-    "type": "dark_bigpine",
-    "x": 1179,
-    "y": 3718,
-    "scale": 1
-  },
-  {
     "id": "d348",
     "type": "dark_bigpine",
     "x": 1209,
@@ -15960,27 +15862,6 @@
     "scale": 1
   },
   {
-    "id": "d402",
-    "type": "dark_deadtree",
-    "x": 1086,
-    "y": 3741,
-    "scale": 1
-  },
-  {
-    "id": "d403",
-    "type": "dark_bigpine",
-    "x": 1126,
-    "y": 3749,
-    "scale": 1
-  },
-  {
-    "id": "d404",
-    "type": "dark_bigpine",
-    "x": 1156,
-    "y": 3741,
-    "scale": 1
-  },
-  {
     "id": "d405",
     "type": "dark_bigpine",
     "x": 1222,
@@ -16289,31 +16170,10 @@
     "scale": 1
   },
   {
-    "id": "d449",
-    "type": "dark_bigpine",
-    "x": 191,
-    "y": 3781,
-    "scale": 1
-  },
-  {
-    "id": "d450",
-    "type": "dark_deadtree",
-    "x": 352,
-    "y": 3779,
-    "scale": 1
-  },
-  {
     "id": "d451",
     "type": "dark_thorn",
     "x": 411,
     "y": 3782,
-    "scale": 1
-  },
-  {
-    "id": "d452",
-    "type": "dark_deadtree",
-    "x": 448,
-    "y": 3776,
     "scale": 1
   },
   {
@@ -16328,34 +16188,6 @@
     "type": "spot_crystal_blue",
     "x": 804,
     "y": 3773,
-    "scale": 1
-  },
-  {
-    "id": "d455",
-    "type": "dark_bigpine",
-    "x": 960,
-    "y": 3777,
-    "scale": 1
-  },
-  {
-    "id": "d456",
-    "type": "dark_bigpine",
-    "x": 1019,
-    "y": 3781,
-    "scale": 1
-  },
-  {
-    "id": "d457",
-    "type": "spot_crystal_red",
-    "x": 1093,
-    "y": 3781,
-    "scale": 1
-  },
-  {
-    "id": "d458",
-    "type": "dark_deadtree",
-    "x": 1120,
-    "y": 3771,
     "scale": 1
   },
   {
@@ -16664,90 +16496,6 @@
     "type": "dark_bigpine",
     "x": 103,
     "y": 3813,
-    "scale": 1
-  },
-  {
-    "id": "d503",
-    "type": "dark_icecrystal",
-    "x": 132,
-    "y": 3809,
-    "scale": 1
-  },
-  {
-    "id": "d504",
-    "type": "dark_deadtree",
-    "x": 166,
-    "y": 3809,
-    "scale": 1
-  },
-  {
-    "id": "d505",
-    "type": "dark_deadtree",
-    "x": 222,
-    "y": 3813,
-    "scale": 1
-  },
-  {
-    "id": "d506",
-    "type": "dark_icecrystal",
-    "x": 390,
-    "y": 3809,
-    "scale": 1
-  },
-  {
-    "id": "d507",
-    "type": "pine",
-    "x": 418,
-    "y": 3805,
-    "scale": 1
-  },
-  {
-    "id": "d508",
-    "type": "dark_deadtree",
-    "x": 474,
-    "y": 3812,
-    "scale": 1
-  },
-  {
-    "id": "d509",
-    "type": "dark_bigpine",
-    "x": 572,
-    "y": 3810,
-    "scale": 1
-  },
-  {
-    "id": "d510",
-    "type": "dark_icecrystal",
-    "x": 771,
-    "y": 3809,
-    "scale": 1
-  },
-  {
-    "id": "d511",
-    "type": "dark_bigpine",
-    "x": 995,
-    "y": 3812,
-    "scale": 1
-  },
-  {
-    "id": "d512",
-    "type": "spot_crystal_red",
-    "x": 1085,
-    "y": 3806,
-    "scale": 1
-  },
-  {
-    "id": "d513",
-    "type": "dark_bigpine",
-    "x": 1155,
-    "y": 3809,
-    "scale": 1
-  },
-  {
-    "id": "d514",
-    "type": "dark_deadtree",
-    "x": 1189,
-    "y": 3802,
     "scale": 1
   },
   {
@@ -17080,101 +16828,10 @@
     "scale": 1
   },
   {
-    "id": "d562",
-    "type": "bush",
-    "x": 162,
-    "y": 3836,
-    "scale": 1
-  },
-  {
-    "id": "d563",
-    "type": "rockCluster",
-    "x": 288,
-    "y": 3844,
-    "scale": 1
-  },
-  {
-    "id": "d564",
-    "type": "dark_bigpine",
-    "x": 353,
-    "y": 3833,
-    "scale": 1
-  },
-  {
-    "id": "d565",
-    "type": "dark_deadtree",
-    "x": 412,
-    "y": 3835,
-    "scale": 1
-  },
-  {
-    "id": "d566",
-    "type": "dark_deadtree",
-    "x": 486,
-    "y": 3844,
-    "scale": 1
-  },
-  {
-    "id": "d567",
-    "type": "dark_thorn",
-    "x": 544,
-    "y": 3838,
-    "scale": 1
-  },
-  {
-    "id": "d568",
-    "type": "spot_crystal_red",
-    "x": 643,
-    "y": 3843,
-    "scale": 1
-  },
-  {
-    "id": "d569",
-    "type": "dark_bigpine",
-    "x": 762,
-    "y": 3835,
-    "scale": 1
-  },
-  {
-    "id": "d570",
-    "type": "dark_deadtree",
-    "x": 831,
-    "y": 3835,
-    "scale": 1
-  },
-  {
-    "id": "d571",
-    "type": "dark_bigpine",
-    "x": 903,
-    "y": 3843,
-    "scale": 1
-  },
-  {
-    "id": "d572",
-    "type": "pine",
-    "x": 932,
-    "y": 3838,
-    "scale": 1
-  },
-  {
     "id": "d573",
     "type": "dark_bigpine",
-    "x": 1021,
-    "y": 3837,
-    "scale": 1
-  },
-  {
-    "id": "d574",
-    "type": "pine",
-    "x": 1063,
-    "y": 3843,
-    "scale": 1
-  },
-  {
-    "id": "d575",
-    "type": "dark_deadtree",
-    "x": 1118,
-    "y": 3836,
+    "x": 573,
+    "y": 4269,
     "scale": 1
   },
   {
@@ -17549,80 +17206,10 @@
     "scale": 1
   },
   {
-    "id": "d629",
-    "type": "dark_deadtree",
-    "x": 227,
-    "y": 3879,
-    "scale": 1
-  },
-  {
-    "id": "d630",
-    "type": "pine",
-    "x": 353,
-    "y": 3868,
-    "scale": 1
-  },
-  {
-    "id": "d631",
-    "type": "dark_bigpine",
-    "x": 507,
-    "y": 3870,
-    "scale": 1
-  },
-  {
-    "id": "d632",
-    "type": "spot_crystal_blue",
-    "x": 637,
-    "y": 3877,
-    "scale": 1
-  },
-  {
-    "id": "d633",
-    "type": "dark_bigpine",
-    "x": 768,
-    "y": 3870,
-    "scale": 1
-  },
-  {
-    "id": "d634",
-    "type": "dark_icecrystal",
-    "x": 869,
-    "y": 3869,
-    "scale": 1
-  },
-  {
-    "id": "d635",
-    "type": "spot_crystal_blue",
-    "x": 1088,
-    "y": 3876,
-    "scale": 1
-  },
-  {
-    "id": "d636",
-    "type": "dark_deadtree",
-    "x": 1126,
-    "y": 3866,
-    "scale": 1
-  },
-  {
-    "id": "d637",
-    "type": "dark_bigpine",
-    "x": 1243,
-    "y": 3868,
-    "scale": 1
-  },
-  {
     "id": "d638",
     "type": "dark_thorn",
     "x": 1317,
     "y": 3874,
-    "scale": 1
-  },
-  {
-    "id": "d639",
-    "type": "dark_deadtree",
-    "x": 1340,
-    "y": 3876,
     "scale": 1
   },
   {
@@ -17640,27 +17227,6 @@
     "scale": 1
   },
   {
-    "id": "d642",
-    "type": "dark_bigpine",
-    "x": 1477,
-    "y": 3875,
-    "scale": 1
-  },
-  {
-    "id": "d643",
-    "type": "dark_bigpine",
-    "x": 1542,
-    "y": 3872,
-    "scale": 1
-  },
-  {
-    "id": "d644",
-    "type": "dark_deadtree",
-    "x": 1563,
-    "y": 3872,
-    "scale": 1
-  },
-  {
     "id": "d645",
     "type": "dark_thorn",
     "x": 1605,
@@ -17668,52 +17234,10 @@
     "scale": 1
   },
   {
-    "id": "d646",
-    "type": "dark_bigpine",
-    "x": 1670,
-    "y": 3872,
-    "scale": 1
-  },
-  {
     "id": "d647",
     "type": "spot_crystal_blue",
     "x": 1764,
     "y": 3868,
-    "scale": 1
-  },
-  {
-    "id": "d648",
-    "type": "dark_bigpine",
-    "x": 1789,
-    "y": 3878,
-    "scale": 1
-  },
-  {
-    "id": "d649",
-    "type": "spot_crystal_blue",
-    "x": 1827,
-    "y": 3875,
-    "scale": 1
-  },
-  {
-    "id": "d650",
-    "type": "dark_deadtree",
-    "x": 1856,
-    "y": 3867,
-    "scale": 1
-  },
-  {
-    "id": "d651",
-    "type": "dark_bigpine",
-    "x": 1894,
-    "y": 3867,
-    "scale": 1
-  },
-  {
-    "id": "d652",
-    "type": "dark_deadtree",
-    "x": 1985,
-    "y": 3878,
     "scale": 1
   },
   {
@@ -18004,223 +17528,6 @@
     "scale": 1
   },
   {
-    "id": "d694",
-    "type": "dark_bigpine",
-    "x": 199,
-    "y": 3901,
-    "scale": 1
-  },
-  {
-    "id": "d695",
-    "type": "pine",
-    "x": 253,
-    "y": 3909,
-    "scale": 1
-  },
-  {
-    "id": "d696",
-    "type": "dark_deadtree",
-    "x": 327,
-    "y": 3910,
-    "scale": 1
-  },
-  {
-    "id": "d697",
-    "type": "dark_thorn",
-    "x": 410,
-    "y": 3907,
-    "scale": 1
-  },
-  {
-    "id": "d698",
-    "type": "dark_bigpine",
-    "x": 451,
-    "y": 3897,
-    "scale": 1
-  },
-  {
-    "id": "d699",
-    "type": "bush",
-    "x": 487,
-    "y": 3908,
-    "scale": 1
-  },
-  {
-    "id": "d700",
-    "type": "bush",
-    "x": 637,
-    "y": 3899,
-    "scale": 1
-  },
-  {
-    "id": "d701",
-    "type": "dark_bigpine",
-    "x": 799,
-    "y": 3905,
-    "scale": 1
-  },
-  {
-    "id": "d702",
-    "type": "dark_deadtree",
-    "x": 868,
-    "y": 3901,
-    "scale": 1
-  },
-  {
-    "id": "d703",
-    "type": "spot_crystal_red",
-    "x": 928,
-    "y": 3903,
-    "scale": 1
-  },
-  {
-    "id": "d704",
-    "type": "dark_bigpine",
-    "x": 1051,
-    "y": 3899,
-    "scale": 1
-  },
-  {
-    "id": "d705",
-    "type": "dark_bigpine",
-    "x": 1089,
-    "y": 3899,
-    "scale": 1
-  },
-  {
-    "id": "d706",
-    "type": "dark_deadtree",
-    "x": 1150,
-    "y": 3907,
-    "scale": 1
-  },
-  {
-    "id": "d707",
-    "type": "dark_deadtree",
-    "x": 1188,
-    "y": 3907,
-    "scale": 1
-  },
-  {
-    "id": "d708",
-    "type": "dark_bigpine",
-    "x": 1248,
-    "y": 3899,
-    "scale": 1
-  },
-  {
-    "id": "d709",
-    "type": "dark_bigpine",
-    "x": 1311,
-    "y": 3905,
-    "scale": 1
-  },
-  {
-    "id": "d710",
-    "type": "dark_bigpine",
-    "x": 1378,
-    "y": 3901,
-    "scale": 1
-  },
-  {
-    "id": "d711",
-    "type": "dark_deadtree",
-    "x": 1409,
-    "y": 3907,
-    "scale": 1
-  },
-  {
-    "id": "d712",
-    "type": "dark_bigpine",
-    "x": 1475,
-    "y": 3909,
-    "scale": 1
-  },
-  {
-    "id": "d713",
-    "type": "dark_bigpine",
-    "x": 1501,
-    "y": 3897,
-    "scale": 1
-  },
-  {
-    "id": "d714",
-    "type": "pine",
-    "x": 1595,
-    "y": 3903,
-    "scale": 1
-  },
-  {
-    "id": "d715",
-    "type": "dark_bigpine",
-    "x": 1627,
-    "y": 3905,
-    "scale": 1
-  },
-  {
-    "id": "d716",
-    "type": "dark_deadtree",
-    "x": 1670,
-    "y": 3902,
-    "scale": 1
-  },
-  {
-    "id": "d717",
-    "type": "pine",
-    "x": 1696,
-    "y": 3900,
-    "scale": 1
-  },
-  {
-    "id": "d718",
-    "type": "dark_bigpine",
-    "x": 1727,
-    "y": 3902,
-    "scale": 1
-  },
-  {
-    "id": "d719",
-    "type": "dark_bigpine",
-    "x": 1825,
-    "y": 3908,
-    "scale": 1
-  },
-  {
-    "id": "d720",
-    "type": "dark_bigpine",
-    "x": 1889,
-    "y": 3909,
-    "scale": 1
-  },
-  {
-    "id": "d721",
-    "type": "spot_crystal_blue",
-    "x": 1925,
-    "y": 3903,
-    "scale": 1
-  },
-  {
-    "id": "d722",
-    "type": "dark_bigpine",
-    "x": 1947,
-    "y": 3899,
-    "scale": 1
-  },
-  {
-    "id": "d723",
-    "type": "dark_deadtree",
-    "x": 2023,
-    "y": 3903,
-    "scale": 1
-  },
-  {
-    "id": "d724",
-    "type": "dark_bigpine",
-    "x": 2077,
-    "y": 3903,
-    "scale": 1
-  },
-  {
     "id": "d725",
     "type": "dark_bigpine",
     "x": 2182,
@@ -18470,195 +17777,6 @@
     "type": "dark_deadtree",
     "x": 4444,
     "y": 3911,
-    "scale": 1
-  },
-  {
-    "id": "d761",
-    "type": "dark_bigpine",
-    "x": 199,
-    "y": 3943,
-    "scale": 1
-  },
-  {
-    "id": "d762",
-    "type": "dark_bigpine",
-    "x": 220,
-    "y": 3930,
-    "scale": 1
-  },
-  {
-    "id": "d763",
-    "type": "dark_bigrock",
-    "x": 251,
-    "y": 3932,
-    "scale": 1
-  },
-  {
-    "id": "d764",
-    "type": "dark_bigpine",
-    "x": 323,
-    "y": 3935,
-    "scale": 1
-  },
-  {
-    "id": "d765",
-    "type": "pine",
-    "x": 449,
-    "y": 3938,
-    "scale": 1
-  },
-  {
-    "id": "d766",
-    "type": "dark_deadtree",
-    "x": 477,
-    "y": 3942,
-    "scale": 1
-  },
-  {
-    "id": "d767",
-    "type": "dark_deadtree",
-    "x": 507,
-    "y": 3936,
-    "scale": 1
-  },
-  {
-    "id": "d768",
-    "type": "dark_deadtree",
-    "x": 550,
-    "y": 3939,
-    "scale": 1
-  },
-  {
-    "id": "d769",
-    "type": "dark_thorn",
-    "x": 573,
-    "y": 3936,
-    "scale": 1
-  },
-  {
-    "id": "d770",
-    "type": "dark_thorn",
-    "x": 762,
-    "y": 3939,
-    "scale": 1
-  },
-  {
-    "id": "d771",
-    "type": "dark_deadtree",
-    "x": 860,
-    "y": 3939,
-    "scale": 1
-  },
-  {
-    "id": "d772",
-    "type": "dark_deadtree",
-    "x": 925,
-    "y": 3933,
-    "scale": 1
-  },
-  {
-    "id": "d773",
-    "type": "dark_bigpine",
-    "x": 958,
-    "y": 3934,
-    "scale": 1
-  },
-  {
-    "id": "d774",
-    "type": "dark_deadtree",
-    "x": 1020,
-    "y": 3937,
-    "scale": 1
-  },
-  {
-    "id": "d775",
-    "type": "dark_deadtree",
-    "x": 1126,
-    "y": 3940,
-    "scale": 1
-  },
-  {
-    "id": "d776",
-    "type": "dark_bigpine",
-    "x": 1215,
-    "y": 3940,
-    "scale": 1
-  },
-  {
-    "id": "d777",
-    "type": "dark_bigpine",
-    "x": 1244,
-    "y": 3935,
-    "scale": 1
-  },
-  {
-    "id": "d778",
-    "type": "dark_bigpine",
-    "x": 1287,
-    "y": 3940,
-    "scale": 1
-  },
-  {
-    "id": "d779",
-    "type": "pine",
-    "x": 1373,
-    "y": 3939,
-    "scale": 1
-  },
-  {
-    "id": "d780",
-    "type": "dark_bigpine",
-    "x": 1441,
-    "y": 3936,
-    "scale": 1
-  },
-  {
-    "id": "d781",
-    "type": "dark_bigpine",
-    "x": 1508,
-    "y": 3938,
-    "scale": 1
-  },
-  {
-    "id": "d782",
-    "type": "dark_bigpine",
-    "x": 1605,
-    "y": 3940,
-    "scale": 1
-  },
-  {
-    "id": "d783",
-    "type": "dark_deadtree",
-    "x": 1630,
-    "y": 3938,
-    "scale": 1
-  },
-  {
-    "id": "d784",
-    "type": "dark_icecrystal",
-    "x": 1660,
-    "y": 3939,
-    "scale": 1
-  },
-  {
-    "id": "d785",
-    "type": "bush",
-    "x": 1726,
-    "y": 3938,
-    "scale": 1
-  },
-  {
-    "id": "d786",
-    "type": "dark_thorn",
-    "x": 2014,
-    "y": 3936,
-    "scale": 1
-  },
-  {
-    "id": "d787",
-    "type": "dark_thorn",
-    "x": 2080,
-    "y": 3934,
     "scale": 1
   },
   {
@@ -18931,195 +18049,6 @@
     "id": "d826",
     "type": "pine",
     "x": 100,
-    "y": 3969,
-    "scale": 1
-  },
-  {
-    "id": "d827",
-    "type": "dark_bigrock",
-    "x": 160,
-    "y": 3973,
-    "scale": 1
-  },
-  {
-    "id": "d828",
-    "type": "dark_deadtree",
-    "x": 191,
-    "y": 3968,
-    "scale": 1
-  },
-  {
-    "id": "d829",
-    "type": "dark_bigpine",
-    "x": 288,
-    "y": 3965,
-    "scale": 1
-  },
-  {
-    "id": "d830",
-    "type": "dark_thorn",
-    "x": 315,
-    "y": 3962,
-    "scale": 1
-  },
-  {
-    "id": "d831",
-    "type": "dark_bigpine",
-    "x": 357,
-    "y": 3965,
-    "scale": 1
-  },
-  {
-    "id": "d832",
-    "type": "dark_bigrock",
-    "x": 451,
-    "y": 3964,
-    "scale": 1
-  },
-  {
-    "id": "d833",
-    "type": "dark_deadtree",
-    "x": 551,
-    "y": 3971,
-    "scale": 1
-  },
-  {
-    "id": "d834",
-    "type": "dark_bigpine",
-    "x": 574,
-    "y": 3966,
-    "scale": 1
-  },
-  {
-    "id": "d835",
-    "type": "dark_deadtree",
-    "x": 765,
-    "y": 3968,
-    "scale": 1
-  },
-  {
-    "id": "d836",
-    "type": "pine",
-    "x": 1159,
-    "y": 3961,
-    "scale": 1
-  },
-  {
-    "id": "d837",
-    "type": "dark_bigpine",
-    "x": 1178,
-    "y": 3974,
-    "scale": 1
-  },
-  {
-    "id": "d838",
-    "type": "dark_bigpine",
-    "x": 1216,
-    "y": 3965,
-    "scale": 1
-  },
-  {
-    "id": "d839",
-    "type": "dark_thorn",
-    "x": 1247,
-    "y": 3970,
-    "scale": 1
-  },
-  {
-    "id": "d840",
-    "type": "dark_bigpine",
-    "x": 1378,
-    "y": 3973,
-    "scale": 1
-  },
-  {
-    "id": "d841",
-    "type": "dark_bigpine",
-    "x": 1411,
-    "y": 3962,
-    "scale": 1
-  },
-  {
-    "id": "d842",
-    "type": "dark_deadtree",
-    "x": 1442,
-    "y": 3968,
-    "scale": 1
-  },
-  {
-    "id": "d843",
-    "type": "dark_deadtree",
-    "x": 1477,
-    "y": 3968,
-    "scale": 1
-  },
-  {
-    "id": "d844",
-    "type": "dark_bigpine",
-    "x": 1507,
-    "y": 3971,
-    "scale": 1
-  },
-  {
-    "id": "d845",
-    "type": "dark_thorn",
-    "x": 1535,
-    "y": 3971,
-    "scale": 1
-  },
-  {
-    "id": "d846",
-    "type": "dark_thorn",
-    "x": 1593,
-    "y": 3964,
-    "scale": 1
-  },
-  {
-    "id": "d847",
-    "type": "dark_bigpine",
-    "x": 1690,
-    "y": 3969,
-    "scale": 1
-  },
-  {
-    "id": "d848",
-    "type": "dark_bigpine",
-    "x": 1881,
-    "y": 3975,
-    "scale": 1
-  },
-  {
-    "id": "d849",
-    "type": "dark_deadtree",
-    "x": 1952,
-    "y": 3974,
-    "scale": 1
-  },
-  {
-    "id": "d850",
-    "type": "spot_crystal_blue",
-    "x": 1986,
-    "y": 3967,
-    "scale": 1
-  },
-  {
-    "id": "d851",
-    "type": "dark_bigpine",
-    "x": 2021,
-    "y": 3974,
-    "scale": 1
-  },
-  {
-    "id": "d852",
-    "type": "dark_bigpine",
-    "x": 2045,
-    "y": 3963,
-    "scale": 1
-  },
-  {
-    "id": "d853",
-    "type": "dark_bigpine",
-    "x": 2079,
     "y": 3969,
     "scale": 1
   },
@@ -19448,106 +18377,8 @@
   {
     "id": "d900",
     "type": "spot_crystal_blue",
-    "x": 1092,
-    "y": 3994,
-    "scale": 1
-  },
-  {
-    "id": "d901",
-    "type": "dark_bigpine",
-    "x": 1190,
-    "y": 4005,
-    "scale": 1
-  },
-  {
-    "id": "d902",
-    "type": "dark_bigpine",
-    "x": 1246,
-    "y": 4001,
-    "scale": 1
-  },
-  {
-    "id": "d903",
-    "type": "dark_bigpine",
-    "x": 1378,
-    "y": 4001,
-    "scale": 1
-  },
-  {
-    "id": "d904",
-    "type": "spot_crystal_blue",
-    "x": 1474,
-    "y": 4005,
-    "scale": 1
-  },
-  {
-    "id": "d905",
-    "type": "dark_deadtree",
-    "x": 1501,
-    "y": 3998,
-    "scale": 1
-  },
-  {
-    "id": "d906",
-    "type": "dark_thorn",
-    "x": 1569,
-    "y": 3996,
-    "scale": 1
-  },
-  {
-    "id": "d907",
-    "type": "pine",
-    "x": 1596,
-    "y": 3995,
-    "scale": 1
-  },
-  {
-    "id": "d908",
-    "type": "dark_deadtree",
-    "x": 1633,
-    "y": 4003,
-    "scale": 1
-  },
-  {
-    "id": "d909",
-    "type": "dark_deadtree",
-    "x": 1726,
-    "y": 4006,
-    "scale": 1
-  },
-  {
-    "id": "d910",
-    "type": "dark_thorn",
-    "x": 1892,
-    "y": 3995,
-    "scale": 1
-  },
-  {
-    "id": "d911",
-    "type": "dark_deadtree",
-    "x": 1950,
-    "y": 3996,
-    "scale": 1
-  },
-  {
-    "id": "d912",
-    "type": "dark_bigpine",
-    "x": 2014,
-    "y": 3995,
-    "scale": 1
-  },
-  {
-    "id": "d913",
-    "type": "dark_thorn",
-    "x": 2045,
-    "y": 3999,
-    "scale": 1
-  },
-  {
-    "id": "d914",
-    "type": "dark_deadtree",
-    "x": 2084,
-    "y": 4004,
+    "x": 934,
+    "y": 4022,
     "scale": 1
   },
   {
@@ -19838,104 +18669,6 @@
     "scale": 1
   },
   {
-    "id": "d956",
-    "type": "dark_thorn",
-    "x": 1210,
-    "y": 4031,
-    "scale": 1
-  },
-  {
-    "id": "d957",
-    "type": "rockCluster",
-    "x": 1251,
-    "y": 4030,
-    "scale": 1
-  },
-  {
-    "id": "d958",
-    "type": "dark_thorn",
-    "x": 1308,
-    "y": 4034,
-    "scale": 1
-  },
-  {
-    "id": "d959",
-    "type": "dark_deadtree",
-    "x": 1341,
-    "y": 4039,
-    "scale": 1
-  },
-  {
-    "id": "d960",
-    "type": "pine",
-    "x": 1443,
-    "y": 4035,
-    "scale": 1
-  },
-  {
-    "id": "d961",
-    "type": "bush",
-    "x": 1466,
-    "y": 4030,
-    "scale": 1
-  },
-  {
-    "id": "d962",
-    "type": "pine",
-    "x": 1498,
-    "y": 4034,
-    "scale": 1
-  },
-  {
-    "id": "d963",
-    "type": "dark_thorn",
-    "x": 1600,
-    "y": 4038,
-    "scale": 1
-  },
-  {
-    "id": "d964",
-    "type": "dark_bigpine",
-    "x": 1628,
-    "y": 4034,
-    "scale": 1
-  },
-  {
-    "id": "d965",
-    "type": "dark_bigpine",
-    "x": 1917,
-    "y": 4036,
-    "scale": 1
-  },
-  {
-    "id": "d966",
-    "type": "dark_thorn",
-    "x": 1958,
-    "y": 4037,
-    "scale": 1
-  },
-  {
-    "id": "d967",
-    "type": "pine",
-    "x": 2012,
-    "y": 4033,
-    "scale": 1
-  },
-  {
-    "id": "d968",
-    "type": "dark_deadtree",
-    "x": 2046,
-    "y": 4027,
-    "scale": 1
-  },
-  {
-    "id": "d969",
-    "type": "dark_deadtree",
-    "x": 2137,
-    "y": 4037,
-    "scale": 1
-  },
-  {
     "id": "d970",
     "type": "spot_crystal_blue",
     "x": 2177,
@@ -20218,22 +18951,8 @@
   {
     "id": "d1010",
     "type": "spot_crystal_red",
-    "x": 1058,
-    "y": 4067,
-    "scale": 1
-  },
-  {
-    "id": "d1011",
-    "type": "dark_bigpine",
-    "x": 1121,
-    "y": 4069,
-    "scale": 1
-  },
-  {
-    "id": "d1012",
-    "type": "dark_bigpine",
-    "x": 1145,
-    "y": 4069,
+    "x": 982,
+    "y": 4079,
     "scale": 1
   },
   {
@@ -21357,20 +20076,6 @@
     "scale": 1
   },
   {
-    "id": "d1173",
-    "type": "pine",
-    "x": 1094,
-    "y": 4158,
-    "scale": 1
-  },
-  {
-    "id": "d1174",
-    "type": "dark_bigpine",
-    "x": 1148,
-    "y": 4165,
-    "scale": 1
-  },
-  {
     "id": "d1175",
     "type": "dark_bigpine",
     "x": 1219,
@@ -21819,20 +20524,6 @@
     "scale": 1
   },
   {
-    "id": "d1239",
-    "type": "bush",
-    "x": 1087,
-    "y": 4186,
-    "scale": 1
-  },
-  {
-    "id": "d1240",
-    "type": "dark_bigpine",
-    "x": 1190,
-    "y": 4197,
-    "scale": 1
-  },
-  {
     "id": "d1241",
     "type": "dark_thorn",
     "x": 1212,
@@ -22260,27 +20951,6 @@
     "scale": 1
   },
   {
-    "id": "d1302",
-    "type": "dark_bigpine",
-    "x": 1084,
-    "y": 4226,
-    "scale": 1
-  },
-  {
-    "id": "d1303",
-    "type": "pine",
-    "x": 1147,
-    "y": 4227,
-    "scale": 1
-  },
-  {
-    "id": "d1304",
-    "type": "dark_bigpine",
-    "x": 1179,
-    "y": 4221,
-    "scale": 1
-  },
-  {
     "id": "d1305",
     "type": "dark_thorn",
     "x": 1219,
@@ -22627,20 +21297,6 @@
     "id": "d1354",
     "type": "dark_deadtree",
     "x": 986,
-    "y": 4257,
-    "scale": 1
-  },
-  {
-    "id": "d1355",
-    "type": "dark_bigpine",
-    "x": 1123,
-    "y": 4257,
-    "scale": 1
-  },
-  {
-    "id": "d1356",
-    "type": "dark_bigpine",
-    "x": 1157,
     "y": 4257,
     "scale": 1
   },
@@ -23055,34 +21711,6 @@
     "type": "pine",
     "x": 1028,
     "y": 4285,
-    "scale": 1
-  },
-  {
-    "id": "d1416",
-    "type": "dark_deadtree",
-    "x": 1092,
-    "y": 4284,
-    "scale": 1
-  },
-  {
-    "id": "d1417",
-    "type": "dark_bigpine",
-    "x": 1125,
-    "y": 4291,
-    "scale": 1
-  },
-  {
-    "id": "d1418",
-    "type": "dark_bigpine",
-    "x": 1149,
-    "y": 4289,
-    "scale": 1
-  },
-  {
-    "id": "d1419",
-    "type": "spot_crystal_blue",
-    "x": 1183,
-    "y": 4283,
     "scale": 1
   },
   {
@@ -23548,27 +22176,6 @@
     "scale": 1
   },
   {
-    "id": "d1486",
-    "type": "dark_deadtree",
-    "x": 1085,
-    "y": 4320,
-    "scale": 1
-  },
-  {
-    "id": "d1487",
-    "type": "dark_bigpine",
-    "x": 1115,
-    "y": 4320,
-    "scale": 1
-  },
-  {
-    "id": "d1488",
-    "type": "dark_bigpine",
-    "x": 1146,
-    "y": 4318,
-    "scale": 1
-  },
-  {
     "id": "d1489",
     "type": "dark_bigpine",
     "x": 1246,
@@ -23985,27 +22592,6 @@
     "id": "d1548",
     "type": "pine",
     "x": 1019,
-    "y": 4347,
-    "scale": 1
-  },
-  {
-    "id": "d1549",
-    "type": "bush",
-    "x": 1084,
-    "y": 4348,
-    "scale": 1
-  },
-  {
-    "id": "d1550",
-    "type": "dark_bigrock",
-    "x": 1116,
-    "y": 4350,
-    "scale": 1
-  },
-  {
-    "id": "d1551",
-    "type": "dark_bigpine",
-    "x": 1149,
     "y": 4347,
     "scale": 1
   },
@@ -24451,20 +23037,6 @@
     "scale": 1
   },
   {
-    "id": "d1615",
-    "type": "dark_deadtree",
-    "x": 1124,
-    "y": 4381,
-    "scale": 1
-  },
-  {
-    "id": "d1616",
-    "type": "dark_deadtree",
-    "x": 1180,
-    "y": 4380,
-    "scale": 1
-  },
-  {
     "id": "d1617",
     "type": "dark_deadtree",
     "x": 1213,
@@ -24906,34 +23478,6 @@
     "scale": 1
   },
   {
-    "id": "d1680",
-    "type": "pine",
-    "x": 1056,
-    "y": 4413,
-    "scale": 1
-  },
-  {
-    "id": "d1681",
-    "type": "dark_bigpine",
-    "x": 1091,
-    "y": 4414,
-    "scale": 1
-  },
-  {
-    "id": "d1682",
-    "type": "dark_bigpine",
-    "x": 1119,
-    "y": 4422,
-    "scale": 1
-  },
-  {
-    "id": "d1683",
-    "type": "dark_thorn",
-    "x": 1182,
-    "y": 4417,
-    "scale": 1
-  },
-  {
     "id": "d1684",
     "type": "dark_thorn",
     "x": 1244,
@@ -25330,34 +23874,6 @@
     "type": "dark_thorn",
     "x": 990,
     "y": 4450,
-    "scale": 1
-  },
-  {
-    "id": "d1741",
-    "type": "dark_bigpine",
-    "x": 1061,
-    "y": 4441,
-    "scale": 1
-  },
-  {
-    "id": "d1742",
-    "type": "dark_bigpine",
-    "x": 1092,
-    "y": 4442,
-    "scale": 1
-  },
-  {
-    "id": "d1743",
-    "type": "dark_deadtree",
-    "x": 1123,
-    "y": 4444,
-    "scale": 1
-  },
-  {
-    "id": "d1744",
-    "type": "dark_thorn",
-    "x": 1179,
-    "y": 4451,
     "scale": 1
   },
   {
@@ -25809,27 +24325,6 @@
     "scale": 1
   },
   {
-    "id": "d1809",
-    "type": "dark_bigpine",
-    "x": 1055,
-    "y": 4482,
-    "scale": 1
-  },
-  {
-    "id": "d1810",
-    "type": "dark_bigpine",
-    "x": 1147,
-    "y": 4482,
-    "scale": 1
-  },
-  {
-    "id": "d1811",
-    "type": "dark_bigpine",
-    "x": 1177,
-    "y": 4486,
-    "scale": 1
-  },
-  {
     "id": "d1812",
     "type": "dark_bigpine",
     "x": 1219,
@@ -26268,34 +24763,6 @@
     "type": "bush",
     "x": 1027,
     "y": 4513,
-    "scale": 1
-  },
-  {
-    "id": "d1875",
-    "type": "dark_thorn",
-    "x": 1094,
-    "y": 4508,
-    "scale": 1
-  },
-  {
-    "id": "d1876",
-    "type": "dark_deadtree",
-    "x": 1117,
-    "y": 4507,
-    "scale": 1
-  },
-  {
-    "id": "d1877",
-    "type": "dark_bigpine",
-    "x": 1150,
-    "y": 4506,
-    "scale": 1
-  },
-  {
-    "id": "d1878",
-    "type": "dark_deadtree",
-    "x": 1185,
-    "y": 4517,
     "scale": 1
   },
   {
@@ -26751,27 +25218,6 @@
     "type": "dark_thorn",
     "x": 1027,
     "y": 4545,
-    "scale": 1
-  },
-  {
-    "id": "d1944",
-    "type": "dark_deadtree",
-    "x": 1090,
-    "y": 4540,
-    "scale": 1
-  },
-  {
-    "id": "d1945",
-    "type": "dark_thorn",
-    "x": 1123,
-    "y": 4539,
-    "scale": 1
-  },
-  {
-    "id": "d1946",
-    "type": "dark_bigpine",
-    "x": 1146,
-    "y": 4543,
     "scale": 1
   },
   {
@@ -27587,41 +26033,6 @@
     "scale": 1
   },
   {
-    "id": "d2063",
-    "type": "dark_bigpine",
-    "x": 1052,
-    "y": 4608,
-    "scale": 1
-  },
-  {
-    "id": "d2064",
-    "type": "rockCluster",
-    "x": 1088,
-    "y": 4613,
-    "scale": 1
-  },
-  {
-    "id": "d2065",
-    "type": "dark_deadtree",
-    "x": 1122,
-    "y": 4604,
-    "scale": 1
-  },
-  {
-    "id": "d2066",
-    "type": "bush",
-    "x": 1146,
-    "y": 4612,
-    "scale": 1
-  },
-  {
-    "id": "d2067",
-    "type": "spot_crystal_blue",
-    "x": 1189,
-    "y": 4607,
-    "scale": 1
-  },
-  {
     "id": "d2068",
     "type": "dark_thorn",
     "x": 1217,
@@ -28091,27 +26502,6 @@
     "scale": 1
   },
   {
-    "id": "d2135",
-    "type": "dark_icecrystal",
-    "x": 1115,
-    "y": 4638,
-    "scale": 1
-  },
-  {
-    "id": "d2136",
-    "type": "dark_bigpine",
-    "x": 1154,
-    "y": 4639,
-    "scale": 1
-  },
-  {
-    "id": "d2137",
-    "type": "dark_icecrystal",
-    "x": 1181,
-    "y": 4644,
-    "scale": 1
-  },
-  {
     "id": "d2138",
     "type": "pine",
     "x": 1212,
@@ -28532,13 +26922,6 @@
     "scale": 1
   },
   {
-    "id": "d2198",
-    "type": "dark_bigrock",
-    "x": 1059,
-    "y": 4667,
-    "scale": 1
-  },
-  {
     "id": "d2199",
     "type": "dark_deadtree",
     "x": 1286,
@@ -28928,13 +27311,6 @@
     "type": "dark_thorn",
     "x": 869,
     "y": 4704,
-    "scale": 1
-  },
-  {
-    "id": "d2255",
-    "type": "rockCluster",
-    "x": 1116,
-    "y": 4701,
     "scale": 1
   },
   {
@@ -29446,13 +27822,6 @@
     "type": "dark_bigpine",
     "x": 828,
     "y": 4740,
-    "scale": 1
-  },
-  {
-    "id": "d2329",
-    "type": "dark_deadtree",
-    "x": 1182,
-    "y": 4742,
     "scale": 1
   },
   {
@@ -39396,13 +37765,6 @@
     "scale": 1
   },
   {
-    "id": "dr3750",
-    "type": "rockMonolith",
-    "x": 1824,
-    "y": 3904,
-    "scale": 1
-  },
-  {
     "id": "dr3751",
     "type": "rockMonolith",
     "x": 2944,
@@ -39452,13 +37814,6 @@
     "scale": 1
   },
   {
-    "id": "dr3758",
-    "type": "rockMonolith",
-    "x": 640,
-    "y": 3840,
-    "scale": 1
-  },
-  {
     "id": "dr3759",
     "type": "rockMonolith",
     "x": 2240,
@@ -39498,13 +37853,6 @@
     "type": "limestoneBoulders",
     "x": 3456,
     "y": 4064,
-    "scale": 1
-  },
-  {
-    "id": "dr3765",
-    "type": "stoneQuarry",
-    "x": 1600,
-    "y": 3840,
     "scale": 1
   },
   {
@@ -39690,13 +38038,6 @@
     "scale": 1
   },
   {
-    "id": "dr3792",
-    "type": "limestoneBoulders",
-    "x": 1632,
-    "y": 3968,
-    "scale": 1
-  },
-  {
     "id": "dr3793",
     "type": "rockMonolith",
     "x": 1344,
@@ -39708,13 +38049,6 @@
     "type": "limestoneBoulders",
     "x": 864,
     "y": 4480,
-    "scale": 1
-  },
-  {
-    "id": "dr3795",
-    "type": "limestoneBoulders",
-    "x": 224,
-    "y": 3776,
     "scale": 1
   },
   {
@@ -39767,31 +38101,10 @@
     "scale": 1
   },
   {
-    "id": "dr3803",
-    "type": "stoneQuarry",
-    "x": 896,
-    "y": 3712,
-    "scale": 1
-  },
-  {
     "id": "dr3804",
     "type": "stoneQuarry",
     "x": 3776,
     "y": 4224,
-    "scale": 1
-  },
-  {
-    "id": "dr3805",
-    "type": "stoneQuarry",
-    "x": 1088,
-    "y": 3712,
-    "scale": 1
-  },
-  {
-    "id": "dr3806",
-    "type": "stoneQuarry",
-    "x": 1312,
-    "y": 3840,
     "scale": 1
   },
   {
@@ -39813,13 +38126,6 @@
     "type": "stoneQuarry",
     "x": 2304,
     "y": 5024,
-    "scale": 1
-  },
-  {
-    "id": "dr3810",
-    "type": "rockMonolith",
-    "x": 1376,
-    "y": 3968,
     "scale": 1
   },
   {
@@ -40117,13 +38423,6 @@
     "scale": 1
   },
   {
-    "id": "dr3853",
-    "type": "limestoneBoulders",
-    "x": 1120,
-    "y": 3776,
-    "scale": 1
-  },
-  {
     "id": "dr3854",
     "type": "limestoneBoulders",
     "x": 1408,
@@ -40229,13 +38528,6 @@
     "scale": 1
   },
   {
-    "id": "dr3869",
-    "type": "limestoneBoulders",
-    "x": 1152,
-    "y": 3680,
-    "scale": 1
-  },
-  {
     "id": "dr3870",
     "type": "limestoneBoulders",
     "x": 4096,
@@ -40331,13 +38623,6 @@
     "type": "limestoneBoulders",
     "x": 1280,
     "y": 5280,
-    "scale": 1
-  },
-  {
-    "id": "dr3884",
-    "type": "stoneQuarry",
-    "x": 448,
-    "y": 3904,
     "scale": 1
   },
   {
@@ -40446,321 +38731,6 @@
     "scale": 1
   },
   {
-    "id": "bS_155",
-    "type": "pine",
-    "x": 86,
-    "y": 5530,
-    "scale": 1
-  },
-  {
-    "id": "bS_156",
-    "type": "dark_bigpine",
-    "x": 116,
-    "y": 5497,
-    "scale": 1
-  },
-  {
-    "id": "bS_157",
-    "type": "dark_bigpine",
-    "x": 309,
-    "y": 5479,
-    "scale": 1
-  },
-  {
-    "id": "bS_158",
-    "type": "dark_bigpine",
-    "x": 425,
-    "y": 5558,
-    "scale": 1
-  },
-  {
-    "id": "bS_159",
-    "type": "dark_bigpine",
-    "x": 499,
-    "y": 5532,
-    "scale": 1
-  },
-  {
-    "id": "bS_160",
-    "type": "pine",
-    "x": 584,
-    "y": 5482,
-    "scale": 1
-  },
-  {
-    "id": "bS_161",
-    "type": "dark_bigpine",
-    "x": 652,
-    "y": 5522,
-    "scale": 1
-  },
-  {
-    "id": "bS_162",
-    "type": "pine",
-    "x": 874,
-    "y": 5497,
-    "scale": 1
-  },
-  {
-    "id": "bS_163",
-    "type": "dark_bigpine",
-    "x": 987,
-    "y": 5563,
-    "scale": 1
-  },
-  {
-    "id": "bS_164",
-    "type": "dark_bigpine",
-    "x": 1045,
-    "y": 5481,
-    "scale": 1
-  },
-  {
-    "id": "bS_165",
-    "type": "pine",
-    "x": 1258,
-    "y": 5544,
-    "scale": 1
-  },
-  {
-    "id": "bS_166",
-    "type": "dark_bigpine",
-    "x": 1442,
-    "y": 5496,
-    "scale": 1
-  },
-  {
-    "id": "bS_167",
-    "type": "dark_bigpine",
-    "x": 1602,
-    "y": 5555,
-    "scale": 1
-  },
-  {
-    "id": "bS_168",
-    "type": "pine",
-    "x": 1716,
-    "y": 5535,
-    "scale": 1
-  },
-  {
-    "id": "bS_169",
-    "type": "pine",
-    "x": 1822,
-    "y": 5555,
-    "scale": 1
-  },
-  {
-    "id": "bS_170",
-    "type": "pine",
-    "x": 1898,
-    "y": 5531,
-    "scale": 1
-  },
-  {
-    "id": "bS_171",
-    "type": "dark_bigpine",
-    "x": 1928,
-    "y": 5518,
-    "scale": 1
-  },
-  {
-    "id": "bS_172",
-    "type": "dark_bigpine",
-    "x": 1992,
-    "y": 5502,
-    "scale": 1
-  },
-  {
-    "id": "bS_173",
-    "type": "pine",
-    "x": 2074,
-    "y": 5545,
-    "scale": 1
-  },
-  {
-    "id": "bS_174",
-    "type": "dark_bigpine",
-    "x": 2214,
-    "y": 5484,
-    "scale": 1
-  },
-  {
-    "id": "bS_175",
-    "type": "pine",
-    "x": 2242,
-    "y": 5475,
-    "scale": 1
-  },
-  {
-    "id": "bS_176",
-    "type": "pine",
-    "x": 2413,
-    "y": 5511,
-    "scale": 1
-  },
-  {
-    "id": "bS_177",
-    "type": "dark_bigpine",
-    "x": 2463,
-    "y": 5545,
-    "scale": 1
-  },
-  {
-    "id": "bS_178",
-    "type": "pine",
-    "x": 2788,
-    "y": 5556,
-    "scale": 1
-  },
-  {
-    "id": "bS_179",
-    "type": "pine",
-    "x": 2822,
-    "y": 5539,
-    "scale": 1
-  },
-  {
-    "id": "bS_180",
-    "type": "pine",
-    "x": 2901,
-    "y": 5502,
-    "scale": 1
-  },
-  {
-    "id": "bS_181",
-    "type": "dark_bigpine",
-    "x": 2950,
-    "y": 5504,
-    "scale": 1
-  },
-  {
-    "id": "bS_182",
-    "type": "pine",
-    "x": 3066,
-    "y": 5562,
-    "scale": 1
-  },
-  {
-    "id": "bS_183",
-    "type": "pine",
-    "x": 3189,
-    "y": 5506,
-    "scale": 1
-  },
-  {
-    "id": "bS_184",
-    "type": "pine",
-    "x": 3300,
-    "y": 5540,
-    "scale": 1
-  },
-  {
-    "id": "bS_185",
-    "type": "pine",
-    "x": 3340,
-    "y": 5474,
-    "scale": 1
-  },
-  {
-    "id": "bS_186",
-    "type": "pine",
-    "x": 3386,
-    "y": 5518,
-    "scale": 1
-  },
-  {
-    "id": "bS_187",
-    "type": "dark_bigpine",
-    "x": 3498,
-    "y": 5487,
-    "scale": 1
-  },
-  {
-    "id": "bS_188",
-    "type": "pine",
-    "x": 3659,
-    "y": 5545,
-    "scale": 1
-  },
-  {
-    "id": "bS_189",
-    "type": "dark_bigpine",
-    "x": 3738,
-    "y": 5478,
-    "scale": 1
-  },
-  {
-    "id": "bS_190",
-    "type": "pine",
-    "x": 3799,
-    "y": 5552,
-    "scale": 1
-  },
-  {
-    "id": "bS_191",
-    "type": "pine",
-    "x": 3925,
-    "y": 5530,
-    "scale": 1
-  },
-  {
-    "id": "bS_192",
-    "type": "pine",
-    "x": 4000,
-    "y": 5525,
-    "scale": 1
-  },
-  {
-    "id": "bS_193",
-    "type": "dark_bigpine",
-    "x": 4124,
-    "y": 5527,
-    "scale": 1
-  },
-  {
-    "id": "bS_194",
-    "type": "pine",
-    "x": 4180,
-    "y": 5480,
-    "scale": 1
-  },
-  {
-    "id": "bS_195",
-    "type": "pine",
-    "x": 4226,
-    "y": 5501,
-    "scale": 1
-  },
-  {
-    "id": "bS_196",
-    "type": "dark_bigpine",
-    "x": 4283,
-    "y": 5509,
-    "scale": 1
-  },
-  {
-    "id": "bS_197",
-    "type": "dark_bigpine",
-    "x": 4341,
-    "y": 5562,
-    "scale": 1
-  },
-  {
-    "id": "bS_198",
-    "type": "dark_bigpine",
-    "x": 4416,
-    "y": 5567,
-    "scale": 1
-  },
-  {
-    "id": "bS_199",
-    "type": "pine",
-    "x": 4476,
-    "y": 5538,
-    "scale": 1
-  },
-  {
     "id": "pine_copy_1788611288066_360",
     "type": "pine",
     "x": 2607,
@@ -40821,6 +38791,5487 @@
     "type": "spot_gold",
     "x": 3410,
     "y": 1235,
+    "scale": 1
+  },
+  {
+    "id": "bS_168",
+    "type": "dark_bigpine",
+    "x": 169,
+    "y": 5504,
+    "scale": 1
+  },
+  {
+    "id": "bS_169",
+    "type": "dark_bigpine",
+    "x": 197,
+    "y": 5477,
+    "scale": 1
+  },
+  {
+    "id": "bS_170",
+    "type": "pine",
+    "x": 347,
+    "y": 5513,
+    "scale": 1
+  },
+  {
+    "id": "bS_171",
+    "type": "dark_bigpine",
+    "x": 421,
+    "y": 5481,
+    "scale": 1
+  },
+  {
+    "id": "bS_172",
+    "type": "pine",
+    "x": 505,
+    "y": 5493,
+    "scale": 1
+  },
+  {
+    "id": "bS_173",
+    "type": "pine",
+    "x": 572,
+    "y": 5546,
+    "scale": 1
+  },
+  {
+    "id": "bS_174",
+    "type": "dark_bigpine",
+    "x": 637,
+    "y": 5502,
+    "scale": 1
+  },
+  {
+    "id": "bS_175",
+    "type": "pine",
+    "x": 727,
+    "y": 5487,
+    "scale": 1
+  },
+  {
+    "id": "bS_176",
+    "type": "pine",
+    "x": 876,
+    "y": 5492,
+    "scale": 1
+  },
+  {
+    "id": "bS_177",
+    "type": "dark_bigpine",
+    "x": 896,
+    "y": 5493,
+    "scale": 1
+  },
+  {
+    "id": "bS_178",
+    "type": "pine",
+    "x": 996,
+    "y": 5481,
+    "scale": 1
+  },
+  {
+    "id": "bS_179",
+    "type": "pine",
+    "x": 1096,
+    "y": 5504,
+    "scale": 1
+  },
+  {
+    "id": "bS_180",
+    "type": "pine",
+    "x": 1174,
+    "y": 5504,
+    "scale": 1
+  },
+  {
+    "id": "bS_181",
+    "type": "dark_bigpine",
+    "x": 1287,
+    "y": 5541,
+    "scale": 1
+  },
+  {
+    "id": "bS_182",
+    "type": "pine",
+    "x": 1446,
+    "y": 5476,
+    "scale": 1
+  },
+  {
+    "id": "bS_183",
+    "type": "dark_bigpine",
+    "x": 1703,
+    "y": 5475,
+    "scale": 1
+  },
+  {
+    "id": "bS_184",
+    "type": "pine",
+    "x": 1761,
+    "y": 5480,
+    "scale": 1
+  },
+  {
+    "id": "bS_185",
+    "type": "dark_bigpine",
+    "x": 1819,
+    "y": 5536,
+    "scale": 1
+  },
+  {
+    "id": "bS_186",
+    "type": "dark_bigpine",
+    "x": 1945,
+    "y": 5512,
+    "scale": 1
+  },
+  {
+    "id": "bS_187",
+    "type": "dark_bigpine",
+    "x": 2014,
+    "y": 5525,
+    "scale": 1
+  },
+  {
+    "id": "bS_188",
+    "type": "dark_bigpine",
+    "x": 2208,
+    "y": 5534,
+    "scale": 1
+  },
+  {
+    "id": "bS_189",
+    "type": "dark_bigpine",
+    "x": 2244,
+    "y": 5482,
+    "scale": 1
+  },
+  {
+    "id": "bS_190",
+    "type": "dark_bigpine",
+    "x": 2344,
+    "y": 5486,
+    "scale": 1
+  },
+  {
+    "id": "bS_191",
+    "type": "pine",
+    "x": 2389,
+    "y": 5492,
+    "scale": 1
+  },
+  {
+    "id": "bS_192",
+    "type": "dark_bigpine",
+    "x": 2469,
+    "y": 5509,
+    "scale": 1
+  },
+  {
+    "id": "bS_193",
+    "type": "dark_bigpine",
+    "x": 2529,
+    "y": 5492,
+    "scale": 1
+  },
+  {
+    "id": "bS_194",
+    "type": "dark_bigpine",
+    "x": 2654,
+    "y": 5561,
+    "scale": 1
+  },
+  {
+    "id": "bS_195",
+    "type": "pine",
+    "x": 2695,
+    "y": 5532,
+    "scale": 1
+  },
+  {
+    "id": "bS_196",
+    "type": "dark_bigpine",
+    "x": 2795,
+    "y": 5511,
+    "scale": 1
+  },
+  {
+    "id": "bS_197",
+    "type": "dark_bigpine",
+    "x": 2813,
+    "y": 5490,
+    "scale": 1
+  },
+  {
+    "id": "bS_198",
+    "type": "dark_bigpine",
+    "x": 2915,
+    "y": 5563,
+    "scale": 1
+  },
+  {
+    "id": "bS_199",
+    "type": "dark_bigpine",
+    "x": 2935,
+    "y": 5534,
+    "scale": 1
+  },
+  {
+    "id": "bS_200",
+    "type": "dark_bigpine",
+    "x": 3106,
+    "y": 5566,
+    "scale": 1
+  },
+  {
+    "id": "bS_201",
+    "type": "pine",
+    "x": 3132,
+    "y": 5532,
+    "scale": 1
+  },
+  {
+    "id": "bS_202",
+    "type": "pine",
+    "x": 3241,
+    "y": 5494,
+    "scale": 1
+  },
+  {
+    "id": "bS_203",
+    "type": "pine",
+    "x": 3270,
+    "y": 5540,
+    "scale": 1
+  },
+  {
+    "id": "bS_204",
+    "type": "pine",
+    "x": 3338,
+    "y": 5510,
+    "scale": 1
+  },
+  {
+    "id": "bS_205",
+    "type": "pine",
+    "x": 3443,
+    "y": 5557,
+    "scale": 1
+  },
+  {
+    "id": "bS_206",
+    "type": "dark_bigpine",
+    "x": 3527,
+    "y": 5507,
+    "scale": 1
+  },
+  {
+    "id": "bS_207",
+    "type": "dark_bigpine",
+    "x": 3591,
+    "y": 5511,
+    "scale": 1
+  },
+  {
+    "id": "bS_208",
+    "type": "pine",
+    "x": 3646,
+    "y": 5525,
+    "scale": 1
+  },
+  {
+    "id": "bS_209",
+    "type": "dark_bigpine",
+    "x": 3716,
+    "y": 5514,
+    "scale": 1
+  },
+  {
+    "id": "bS_210",
+    "type": "pine",
+    "x": 3912,
+    "y": 5518,
+    "scale": 1
+  },
+  {
+    "id": "bS_211",
+    "type": "dark_bigpine",
+    "x": 3967,
+    "y": 5502,
+    "scale": 1
+  },
+  {
+    "id": "bS_212",
+    "type": "dark_bigpine",
+    "x": 4118,
+    "y": 5543,
+    "scale": 1
+  },
+  {
+    "id": "bS_213",
+    "type": "pine",
+    "x": 4187,
+    "y": 5503,
+    "scale": 1
+  },
+  {
+    "id": "bS_214",
+    "type": "dark_bigpine",
+    "x": 4293,
+    "y": 5500,
+    "scale": 1
+  },
+  {
+    "id": "bS_215",
+    "type": "dark_bigpine",
+    "x": 4344,
+    "y": 5549,
+    "scale": 1
+  },
+  {
+    "id": "bS_216",
+    "type": "pine",
+    "x": 4408,
+    "y": 5549,
+    "scale": 1
+  },
+  {
+    "id": "bS_217",
+    "type": "dark_bigpine",
+    "x": 4500,
+    "y": 5542,
+    "scale": 1
+  },
+  {
+    "id": "bS_218",
+    "type": "dark_bigpine",
+    "x": 4532,
+    "y": 5496,
+    "scale": 1
+  },
+  {
+    "id": "bS_219",
+    "type": "dark_bigpine",
+    "x": 4596,
+    "y": 5550,
+    "scale": 1
+  },
+  {
+    "id": "bS_220",
+    "type": "pine",
+    "x": 4672,
+    "y": 5544,
+    "scale": 1
+  },
+  {
+    "id": "bS_221",
+    "type": "dark_bigpine",
+    "x": 4762,
+    "y": 5525,
+    "scale": 1
+  },
+  {
+    "id": "bS_222",
+    "type": "pine",
+    "x": 4826,
+    "y": 5495,
+    "scale": 1
+  },
+  {
+    "id": "bS_223",
+    "type": "pine",
+    "x": 4924,
+    "y": 5545,
+    "scale": 1
+  },
+  {
+    "id": "bS_224",
+    "type": "dark_bigpine",
+    "x": 5022,
+    "y": 5483,
+    "scale": 1
+  },
+  {
+    "id": "bS_225",
+    "type": "dark_bigpine",
+    "x": 5098,
+    "y": 5498,
+    "scale": 1
+  },
+  {
+    "id": "bS_226",
+    "type": "pine",
+    "x": 5131,
+    "y": 5538,
+    "scale": 1
+  },
+  {
+    "id": "bS_227",
+    "type": "dark_bigpine",
+    "x": 5226,
+    "y": 5503,
+    "scale": 1
+  },
+  {
+    "id": "bS_228",
+    "type": "pine",
+    "x": 5244,
+    "y": 5561,
+    "scale": 1
+  },
+  {
+    "id": "bS_229",
+    "type": "pine",
+    "x": 5300,
+    "y": 5480,
+    "scale": 1
+  },
+  {
+    "id": "bS_230",
+    "type": "pine",
+    "x": 5365,
+    "y": 5485,
+    "scale": 1
+  },
+  {
+    "id": "bS_231",
+    "type": "dark_bigpine",
+    "x": 5444,
+    "y": 5517,
+    "scale": 1
+  },
+  {
+    "id": "bS_232",
+    "type": "dark_bigpine",
+    "x": 5537,
+    "y": 5476,
+    "scale": 1
+  },
+  {
+    "id": "bS_233",
+    "type": "pine",
+    "x": 5611,
+    "y": 5558,
+    "scale": 1
+  },
+  {
+    "id": "bS_234",
+    "type": "dark_bigpine",
+    "x": 5652,
+    "y": 5475,
+    "scale": 1
+  },
+  {
+    "id": "bS_235",
+    "type": "pine",
+    "x": 5735,
+    "y": 5478,
+    "scale": 1
+  },
+  {
+    "id": "bW_314",
+    "type": "oak",
+    "x": 64,
+    "y": 3840,
+    "scale": 1
+  },
+  {
+    "id": "bE_315",
+    "type": "pine",
+    "x": 5792,
+    "y": 3840,
+    "scale": 1
+  },
+  {
+    "id": "bW_316",
+    "type": "oak",
+    "x": 64,
+    "y": 3936,
+    "scale": 1
+  },
+  {
+    "id": "bE_317",
+    "type": "pine",
+    "x": 5792,
+    "y": 3936,
+    "scale": 1
+  },
+  {
+    "id": "bW_318",
+    "type": "oak",
+    "x": 64,
+    "y": 4032,
+    "scale": 1
+  },
+  {
+    "id": "bE_319",
+    "type": "pine",
+    "x": 5792,
+    "y": 4032,
+    "scale": 1
+  },
+  {
+    "id": "bW_320",
+    "type": "oak",
+    "x": 64,
+    "y": 4128,
+    "scale": 1
+  },
+  {
+    "id": "bE_321",
+    "type": "pine",
+    "x": 5792,
+    "y": 4128,
+    "scale": 1
+  },
+  {
+    "id": "bW_322",
+    "type": "oak",
+    "x": 64,
+    "y": 4224,
+    "scale": 1
+  },
+  {
+    "id": "bE_323",
+    "type": "pine",
+    "x": 5792,
+    "y": 4224,
+    "scale": 1
+  },
+  {
+    "id": "bW_324",
+    "type": "oak",
+    "x": 64,
+    "y": 4320,
+    "scale": 1
+  },
+  {
+    "id": "bE_325",
+    "type": "pine",
+    "x": 5792,
+    "y": 4320,
+    "scale": 1
+  },
+  {
+    "id": "bW_326",
+    "type": "oak",
+    "x": 64,
+    "y": 4416,
+    "scale": 1
+  },
+  {
+    "id": "bE_327",
+    "type": "pine",
+    "x": 5792,
+    "y": 4416,
+    "scale": 1
+  },
+  {
+    "id": "bW_328",
+    "type": "oak",
+    "x": 64,
+    "y": 4512,
+    "scale": 1
+  },
+  {
+    "id": "bE_329",
+    "type": "pine",
+    "x": 5792,
+    "y": 4512,
+    "scale": 1
+  },
+  {
+    "id": "bW_330",
+    "type": "oak",
+    "x": 64,
+    "y": 4608,
+    "scale": 1
+  },
+  {
+    "id": "bE_331",
+    "type": "pine",
+    "x": 5792,
+    "y": 4608,
+    "scale": 1
+  },
+  {
+    "id": "bW_332",
+    "type": "oak",
+    "x": 64,
+    "y": 4704,
+    "scale": 1
+  },
+  {
+    "id": "bE_333",
+    "type": "pine",
+    "x": 5792,
+    "y": 4704,
+    "scale": 1
+  },
+  {
+    "id": "bW_334",
+    "type": "oak",
+    "x": 64,
+    "y": 4800,
+    "scale": 1
+  },
+  {
+    "id": "bE_335",
+    "type": "pine",
+    "x": 5792,
+    "y": 4800,
+    "scale": 1
+  },
+  {
+    "id": "bW_336",
+    "type": "oak",
+    "x": 64,
+    "y": 4896,
+    "scale": 1
+  },
+  {
+    "id": "bE_337",
+    "type": "pine",
+    "x": 5792,
+    "y": 4896,
+    "scale": 1
+  },
+  {
+    "id": "bW_338",
+    "type": "oak",
+    "x": 64,
+    "y": 4992,
+    "scale": 1
+  },
+  {
+    "id": "bE_339",
+    "type": "pine",
+    "x": 5792,
+    "y": 4992,
+    "scale": 1
+  },
+  {
+    "id": "bW_340",
+    "type": "oak",
+    "x": 64,
+    "y": 5088,
+    "scale": 1
+  },
+  {
+    "id": "bE_341",
+    "type": "pine",
+    "x": 5792,
+    "y": 5088,
+    "scale": 1
+  },
+  {
+    "id": "bW_342",
+    "type": "oak",
+    "x": 64,
+    "y": 5184,
+    "scale": 1
+  },
+  {
+    "id": "bE_343",
+    "type": "pine",
+    "x": 5792,
+    "y": 5184,
+    "scale": 1
+  },
+  {
+    "id": "bW_344",
+    "type": "oak",
+    "x": 64,
+    "y": 5280,
+    "scale": 1
+  },
+  {
+    "id": "bE_345",
+    "type": "pine",
+    "x": 5792,
+    "y": 5280,
+    "scale": 1
+  },
+  {
+    "id": "bW_346",
+    "type": "oak",
+    "x": 64,
+    "y": 5376,
+    "scale": 1
+  },
+  {
+    "id": "bE_347",
+    "type": "pine",
+    "x": 5792,
+    "y": 5376,
+    "scale": 1
+  },
+  {
+    "id": "bW_348",
+    "type": "oak",
+    "x": 64,
+    "y": 5472,
+    "scale": 1
+  },
+  {
+    "id": "bE_349",
+    "type": "pine",
+    "x": 5792,
+    "y": 5472,
+    "scale": 1
+  },
+  {
+    "id": "d3746",
+    "type": "dark_bigpine",
+    "x": 640,
+    "y": 5086,
+    "scale": 1
+  },
+  {
+    "id": "d3747",
+    "type": "dark_bigpine",
+    "x": 734,
+    "y": 5093,
+    "scale": 1
+  },
+  {
+    "id": "d3748",
+    "type": "bush",
+    "x": 774,
+    "y": 5090,
+    "scale": 1
+  },
+  {
+    "id": "d3749",
+    "type": "spot_crystal_red",
+    "x": 803,
+    "y": 5088,
+    "scale": 1
+  },
+  {
+    "id": "d3750",
+    "type": "dark_thorn",
+    "x": 896,
+    "y": 5094,
+    "scale": 1
+  },
+  {
+    "id": "d3751",
+    "type": "dark_bigpine",
+    "x": 928,
+    "y": 5084,
+    "scale": 1
+  },
+  {
+    "id": "d3752",
+    "type": "dark_deadtree",
+    "x": 1062,
+    "y": 5081,
+    "scale": 1
+  },
+  {
+    "id": "d3753",
+    "type": "dark_bigpine",
+    "x": 1242,
+    "y": 5087,
+    "scale": 1
+  },
+  {
+    "id": "d3754",
+    "type": "dark_thorn",
+    "x": 1350,
+    "y": 5088,
+    "scale": 1
+  },
+  {
+    "id": "d3755",
+    "type": "dark_deadtree",
+    "x": 1375,
+    "y": 5086,
+    "scale": 1
+  },
+  {
+    "id": "d3756",
+    "type": "dark_bigpine",
+    "x": 1411,
+    "y": 5093,
+    "scale": 1
+  },
+  {
+    "id": "d3757",
+    "type": "dark_bigpine",
+    "x": 1469,
+    "y": 5093,
+    "scale": 1
+  },
+  {
+    "id": "d3758",
+    "type": "spot_crystal_blue",
+    "x": 1660,
+    "y": 5089,
+    "scale": 1
+  },
+  {
+    "id": "d3759",
+    "type": "dark_thorn",
+    "x": 1724,
+    "y": 5084,
+    "scale": 1
+  },
+  {
+    "id": "d3760",
+    "type": "dark_deadtree",
+    "x": 1850,
+    "y": 5091,
+    "scale": 1
+  },
+  {
+    "id": "d3761",
+    "type": "dark_bigrock",
+    "x": 2045,
+    "y": 5086,
+    "scale": 1
+  },
+  {
+    "id": "d3762",
+    "type": "dark_bigpine",
+    "x": 2075,
+    "y": 5085,
+    "scale": 1
+  },
+  {
+    "id": "d3763",
+    "type": "bush",
+    "x": 2492,
+    "y": 5084,
+    "scale": 1
+  },
+  {
+    "id": "d3764",
+    "type": "dark_bigpine",
+    "x": 2525,
+    "y": 5083,
+    "scale": 1
+  },
+  {
+    "id": "d3765",
+    "type": "dark_bigpine",
+    "x": 2625,
+    "y": 5091,
+    "scale": 1
+  },
+  {
+    "id": "d3766",
+    "type": "pine",
+    "x": 2684,
+    "y": 5092,
+    "scale": 1
+  },
+  {
+    "id": "d3767",
+    "type": "dark_thorn",
+    "x": 2845,
+    "y": 5084,
+    "scale": 1
+  },
+  {
+    "id": "d3768",
+    "type": "dark_thorn",
+    "x": 2881,
+    "y": 5089,
+    "scale": 1
+  },
+  {
+    "id": "d3769",
+    "type": "dark_bigpine",
+    "x": 2916,
+    "y": 5086,
+    "scale": 1
+  },
+  {
+    "id": "d3770",
+    "type": "dark_bigpine",
+    "x": 2947,
+    "y": 5094,
+    "scale": 1
+  },
+  {
+    "id": "d3771",
+    "type": "dark_deadtree",
+    "x": 3006,
+    "y": 5085,
+    "scale": 1
+  },
+  {
+    "id": "d3772",
+    "type": "pine",
+    "x": 3033,
+    "y": 5094,
+    "scale": 1
+  },
+  {
+    "id": "d3773",
+    "type": "dark_deadtree",
+    "x": 3097,
+    "y": 5082,
+    "scale": 1
+  },
+  {
+    "id": "d3774",
+    "type": "dark_deadtree",
+    "x": 3142,
+    "y": 5088,
+    "scale": 1
+  },
+  {
+    "id": "d3775",
+    "type": "dark_bigpine",
+    "x": 3174,
+    "y": 5089,
+    "scale": 1
+  },
+  {
+    "id": "d3776",
+    "type": "dark_bigpine",
+    "x": 3294,
+    "y": 5084,
+    "scale": 1
+  },
+  {
+    "id": "d3777",
+    "type": "dark_bigpine",
+    "x": 3330,
+    "y": 5090,
+    "scale": 1
+  },
+  {
+    "id": "d3778",
+    "type": "dark_deadtree",
+    "x": 3355,
+    "y": 5092,
+    "scale": 1
+  },
+  {
+    "id": "d3779",
+    "type": "dark_deadtree",
+    "x": 3516,
+    "y": 5082,
+    "scale": 1
+  },
+  {
+    "id": "d3780",
+    "type": "dark_bigrock",
+    "x": 3589,
+    "y": 5092,
+    "scale": 1
+  },
+  {
+    "id": "d3781",
+    "type": "dark_deadtree",
+    "x": 3645,
+    "y": 5085,
+    "scale": 1
+  },
+  {
+    "id": "d3782",
+    "type": "dark_bigpine",
+    "x": 3679,
+    "y": 5088,
+    "scale": 1
+  },
+  {
+    "id": "d3783",
+    "type": "dark_icecrystal",
+    "x": 3777,
+    "y": 5091,
+    "scale": 1
+  },
+  {
+    "id": "d3784",
+    "type": "spot_crystal_blue",
+    "x": 3808,
+    "y": 5088,
+    "scale": 1
+  },
+  {
+    "id": "d3785",
+    "type": "spot_crystal_red",
+    "x": 3841,
+    "y": 5093,
+    "scale": 1
+  },
+  {
+    "id": "d3786",
+    "type": "bush",
+    "x": 3932,
+    "y": 5086,
+    "scale": 1
+  },
+  {
+    "id": "d3787",
+    "type": "dark_thorn",
+    "x": 3964,
+    "y": 5082,
+    "scale": 1
+  },
+  {
+    "id": "d3788",
+    "type": "dark_thorn",
+    "x": 4002,
+    "y": 5082,
+    "scale": 1
+  },
+  {
+    "id": "d3789",
+    "type": "dark_bigpine",
+    "x": 4032,
+    "y": 5093,
+    "scale": 1
+  },
+  {
+    "id": "d3790",
+    "type": "dark_bigpine",
+    "x": 4128,
+    "y": 5081,
+    "scale": 1
+  },
+  {
+    "id": "d3791",
+    "type": "dark_thorn",
+    "x": 4165,
+    "y": 5093,
+    "scale": 1
+  },
+  {
+    "id": "d3792",
+    "type": "dark_bigpine",
+    "x": 4192,
+    "y": 5091,
+    "scale": 1
+  },
+  {
+    "id": "d3793",
+    "type": "dark_thorn",
+    "x": 4254,
+    "y": 5081,
+    "scale": 1
+  },
+  {
+    "id": "d3794",
+    "type": "dark_bigpine",
+    "x": 4313,
+    "y": 5089,
+    "scale": 1
+  },
+  {
+    "id": "d3795",
+    "type": "dark_bigpine",
+    "x": 4345,
+    "y": 5085,
+    "scale": 1
+  },
+  {
+    "id": "d3796",
+    "type": "dark_bigpine",
+    "x": 4386,
+    "y": 5085,
+    "scale": 1
+  },
+  {
+    "id": "d3797",
+    "type": "dark_deadtree",
+    "x": 4705,
+    "y": 5085,
+    "scale": 1
+  },
+  {
+    "id": "d3798",
+    "type": "dark_deadtree",
+    "x": 4734,
+    "y": 5082,
+    "scale": 1
+  },
+  {
+    "id": "d3799",
+    "type": "dark_deadtree",
+    "x": 4799,
+    "y": 5088,
+    "scale": 1
+  },
+  {
+    "id": "d3800",
+    "type": "spot_crystal_blue",
+    "x": 4933,
+    "y": 5089,
+    "scale": 1
+  },
+  {
+    "id": "d3801",
+    "type": "dark_bigpine",
+    "x": 4958,
+    "y": 5087,
+    "scale": 1
+  },
+  {
+    "id": "d3802",
+    "type": "dark_deadtree",
+    "x": 5028,
+    "y": 5093,
+    "scale": 1
+  },
+  {
+    "id": "d3803",
+    "type": "dark_bigpine",
+    "x": 5091,
+    "y": 5090,
+    "scale": 1
+  },
+  {
+    "id": "d3804",
+    "type": "dark_bigpine",
+    "x": 5187,
+    "y": 5087,
+    "scale": 1
+  },
+  {
+    "id": "d3805",
+    "type": "dark_thorn",
+    "x": 5276,
+    "y": 5090,
+    "scale": 1
+  },
+  {
+    "id": "d3806",
+    "type": "dark_bigpine",
+    "x": 5382,
+    "y": 5090,
+    "scale": 1
+  },
+  {
+    "id": "d3807",
+    "type": "spot_crystal_blue",
+    "x": 5406,
+    "y": 5092,
+    "scale": 1
+  },
+  {
+    "id": "d3808",
+    "type": "bush",
+    "x": 5435,
+    "y": 5082,
+    "scale": 1
+  },
+  {
+    "id": "d3809",
+    "type": "dark_bigpine",
+    "x": 5475,
+    "y": 5091,
+    "scale": 1
+  },
+  {
+    "id": "d3810",
+    "type": "dark_bigpine",
+    "x": 5542,
+    "y": 5093,
+    "scale": 1
+  },
+  {
+    "id": "d3811",
+    "type": "dark_bigpine",
+    "x": 93,
+    "y": 5117,
+    "scale": 1
+  },
+  {
+    "id": "d3812",
+    "type": "spot_crystal_red",
+    "x": 129,
+    "y": 5116,
+    "scale": 1
+  },
+  {
+    "id": "d3813",
+    "type": "dark_bigpine",
+    "x": 195,
+    "y": 5117,
+    "scale": 1
+  },
+  {
+    "id": "d3814",
+    "type": "dark_bigpine",
+    "x": 410,
+    "y": 5123,
+    "scale": 1
+  },
+  {
+    "id": "d3815",
+    "type": "dark_thorn",
+    "x": 474,
+    "y": 5121,
+    "scale": 1
+  },
+  {
+    "id": "d3816",
+    "type": "spot_crystal_blue",
+    "x": 510,
+    "y": 5116,
+    "scale": 1
+  },
+  {
+    "id": "d3817",
+    "type": "dark_deadtree",
+    "x": 579,
+    "y": 5116,
+    "scale": 1
+  },
+  {
+    "id": "d3818",
+    "type": "dark_bigpine",
+    "x": 666,
+    "y": 5116,
+    "scale": 1
+  },
+  {
+    "id": "d3819",
+    "type": "dark_thorn",
+    "x": 743,
+    "y": 5114,
+    "scale": 1
+  },
+  {
+    "id": "d3820",
+    "type": "pine",
+    "x": 768,
+    "y": 5114,
+    "scale": 1
+  },
+  {
+    "id": "d3821",
+    "type": "bush",
+    "x": 859,
+    "y": 5117,
+    "scale": 1
+  },
+  {
+    "id": "d3822",
+    "type": "dark_bigpine",
+    "x": 958,
+    "y": 5127,
+    "scale": 1
+  },
+  {
+    "id": "d3823",
+    "type": "dark_bigpine",
+    "x": 1024,
+    "y": 5120,
+    "scale": 1
+  },
+  {
+    "id": "d3824",
+    "type": "spot_crystal_blue",
+    "x": 1051,
+    "y": 5116,
+    "scale": 1
+  },
+  {
+    "id": "d3825",
+    "type": "dark_bigpine",
+    "x": 1121,
+    "y": 5127,
+    "scale": 1
+  },
+  {
+    "id": "d3826",
+    "type": "dark_bigrock",
+    "x": 1339,
+    "y": 5126,
+    "scale": 1
+  },
+  {
+    "id": "d3827",
+    "type": "pine",
+    "x": 1380,
+    "y": 5126,
+    "scale": 1
+  },
+  {
+    "id": "d3828",
+    "type": "pine",
+    "x": 1434,
+    "y": 5114,
+    "scale": 1
+  },
+  {
+    "id": "d3829",
+    "type": "dark_deadtree",
+    "x": 1670,
+    "y": 5123,
+    "scale": 1
+  },
+  {
+    "id": "d3830",
+    "type": "dark_bigpine",
+    "x": 1759,
+    "y": 5126,
+    "scale": 1
+  },
+  {
+    "id": "d3831",
+    "type": "dark_deadtree",
+    "x": 1825,
+    "y": 5122,
+    "scale": 1
+  },
+  {
+    "id": "d3832",
+    "type": "dark_deadtree",
+    "x": 1882,
+    "y": 5122,
+    "scale": 1
+  },
+  {
+    "id": "d3833",
+    "type": "pine",
+    "x": 2010,
+    "y": 5123,
+    "scale": 1
+  },
+  {
+    "id": "d3834",
+    "type": "dark_deadtree",
+    "x": 2460,
+    "y": 5122,
+    "scale": 1
+  },
+  {
+    "id": "d3835",
+    "type": "dark_bigpine",
+    "x": 2525,
+    "y": 5125,
+    "scale": 1
+  },
+  {
+    "id": "d3836",
+    "type": "pine",
+    "x": 2627,
+    "y": 5125,
+    "scale": 1
+  },
+  {
+    "id": "d3837",
+    "type": "pine",
+    "x": 2651,
+    "y": 5115,
+    "scale": 1
+  },
+  {
+    "id": "d3838",
+    "type": "spot_crystal_red",
+    "x": 2718,
+    "y": 5120,
+    "scale": 1
+  },
+  {
+    "id": "d3839",
+    "type": "dark_bigpine",
+    "x": 2749,
+    "y": 5123,
+    "scale": 1
+  },
+  {
+    "id": "d3840",
+    "type": "dark_deadtree",
+    "x": 2841,
+    "y": 5125,
+    "scale": 1
+  },
+  {
+    "id": "d3841",
+    "type": "dark_bigpine",
+    "x": 2910,
+    "y": 5118,
+    "scale": 1
+  },
+  {
+    "id": "d3842",
+    "type": "dark_bigpine",
+    "x": 2941,
+    "y": 5114,
+    "scale": 1
+  },
+  {
+    "id": "d3843",
+    "type": "dark_bigpine",
+    "x": 2977,
+    "y": 5116,
+    "scale": 1
+  },
+  {
+    "id": "d3844",
+    "type": "dark_deadtree",
+    "x": 3045,
+    "y": 5122,
+    "scale": 1
+  },
+  {
+    "id": "d3845",
+    "type": "dark_thorn",
+    "x": 3130,
+    "y": 5117,
+    "scale": 1
+  },
+  {
+    "id": "d3846",
+    "type": "dark_bigpine",
+    "x": 3172,
+    "y": 5119,
+    "scale": 1
+  },
+  {
+    "id": "d3847",
+    "type": "dark_deadtree",
+    "x": 3195,
+    "y": 5123,
+    "scale": 1
+  },
+  {
+    "id": "d3848",
+    "type": "dark_thorn",
+    "x": 3298,
+    "y": 5127,
+    "scale": 1
+  },
+  {
+    "id": "d3849",
+    "type": "dark_deadtree",
+    "x": 3387,
+    "y": 5121,
+    "scale": 1
+  },
+  {
+    "id": "d3850",
+    "type": "dark_bigpine",
+    "x": 3453,
+    "y": 5115,
+    "scale": 1
+  },
+  {
+    "id": "d3851",
+    "type": "dark_thorn",
+    "x": 3519,
+    "y": 5127,
+    "scale": 1
+  },
+  {
+    "id": "d3852",
+    "type": "dark_deadtree",
+    "x": 3556,
+    "y": 5124,
+    "scale": 1
+  },
+  {
+    "id": "d3853",
+    "type": "pine",
+    "x": 3710,
+    "y": 5115,
+    "scale": 1
+  },
+  {
+    "id": "d3854",
+    "type": "dark_bigpine",
+    "x": 3777,
+    "y": 5118,
+    "scale": 1
+  },
+  {
+    "id": "d3855",
+    "type": "dark_bigpine",
+    "x": 3814,
+    "y": 5119,
+    "scale": 1
+  },
+  {
+    "id": "d3856",
+    "type": "dark_thorn",
+    "x": 3876,
+    "y": 5123,
+    "scale": 1
+  },
+  {
+    "id": "d3857",
+    "type": "dark_thorn",
+    "x": 3937,
+    "y": 5122,
+    "scale": 1
+  },
+  {
+    "id": "d3858",
+    "type": "dark_bigpine",
+    "x": 4025,
+    "y": 5127,
+    "scale": 1
+  },
+  {
+    "id": "d3859",
+    "type": "dark_deadtree",
+    "x": 4063,
+    "y": 5113,
+    "scale": 1
+  },
+  {
+    "id": "d3860",
+    "type": "dark_deadtree",
+    "x": 4093,
+    "y": 5119,
+    "scale": 1
+  },
+  {
+    "id": "d3861",
+    "type": "bush",
+    "x": 4134,
+    "y": 5113,
+    "scale": 1
+  },
+  {
+    "id": "d3862",
+    "type": "dark_deadtree",
+    "x": 4164,
+    "y": 5123,
+    "scale": 1
+  },
+  {
+    "id": "d3863",
+    "type": "dark_deadtree",
+    "x": 4190,
+    "y": 5118,
+    "scale": 1
+  },
+  {
+    "id": "d3864",
+    "type": "dark_deadtree",
+    "x": 4226,
+    "y": 5119,
+    "scale": 1
+  },
+  {
+    "id": "d3865",
+    "type": "dark_thorn",
+    "x": 4257,
+    "y": 5116,
+    "scale": 1
+  },
+  {
+    "id": "d3866",
+    "type": "dark_thorn",
+    "x": 4291,
+    "y": 5127,
+    "scale": 1
+  },
+  {
+    "id": "d3867",
+    "type": "dark_deadtree",
+    "x": 4318,
+    "y": 5126,
+    "scale": 1
+  },
+  {
+    "id": "d3868",
+    "type": "dark_bigpine",
+    "x": 4345,
+    "y": 5123,
+    "scale": 1
+  },
+  {
+    "id": "d3869",
+    "type": "dark_deadtree",
+    "x": 4384,
+    "y": 5117,
+    "scale": 1
+  },
+  {
+    "id": "d3870",
+    "type": "dark_deadtree",
+    "x": 4509,
+    "y": 5125,
+    "scale": 1
+  },
+  {
+    "id": "d3871",
+    "type": "dark_bigpine",
+    "x": 4543,
+    "y": 5114,
+    "scale": 1
+  },
+  {
+    "id": "d3872",
+    "type": "dark_deadtree",
+    "x": 4571,
+    "y": 5113,
+    "scale": 1
+  },
+  {
+    "id": "d3873",
+    "type": "dark_thorn",
+    "x": 4636,
+    "y": 5113,
+    "scale": 1
+  },
+  {
+    "id": "d3874",
+    "type": "dark_deadtree",
+    "x": 4676,
+    "y": 5114,
+    "scale": 1
+  },
+  {
+    "id": "d3875",
+    "type": "dark_bigpine",
+    "x": 4870,
+    "y": 5125,
+    "scale": 1
+  },
+  {
+    "id": "d3876",
+    "type": "dark_bigpine",
+    "x": 4934,
+    "y": 5117,
+    "scale": 1
+  },
+  {
+    "id": "d3877",
+    "type": "pine",
+    "x": 5116,
+    "y": 5122,
+    "scale": 1
+  },
+  {
+    "id": "d3878",
+    "type": "pine",
+    "x": 5153,
+    "y": 5120,
+    "scale": 1
+  },
+  {
+    "id": "d3879",
+    "type": "pine",
+    "x": 5190,
+    "y": 5123,
+    "scale": 1
+  },
+  {
+    "id": "d3880",
+    "type": "spot_crystal_blue",
+    "x": 5279,
+    "y": 5117,
+    "scale": 1
+  },
+  {
+    "id": "d3881",
+    "type": "dark_bigpine",
+    "x": 5339,
+    "y": 5121,
+    "scale": 1
+  },
+  {
+    "id": "d3882",
+    "type": "dark_thorn",
+    "x": 5378,
+    "y": 5114,
+    "scale": 1
+  },
+  {
+    "id": "d3883",
+    "type": "dark_deadtree",
+    "x": 5566,
+    "y": 5123,
+    "scale": 1
+  },
+  {
+    "id": "d3884",
+    "type": "bush",
+    "x": 5630,
+    "y": 5117,
+    "scale": 1
+  },
+  {
+    "id": "d3885",
+    "type": "dark_deadtree",
+    "x": 5729,
+    "y": 5122,
+    "scale": 1
+  },
+  {
+    "id": "d3886",
+    "type": "dark_thorn",
+    "x": 67,
+    "y": 5157,
+    "scale": 1
+  },
+  {
+    "id": "d3887",
+    "type": "dark_bigpine",
+    "x": 126,
+    "y": 5154,
+    "scale": 1
+  },
+  {
+    "id": "d3888",
+    "type": "dark_bigrock",
+    "x": 289,
+    "y": 5150,
+    "scale": 1
+  },
+  {
+    "id": "d3889",
+    "type": "dark_deadtree",
+    "x": 322,
+    "y": 5147,
+    "scale": 1
+  },
+  {
+    "id": "d3890",
+    "type": "dark_bigpine",
+    "x": 350,
+    "y": 5154,
+    "scale": 1
+  },
+  {
+    "id": "d3891",
+    "type": "dark_bigrock",
+    "x": 385,
+    "y": 5152,
+    "scale": 1
+  },
+  {
+    "id": "d3892",
+    "type": "spot_crystal_red",
+    "x": 446,
+    "y": 5153,
+    "scale": 1
+  },
+  {
+    "id": "d3893",
+    "type": "dark_deadtree",
+    "x": 508,
+    "y": 5149,
+    "scale": 1
+  },
+  {
+    "id": "d3894",
+    "type": "dark_deadtree",
+    "x": 647,
+    "y": 5155,
+    "scale": 1
+  },
+  {
+    "id": "d3895",
+    "type": "dark_deadtree",
+    "x": 797,
+    "y": 5149,
+    "scale": 1
+  },
+  {
+    "id": "d3896",
+    "type": "dark_deadtree",
+    "x": 1061,
+    "y": 5148,
+    "scale": 1
+  },
+  {
+    "id": "d3897",
+    "type": "pine",
+    "x": 1120,
+    "y": 5149,
+    "scale": 1
+  },
+  {
+    "id": "d3898",
+    "type": "dark_deadtree",
+    "x": 1187,
+    "y": 5157,
+    "scale": 1
+  },
+  {
+    "id": "d3899",
+    "type": "dark_bigpine",
+    "x": 1249,
+    "y": 5156,
+    "scale": 1
+  },
+  {
+    "id": "d3900",
+    "type": "dark_bigpine",
+    "x": 1279,
+    "y": 5151,
+    "scale": 1
+  },
+  {
+    "id": "d3901",
+    "type": "dark_bigpine",
+    "x": 1347,
+    "y": 5148,
+    "scale": 1
+  },
+  {
+    "id": "d3902",
+    "type": "pine",
+    "x": 1371,
+    "y": 5158,
+    "scale": 1
+  },
+  {
+    "id": "d3903",
+    "type": "dark_bigpine",
+    "x": 1442,
+    "y": 5150,
+    "scale": 1
+  },
+  {
+    "id": "d3904",
+    "type": "bush",
+    "x": 1469,
+    "y": 5154,
+    "scale": 1
+  },
+  {
+    "id": "d3905",
+    "type": "dark_bigpine",
+    "x": 1597,
+    "y": 5155,
+    "scale": 1
+  },
+  {
+    "id": "d3906",
+    "type": "dark_deadtree",
+    "x": 1723,
+    "y": 5151,
+    "scale": 1
+  },
+  {
+    "id": "d3907",
+    "type": "dark_bigpine",
+    "x": 1821,
+    "y": 5154,
+    "scale": 1
+  },
+  {
+    "id": "d3908",
+    "type": "rockCluster",
+    "x": 1851,
+    "y": 5148,
+    "scale": 1
+  },
+  {
+    "id": "d3909",
+    "type": "dark_bigpine",
+    "x": 1895,
+    "y": 5153,
+    "scale": 1
+  },
+  {
+    "id": "d3910",
+    "type": "dark_bigpine",
+    "x": 1920,
+    "y": 5153,
+    "scale": 1
+  },
+  {
+    "id": "d3911",
+    "type": "spot_crystal_blue",
+    "x": 1956,
+    "y": 5152,
+    "scale": 1
+  },
+  {
+    "id": "d3912",
+    "type": "spot_crystal_blue",
+    "x": 2238,
+    "y": 5148,
+    "scale": 1
+  },
+  {
+    "id": "d3913",
+    "type": "dark_bigpine",
+    "x": 2628,
+    "y": 5155,
+    "scale": 1
+  },
+  {
+    "id": "d3914",
+    "type": "dark_deadtree",
+    "x": 2685,
+    "y": 5153,
+    "scale": 1
+  },
+  {
+    "id": "d3915",
+    "type": "dark_bigpine",
+    "x": 2789,
+    "y": 5149,
+    "scale": 1
+  },
+  {
+    "id": "d3916",
+    "type": "dark_bigpine",
+    "x": 2817,
+    "y": 5145,
+    "scale": 1
+  },
+  {
+    "id": "d3917",
+    "type": "dark_bigpine",
+    "x": 2853,
+    "y": 5154,
+    "scale": 1
+  },
+  {
+    "id": "d3918",
+    "type": "dark_deadtree",
+    "x": 2884,
+    "y": 5155,
+    "scale": 1
+  },
+  {
+    "id": "d3919",
+    "type": "dark_deadtree",
+    "x": 2972,
+    "y": 5152,
+    "scale": 1
+  },
+  {
+    "id": "d3920",
+    "type": "dark_bigpine",
+    "x": 3067,
+    "y": 5153,
+    "scale": 1
+  },
+  {
+    "id": "d3921",
+    "type": "dark_bigpine",
+    "x": 3098,
+    "y": 5153,
+    "scale": 1
+  },
+  {
+    "id": "d3922",
+    "type": "dark_thorn",
+    "x": 3136,
+    "y": 5151,
+    "scale": 1
+  },
+  {
+    "id": "d3923",
+    "type": "dark_deadtree",
+    "x": 3166,
+    "y": 5146,
+    "scale": 1
+  },
+  {
+    "id": "d3924",
+    "type": "rockCluster",
+    "x": 3228,
+    "y": 5156,
+    "scale": 1
+  },
+  {
+    "id": "d3925",
+    "type": "spot_crystal_blue",
+    "x": 3299,
+    "y": 5154,
+    "scale": 1
+  },
+  {
+    "id": "d3926",
+    "type": "spot_crystal_blue",
+    "x": 3323,
+    "y": 5152,
+    "scale": 1
+  },
+  {
+    "id": "d3927",
+    "type": "dark_bigpine",
+    "x": 3395,
+    "y": 5156,
+    "scale": 1
+  },
+  {
+    "id": "d3928",
+    "type": "dark_deadtree",
+    "x": 3420,
+    "y": 5151,
+    "scale": 1
+  },
+  {
+    "id": "d3929",
+    "type": "dark_deadtree",
+    "x": 3449,
+    "y": 5157,
+    "scale": 1
+  },
+  {
+    "id": "d3930",
+    "type": "dark_deadtree",
+    "x": 3492,
+    "y": 5157,
+    "scale": 1
+  },
+  {
+    "id": "d3931",
+    "type": "dark_deadtree",
+    "x": 3525,
+    "y": 5148,
+    "scale": 1
+  },
+  {
+    "id": "d3932",
+    "type": "dark_deadtree",
+    "x": 3588,
+    "y": 5155,
+    "scale": 1
+  },
+  {
+    "id": "d3933",
+    "type": "dark_deadtree",
+    "x": 3717,
+    "y": 5146,
+    "scale": 1
+  },
+  {
+    "id": "d3934",
+    "type": "dark_deadtree",
+    "x": 3780,
+    "y": 5157,
+    "scale": 1
+  },
+  {
+    "id": "d3935",
+    "type": "dark_deadtree",
+    "x": 3932,
+    "y": 5149,
+    "scale": 1
+  },
+  {
+    "id": "d3936",
+    "type": "dark_bigpine",
+    "x": 4036,
+    "y": 5156,
+    "scale": 1
+  },
+  {
+    "id": "d3937",
+    "type": "dark_bigpine",
+    "x": 4059,
+    "y": 5157,
+    "scale": 1
+  },
+  {
+    "id": "d3938",
+    "type": "dark_deadtree",
+    "x": 4092,
+    "y": 5146,
+    "scale": 1
+  },
+  {
+    "id": "d3939",
+    "type": "dark_deadtree",
+    "x": 4130,
+    "y": 5152,
+    "scale": 1
+  },
+  {
+    "id": "d3940",
+    "type": "dark_bigpine",
+    "x": 4154,
+    "y": 5155,
+    "scale": 1
+  },
+  {
+    "id": "d3941",
+    "type": "bush",
+    "x": 4190,
+    "y": 5153,
+    "scale": 1
+  },
+  {
+    "id": "d3942",
+    "type": "dark_deadtree",
+    "x": 4223,
+    "y": 5153,
+    "scale": 1
+  },
+  {
+    "id": "d3943",
+    "type": "dark_bigpine",
+    "x": 4263,
+    "y": 5158,
+    "scale": 1
+  },
+  {
+    "id": "d3944",
+    "type": "dark_bigpine",
+    "x": 4292,
+    "y": 5146,
+    "scale": 1
+  },
+  {
+    "id": "d3945",
+    "type": "dark_bigpine",
+    "x": 4315,
+    "y": 5154,
+    "scale": 1
+  },
+  {
+    "id": "d3946",
+    "type": "dark_thorn",
+    "x": 4350,
+    "y": 5146,
+    "scale": 1
+  },
+  {
+    "id": "d3947",
+    "type": "dark_bigpine",
+    "x": 4387,
+    "y": 5159,
+    "scale": 1
+  },
+  {
+    "id": "d3948",
+    "type": "dark_deadtree",
+    "x": 4414,
+    "y": 5157,
+    "scale": 1
+  },
+  {
+    "id": "d3949",
+    "type": "dark_thorn",
+    "x": 4454,
+    "y": 5147,
+    "scale": 1
+  },
+  {
+    "id": "d3950",
+    "type": "dark_bigpine",
+    "x": 4518,
+    "y": 5152,
+    "scale": 1
+  },
+  {
+    "id": "d3951",
+    "type": "dark_bigpine",
+    "x": 4797,
+    "y": 5152,
+    "scale": 1
+  },
+  {
+    "id": "d3952",
+    "type": "dark_icecrystal",
+    "x": 4901,
+    "y": 5157,
+    "scale": 1
+  },
+  {
+    "id": "d3953",
+    "type": "dark_thorn",
+    "x": 5018,
+    "y": 5157,
+    "scale": 1
+  },
+  {
+    "id": "d3954",
+    "type": "dark_deadtree",
+    "x": 5118,
+    "y": 5153,
+    "scale": 1
+  },
+  {
+    "id": "d3955",
+    "type": "dark_bigpine",
+    "x": 5185,
+    "y": 5146,
+    "scale": 1
+  },
+  {
+    "id": "d3956",
+    "type": "dark_bigpine",
+    "x": 5250,
+    "y": 5159,
+    "scale": 1
+  },
+  {
+    "id": "d3957",
+    "type": "spot_crystal_blue",
+    "x": 5283,
+    "y": 5147,
+    "scale": 1
+  },
+  {
+    "id": "d3958",
+    "type": "dark_thorn",
+    "x": 5316,
+    "y": 5154,
+    "scale": 1
+  },
+  {
+    "id": "d3959",
+    "type": "dark_bigrock",
+    "x": 5382,
+    "y": 5151,
+    "scale": 1
+  },
+  {
+    "id": "d3960",
+    "type": "spot_crystal_red",
+    "x": 5404,
+    "y": 5156,
+    "scale": 1
+  },
+  {
+    "id": "d3961",
+    "type": "dark_deadtree",
+    "x": 5507,
+    "y": 5151,
+    "scale": 1
+  },
+  {
+    "id": "d3962",
+    "type": "dark_deadtree",
+    "x": 5533,
+    "y": 5148,
+    "scale": 1
+  },
+  {
+    "id": "d3963",
+    "type": "pine",
+    "x": 5607,
+    "y": 5153,
+    "scale": 1
+  },
+  {
+    "id": "d3964",
+    "type": "dark_deadtree",
+    "x": 5728,
+    "y": 5156,
+    "scale": 1
+  },
+  {
+    "id": "d3965",
+    "type": "dark_deadtree",
+    "x": 5763,
+    "y": 5149,
+    "scale": 1
+  },
+  {
+    "id": "d3966",
+    "type": "dark_bigpine",
+    "x": 92,
+    "y": 5178,
+    "scale": 1
+  },
+  {
+    "id": "d3967",
+    "type": "dark_deadtree",
+    "x": 285,
+    "y": 5186,
+    "scale": 1
+  },
+  {
+    "id": "d3968",
+    "type": "dark_thorn",
+    "x": 383,
+    "y": 5185,
+    "scale": 1
+  },
+  {
+    "id": "d3969",
+    "type": "dark_bigpine",
+    "x": 478,
+    "y": 5186,
+    "scale": 1
+  },
+  {
+    "id": "d3970",
+    "type": "rockCluster",
+    "x": 515,
+    "y": 5179,
+    "scale": 1
+  },
+  {
+    "id": "d3971",
+    "type": "dark_bigpine",
+    "x": 547,
+    "y": 5181,
+    "scale": 1
+  },
+  {
+    "id": "d3972",
+    "type": "dark_deadtree",
+    "x": 614,
+    "y": 5182,
+    "scale": 1
+  },
+  {
+    "id": "d3973",
+    "type": "dark_bigpine",
+    "x": 669,
+    "y": 5178,
+    "scale": 1
+  },
+  {
+    "id": "d3974",
+    "type": "dark_bigpine",
+    "x": 704,
+    "y": 5184,
+    "scale": 1
+  },
+  {
+    "id": "d3975",
+    "type": "spot_crystal_red",
+    "x": 765,
+    "y": 5188,
+    "scale": 1
+  },
+  {
+    "id": "d3976",
+    "type": "rockCluster",
+    "x": 799,
+    "y": 5188,
+    "scale": 1
+  },
+  {
+    "id": "d3977",
+    "type": "dark_deadtree",
+    "x": 897,
+    "y": 5178,
+    "scale": 1
+  },
+  {
+    "id": "d3978",
+    "type": "dark_deadtree",
+    "x": 953,
+    "y": 5184,
+    "scale": 1
+  },
+  {
+    "id": "d3979",
+    "type": "bush",
+    "x": 1055,
+    "y": 5182,
+    "scale": 1
+  },
+  {
+    "id": "d3980",
+    "type": "dark_bigpine",
+    "x": 1091,
+    "y": 5182,
+    "scale": 1
+  },
+  {
+    "id": "d3981",
+    "type": "dark_deadtree",
+    "x": 1150,
+    "y": 5181,
+    "scale": 1
+  },
+  {
+    "id": "d3982",
+    "type": "dark_icecrystal",
+    "x": 1213,
+    "y": 5189,
+    "scale": 1
+  },
+  {
+    "id": "d3983",
+    "type": "bush",
+    "x": 1284,
+    "y": 5190,
+    "scale": 1
+  },
+  {
+    "id": "d3984",
+    "type": "dark_deadtree",
+    "x": 1471,
+    "y": 5189,
+    "scale": 1
+  },
+  {
+    "id": "d3985",
+    "type": "dark_bigpine",
+    "x": 1574,
+    "y": 5185,
+    "scale": 1
+  },
+  {
+    "id": "d3986",
+    "type": "dark_thorn",
+    "x": 1634,
+    "y": 5189,
+    "scale": 1
+  },
+  {
+    "id": "d3987",
+    "type": "dark_deadtree",
+    "x": 1764,
+    "y": 5181,
+    "scale": 1
+  },
+  {
+    "id": "d3988",
+    "type": "dark_bigpine",
+    "x": 1787,
+    "y": 5177,
+    "scale": 1
+  },
+  {
+    "id": "d3989",
+    "type": "dark_bigpine",
+    "x": 1818,
+    "y": 5191,
+    "scale": 1
+  },
+  {
+    "id": "d3990",
+    "type": "dark_thorn",
+    "x": 1855,
+    "y": 5181,
+    "scale": 1
+  },
+  {
+    "id": "d3991",
+    "type": "dark_deadtree",
+    "x": 1892,
+    "y": 5179,
+    "scale": 1
+  },
+  {
+    "id": "d3992",
+    "type": "dark_bigrock",
+    "x": 1916,
+    "y": 5182,
+    "scale": 1
+  },
+  {
+    "id": "d3993",
+    "type": "spot_crystal_blue",
+    "x": 2241,
+    "y": 5182,
+    "scale": 1
+  },
+  {
+    "id": "d3994",
+    "type": "spot_crystal_red",
+    "x": 2332,
+    "y": 5187,
+    "scale": 1
+  },
+  {
+    "id": "d3995",
+    "type": "rockCluster",
+    "x": 2563,
+    "y": 5187,
+    "scale": 1
+  },
+  {
+    "id": "d3996",
+    "type": "spot_crystal_blue",
+    "x": 2596,
+    "y": 5186,
+    "scale": 1
+  },
+  {
+    "id": "d3997",
+    "type": "dark_bigpine",
+    "x": 2784,
+    "y": 5185,
+    "scale": 1
+  },
+  {
+    "id": "d3998",
+    "type": "dark_bigpine",
+    "x": 2850,
+    "y": 5189,
+    "scale": 1
+  },
+  {
+    "id": "d3999",
+    "type": "dark_bigpine",
+    "x": 2941,
+    "y": 5178,
+    "scale": 1
+  },
+  {
+    "id": "d4000",
+    "type": "dark_bigpine",
+    "x": 2979,
+    "y": 5188,
+    "scale": 1
+  },
+  {
+    "id": "d4001",
+    "type": "dark_deadtree",
+    "x": 3011,
+    "y": 5182,
+    "scale": 1
+  },
+  {
+    "id": "d4002",
+    "type": "pine",
+    "x": 3046,
+    "y": 5177,
+    "scale": 1
+  },
+  {
+    "id": "d4003",
+    "type": "dark_bigpine",
+    "x": 3166,
+    "y": 5189,
+    "scale": 1
+  },
+  {
+    "id": "d4004",
+    "type": "dark_bigpine",
+    "x": 3363,
+    "y": 5183,
+    "scale": 1
+  },
+  {
+    "id": "d4005",
+    "type": "dark_bigpine",
+    "x": 3425,
+    "y": 5183,
+    "scale": 1
+  },
+  {
+    "id": "d4006",
+    "type": "dark_bigpine",
+    "x": 3453,
+    "y": 5185,
+    "scale": 1
+  },
+  {
+    "id": "d4007",
+    "type": "dark_bigpine",
+    "x": 3550,
+    "y": 5186,
+    "scale": 1
+  },
+  {
+    "id": "d4008",
+    "type": "bush",
+    "x": 3585,
+    "y": 5187,
+    "scale": 1
+  },
+  {
+    "id": "d4009",
+    "type": "dark_deadtree",
+    "x": 3710,
+    "y": 5180,
+    "scale": 1
+  },
+  {
+    "id": "d4010",
+    "type": "dark_bigpine",
+    "x": 3747,
+    "y": 5181,
+    "scale": 1
+  },
+  {
+    "id": "d4011",
+    "type": "dark_bigpine",
+    "x": 3814,
+    "y": 5188,
+    "scale": 1
+  },
+  {
+    "id": "d4012",
+    "type": "dark_deadtree",
+    "x": 3868,
+    "y": 5178,
+    "scale": 1
+  },
+  {
+    "id": "d4013",
+    "type": "bush",
+    "x": 3931,
+    "y": 5177,
+    "scale": 1
+  },
+  {
+    "id": "d4014",
+    "type": "dark_deadtree",
+    "x": 3995,
+    "y": 5184,
+    "scale": 1
+  },
+  {
+    "id": "d4015",
+    "type": "dark_bigrock",
+    "x": 4033,
+    "y": 5189,
+    "scale": 1
+  },
+  {
+    "id": "d4016",
+    "type": "spot_crystal_blue",
+    "x": 4065,
+    "y": 5185,
+    "scale": 1
+  },
+  {
+    "id": "d4017",
+    "type": "dark_deadtree",
+    "x": 4254,
+    "y": 5190,
+    "scale": 1
+  },
+  {
+    "id": "d4018",
+    "type": "pine",
+    "x": 4283,
+    "y": 5183,
+    "scale": 1
+  },
+  {
+    "id": "d4019",
+    "type": "dark_deadtree",
+    "x": 4383,
+    "y": 5189,
+    "scale": 1
+  },
+  {
+    "id": "d4020",
+    "type": "dark_bigpine",
+    "x": 4422,
+    "y": 5177,
+    "scale": 1
+  },
+  {
+    "id": "d4021",
+    "type": "dark_bigpine",
+    "x": 4447,
+    "y": 5184,
+    "scale": 1
+  },
+  {
+    "id": "d4022",
+    "type": "dark_deadtree",
+    "x": 4540,
+    "y": 5186,
+    "scale": 1
+  },
+  {
+    "id": "d4023",
+    "type": "dark_deadtree",
+    "x": 4574,
+    "y": 5188,
+    "scale": 1
+  },
+  {
+    "id": "d4024",
+    "type": "dark_deadtree",
+    "x": 4614,
+    "y": 5180,
+    "scale": 1
+  },
+  {
+    "id": "d4025",
+    "type": "dark_thorn",
+    "x": 4702,
+    "y": 5191,
+    "scale": 1
+  },
+  {
+    "id": "d4026",
+    "type": "dark_thorn",
+    "x": 4897,
+    "y": 5179,
+    "scale": 1
+  },
+  {
+    "id": "d4027",
+    "type": "dark_deadtree",
+    "x": 4963,
+    "y": 5184,
+    "scale": 1
+  },
+  {
+    "id": "d4028",
+    "type": "dark_bigrock",
+    "x": 5027,
+    "y": 5178,
+    "scale": 1
+  },
+  {
+    "id": "d4029",
+    "type": "dark_bigpine",
+    "x": 5118,
+    "y": 5182,
+    "scale": 1
+  },
+  {
+    "id": "d4030",
+    "type": "dark_bigpine",
+    "x": 5255,
+    "y": 5189,
+    "scale": 1
+  },
+  {
+    "id": "d4031",
+    "type": "dark_bigpine",
+    "x": 5282,
+    "y": 5186,
+    "scale": 1
+  },
+  {
+    "id": "d4032",
+    "type": "dark_bigpine",
+    "x": 5534,
+    "y": 5190,
+    "scale": 1
+  },
+  {
+    "id": "d4033",
+    "type": "dark_bigpine",
+    "x": 5562,
+    "y": 5188,
+    "scale": 1
+  },
+  {
+    "id": "d4034",
+    "type": "dark_deadtree",
+    "x": 5631,
+    "y": 5189,
+    "scale": 1
+  },
+  {
+    "id": "d4035",
+    "type": "dark_bigpine",
+    "x": 5669,
+    "y": 5187,
+    "scale": 1
+  },
+  {
+    "id": "d4036",
+    "type": "dark_bigpine",
+    "x": 5735,
+    "y": 5183,
+    "scale": 1
+  },
+  {
+    "id": "d4037",
+    "type": "dark_bigpine",
+    "x": 5755,
+    "y": 5185,
+    "scale": 1
+  },
+  {
+    "id": "d4038",
+    "type": "dark_deadtree",
+    "x": 164,
+    "y": 5211,
+    "scale": 1
+  },
+  {
+    "id": "d4039",
+    "type": "dark_bigpine",
+    "x": 254,
+    "y": 5211,
+    "scale": 1
+  },
+  {
+    "id": "d4040",
+    "type": "dark_bigpine",
+    "x": 542,
+    "y": 5221,
+    "scale": 1
+  },
+  {
+    "id": "d4041",
+    "type": "dark_deadtree",
+    "x": 672,
+    "y": 5213,
+    "scale": 1
+  },
+  {
+    "id": "d4042",
+    "type": "dark_deadtree",
+    "x": 767,
+    "y": 5219,
+    "scale": 1
+  },
+  {
+    "id": "d4043",
+    "type": "dark_thorn",
+    "x": 898,
+    "y": 5210,
+    "scale": 1
+  },
+  {
+    "id": "d4044",
+    "type": "dark_thorn",
+    "x": 934,
+    "y": 5219,
+    "scale": 1
+  },
+  {
+    "id": "d4045",
+    "type": "dark_bigpine",
+    "x": 1085,
+    "y": 5218,
+    "scale": 1
+  },
+  {
+    "id": "d4046",
+    "type": "rockCluster",
+    "x": 1119,
+    "y": 5219,
+    "scale": 1
+  },
+  {
+    "id": "d4047",
+    "type": "dark_bigpine",
+    "x": 1212,
+    "y": 5220,
+    "scale": 1
+  },
+  {
+    "id": "d4048",
+    "type": "dark_deadtree",
+    "x": 1254,
+    "y": 5218,
+    "scale": 1
+  },
+  {
+    "id": "d4049",
+    "type": "dark_deadtree",
+    "x": 1370,
+    "y": 5218,
+    "scale": 1
+  },
+  {
+    "id": "d4050",
+    "type": "dark_bigpine",
+    "x": 1434,
+    "y": 5217,
+    "scale": 1
+  },
+  {
+    "id": "d4051",
+    "type": "pine",
+    "x": 1505,
+    "y": 5212,
+    "scale": 1
+  },
+  {
+    "id": "d4052",
+    "type": "pine",
+    "x": 1571,
+    "y": 5216,
+    "scale": 1
+  },
+  {
+    "id": "d4053",
+    "type": "dark_deadtree",
+    "x": 1605,
+    "y": 5214,
+    "scale": 1
+  },
+  {
+    "id": "d4054",
+    "type": "dark_icecrystal",
+    "x": 1634,
+    "y": 5211,
+    "scale": 1
+  },
+  {
+    "id": "d4055",
+    "type": "dark_bigpine",
+    "x": 1664,
+    "y": 5219,
+    "scale": 1
+  },
+  {
+    "id": "d4056",
+    "type": "dark_deadtree",
+    "x": 1798,
+    "y": 5216,
+    "scale": 1
+  },
+  {
+    "id": "d4057",
+    "type": "dark_deadtree",
+    "x": 1883,
+    "y": 5212,
+    "scale": 1
+  },
+  {
+    "id": "d4058",
+    "type": "dark_bigpine",
+    "x": 2206,
+    "y": 5214,
+    "scale": 1
+  },
+  {
+    "id": "d4059",
+    "type": "rockCluster",
+    "x": 2277,
+    "y": 5218,
+    "scale": 1
+  },
+  {
+    "id": "d4060",
+    "type": "dark_deadtree",
+    "x": 2308,
+    "y": 5221,
+    "scale": 1
+  },
+  {
+    "id": "d4061",
+    "type": "spot_crystal_blue",
+    "x": 2331,
+    "y": 5222,
+    "scale": 1
+  },
+  {
+    "id": "d4062",
+    "type": "spot_crystal_blue",
+    "x": 2756,
+    "y": 5216,
+    "scale": 1
+  },
+  {
+    "id": "d4063",
+    "type": "dark_bigpine",
+    "x": 2820,
+    "y": 5218,
+    "scale": 1
+  },
+  {
+    "id": "d4064",
+    "type": "dark_deadtree",
+    "x": 2883,
+    "y": 5210,
+    "scale": 1
+  },
+  {
+    "id": "d4065",
+    "type": "dark_bigpine",
+    "x": 2917,
+    "y": 5212,
+    "scale": 1
+  },
+  {
+    "id": "d4066",
+    "type": "pine",
+    "x": 2944,
+    "y": 5210,
+    "scale": 1
+  },
+  {
+    "id": "d4067",
+    "type": "dark_bigpine",
+    "x": 2972,
+    "y": 5222,
+    "scale": 1
+  },
+  {
+    "id": "d4068",
+    "type": "spot_crystal_blue",
+    "x": 3039,
+    "y": 5211,
+    "scale": 1
+  },
+  {
+    "id": "d4069",
+    "type": "dark_deadtree",
+    "x": 3071,
+    "y": 5218,
+    "scale": 1
+  },
+  {
+    "id": "d4070",
+    "type": "dark_bigpine",
+    "x": 3106,
+    "y": 5217,
+    "scale": 1
+  },
+  {
+    "id": "d4071",
+    "type": "dark_bigpine",
+    "x": 3135,
+    "y": 5209,
+    "scale": 1
+  },
+  {
+    "id": "d4072",
+    "type": "dark_bigpine",
+    "x": 3204,
+    "y": 5209,
+    "scale": 1
+  },
+  {
+    "id": "d4073",
+    "type": "dark_deadtree",
+    "x": 3459,
+    "y": 5219,
+    "scale": 1
+  },
+  {
+    "id": "d4074",
+    "type": "pine",
+    "x": 3489,
+    "y": 5219,
+    "scale": 1
+  },
+  {
+    "id": "d4075",
+    "type": "dark_deadtree",
+    "x": 3647,
+    "y": 5216,
+    "scale": 1
+  },
+  {
+    "id": "d4076",
+    "type": "pine",
+    "x": 3804,
+    "y": 5218,
+    "scale": 1
+  },
+  {
+    "id": "d4077",
+    "type": "dark_thorn",
+    "x": 3838,
+    "y": 5222,
+    "scale": 1
+  },
+  {
+    "id": "d4078",
+    "type": "dark_bigpine",
+    "x": 3993,
+    "y": 5214,
+    "scale": 1
+  },
+  {
+    "id": "d4079",
+    "type": "pine",
+    "x": 4035,
+    "y": 5213,
+    "scale": 1
+  },
+  {
+    "id": "d4080",
+    "type": "dark_thorn",
+    "x": 4165,
+    "y": 5219,
+    "scale": 1
+  },
+  {
+    "id": "d4081",
+    "type": "dark_deadtree",
+    "x": 4358,
+    "y": 5221,
+    "scale": 1
+  },
+  {
+    "id": "d4082",
+    "type": "dark_bigpine",
+    "x": 4390,
+    "y": 5217,
+    "scale": 1
+  },
+  {
+    "id": "d4083",
+    "type": "dark_deadtree",
+    "x": 4418,
+    "y": 5209,
+    "scale": 1
+  },
+  {
+    "id": "d4084",
+    "type": "dark_bigpine",
+    "x": 4446,
+    "y": 5216,
+    "scale": 1
+  },
+  {
+    "id": "d4085",
+    "type": "dark_deadtree",
+    "x": 4518,
+    "y": 5220,
+    "scale": 1
+  },
+  {
+    "id": "d4086",
+    "type": "dark_bigpine",
+    "x": 4576,
+    "y": 5222,
+    "scale": 1
+  },
+  {
+    "id": "d4087",
+    "type": "spot_crystal_red",
+    "x": 4607,
+    "y": 5212,
+    "scale": 1
+  },
+  {
+    "id": "d4088",
+    "type": "dark_thorn",
+    "x": 4774,
+    "y": 5210,
+    "scale": 1
+  },
+  {
+    "id": "d4089",
+    "type": "dark_deadtree",
+    "x": 4795,
+    "y": 5212,
+    "scale": 1
+  },
+  {
+    "id": "d4090",
+    "type": "dark_bigpine",
+    "x": 4892,
+    "y": 5218,
+    "scale": 1
+  },
+  {
+    "id": "d4091",
+    "type": "dark_thorn",
+    "x": 5018,
+    "y": 5217,
+    "scale": 1
+  },
+  {
+    "id": "d4092",
+    "type": "dark_bigpine",
+    "x": 5116,
+    "y": 5214,
+    "scale": 1
+  },
+  {
+    "id": "d4093",
+    "type": "dark_thorn",
+    "x": 5158,
+    "y": 5221,
+    "scale": 1
+  },
+  {
+    "id": "d4094",
+    "type": "dark_thorn",
+    "x": 5571,
+    "y": 5221,
+    "scale": 1
+  },
+  {
+    "id": "d4095",
+    "type": "dark_bigpine",
+    "x": 5696,
+    "y": 5222,
+    "scale": 1
+  },
+  {
+    "id": "d4096",
+    "type": "dark_bigpine",
+    "x": 5755,
+    "y": 5216,
+    "scale": 1
+  },
+  {
+    "id": "d4097",
+    "type": "dark_bigpine",
+    "x": 130,
+    "y": 5242,
+    "scale": 1
+  },
+  {
+    "id": "d4098",
+    "type": "dark_thorn",
+    "x": 158,
+    "y": 5245,
+    "scale": 1
+  },
+  {
+    "id": "d4099",
+    "type": "spot_crystal_red",
+    "x": 227,
+    "y": 5247,
+    "scale": 1
+  },
+  {
+    "id": "d4100",
+    "type": "dark_deadtree",
+    "x": 262,
+    "y": 5249,
+    "scale": 1
+  },
+  {
+    "id": "d4101",
+    "type": "dark_thorn",
+    "x": 326,
+    "y": 5254,
+    "scale": 1
+  },
+  {
+    "id": "d4102",
+    "type": "dark_bigpine",
+    "x": 549,
+    "y": 5252,
+    "scale": 1
+  },
+  {
+    "id": "d4103",
+    "type": "dark_deadtree",
+    "x": 636,
+    "y": 5248,
+    "scale": 1
+  },
+  {
+    "id": "d4104",
+    "type": "dark_deadtree",
+    "x": 699,
+    "y": 5247,
+    "scale": 1
+  },
+  {
+    "id": "d4105",
+    "type": "dark_bigpine",
+    "x": 894,
+    "y": 5245,
+    "scale": 1
+  },
+  {
+    "id": "d4106",
+    "type": "spot_crystal_blue",
+    "x": 996,
+    "y": 5248,
+    "scale": 1
+  },
+  {
+    "id": "d4107",
+    "type": "dark_bigpine",
+    "x": 1219,
+    "y": 5246,
+    "scale": 1
+  },
+  {
+    "id": "d4108",
+    "type": "dark_deadtree",
+    "x": 1254,
+    "y": 5253,
+    "scale": 1
+  },
+  {
+    "id": "d4109",
+    "type": "dark_thorn",
+    "x": 1285,
+    "y": 5246,
+    "scale": 1
+  },
+  {
+    "id": "d4110",
+    "type": "dark_deadtree",
+    "x": 1315,
+    "y": 5245,
+    "scale": 1
+  },
+  {
+    "id": "d4111",
+    "type": "bush",
+    "x": 1343,
+    "y": 5241,
+    "scale": 1
+  },
+  {
+    "id": "d4112",
+    "type": "dark_bigpine",
+    "x": 1370,
+    "y": 5254,
+    "scale": 1
+  },
+  {
+    "id": "d4113",
+    "type": "dark_thorn",
+    "x": 1403,
+    "y": 5248,
+    "scale": 1
+  },
+  {
+    "id": "d4114",
+    "type": "dark_bigpine",
+    "x": 1443,
+    "y": 5251,
+    "scale": 1
+  },
+  {
+    "id": "d4115",
+    "type": "dark_thorn",
+    "x": 1532,
+    "y": 5253,
+    "scale": 1
+  },
+  {
+    "id": "d4116",
+    "type": "bush",
+    "x": 1727,
+    "y": 5242,
+    "scale": 1
+  },
+  {
+    "id": "d4117",
+    "type": "dark_bigpine",
+    "x": 1762,
+    "y": 5246,
+    "scale": 1
+  },
+  {
+    "id": "d4118",
+    "type": "dark_deadtree",
+    "x": 1861,
+    "y": 5244,
+    "scale": 1
+  },
+  {
+    "id": "d4119",
+    "type": "dark_deadtree",
+    "x": 1894,
+    "y": 5245,
+    "scale": 1
+  },
+  {
+    "id": "d4120",
+    "type": "pine",
+    "x": 2624,
+    "y": 5244,
+    "scale": 1
+  },
+  {
+    "id": "d4121",
+    "type": "dark_bigpine",
+    "x": 2651,
+    "y": 5254,
+    "scale": 1
+  },
+  {
+    "id": "d4122",
+    "type": "bush",
+    "x": 2787,
+    "y": 5248,
+    "scale": 1
+  },
+  {
+    "id": "d4123",
+    "type": "pine",
+    "x": 2815,
+    "y": 5246,
+    "scale": 1
+  },
+  {
+    "id": "d4124",
+    "type": "pine",
+    "x": 2880,
+    "y": 5249,
+    "scale": 1
+  },
+  {
+    "id": "d4125",
+    "type": "dark_bigpine",
+    "x": 2917,
+    "y": 5251,
+    "scale": 1
+  },
+  {
+    "id": "d4126",
+    "type": "pine",
+    "x": 2940,
+    "y": 5245,
+    "scale": 1
+  },
+  {
+    "id": "d4127",
+    "type": "dark_bigpine",
+    "x": 3006,
+    "y": 5254,
+    "scale": 1
+  },
+  {
+    "id": "d4128",
+    "type": "dark_deadtree",
+    "x": 3043,
+    "y": 5251,
+    "scale": 1
+  },
+  {
+    "id": "d4129",
+    "type": "dark_bigpine",
+    "x": 3100,
+    "y": 5247,
+    "scale": 1
+  },
+  {
+    "id": "d4130",
+    "type": "pine",
+    "x": 3143,
+    "y": 5246,
+    "scale": 1
+  },
+  {
+    "id": "d4131",
+    "type": "dark_bigpine",
+    "x": 3171,
+    "y": 5241,
+    "scale": 1
+  },
+  {
+    "id": "d4132",
+    "type": "dark_bigpine",
+    "x": 3257,
+    "y": 5250,
+    "scale": 1
+  },
+  {
+    "id": "d4133",
+    "type": "dark_deadtree",
+    "x": 3323,
+    "y": 5243,
+    "scale": 1
+  },
+  {
+    "id": "d4134",
+    "type": "dark_deadtree",
+    "x": 3355,
+    "y": 5255,
+    "scale": 1
+  },
+  {
+    "id": "d4135",
+    "type": "dark_thorn",
+    "x": 3717,
+    "y": 5251,
+    "scale": 1
+  },
+  {
+    "id": "d4136",
+    "type": "dark_deadtree",
+    "x": 3810,
+    "y": 5244,
+    "scale": 1
+  },
+  {
+    "id": "d4137",
+    "type": "dark_thorn",
+    "x": 3963,
+    "y": 5244,
+    "scale": 1
+  },
+  {
+    "id": "d4138",
+    "type": "dark_bigpine",
+    "x": 3996,
+    "y": 5244,
+    "scale": 1
+  },
+  {
+    "id": "d4139",
+    "type": "dark_bigpine",
+    "x": 4029,
+    "y": 5252,
+    "scale": 1
+  },
+  {
+    "id": "d4140",
+    "type": "bush",
+    "x": 4158,
+    "y": 5251,
+    "scale": 1
+  },
+  {
+    "id": "d4141",
+    "type": "dark_deadtree",
+    "x": 4259,
+    "y": 5241,
+    "scale": 1
+  },
+  {
+    "id": "d4142",
+    "type": "dark_deadtree",
+    "x": 4282,
+    "y": 5247,
+    "scale": 1
+  },
+  {
+    "id": "d4143",
+    "type": "dark_deadtree",
+    "x": 4317,
+    "y": 5250,
+    "scale": 1
+  },
+  {
+    "id": "d4144",
+    "type": "dark_bigpine",
+    "x": 4350,
+    "y": 5252,
+    "scale": 1
+  },
+  {
+    "id": "d4145",
+    "type": "dark_bigpine",
+    "x": 4415,
+    "y": 5244,
+    "scale": 1
+  },
+  {
+    "id": "d4146",
+    "type": "pine",
+    "x": 4481,
+    "y": 5255,
+    "scale": 1
+  },
+  {
+    "id": "d4147",
+    "type": "dark_deadtree",
+    "x": 4544,
+    "y": 5246,
+    "scale": 1
+  },
+  {
+    "id": "d4148",
+    "type": "spot_crystal_blue",
+    "x": 4580,
+    "y": 5243,
+    "scale": 1
+  },
+  {
+    "id": "d4149",
+    "type": "dark_bigpine",
+    "x": 4612,
+    "y": 5254,
+    "scale": 1
+  },
+  {
+    "id": "d4150",
+    "type": "dark_bigpine",
+    "x": 4637,
+    "y": 5245,
+    "scale": 1
+  },
+  {
+    "id": "d4151",
+    "type": "dark_thorn",
+    "x": 4836,
+    "y": 5244,
+    "scale": 1
+  },
+  {
+    "id": "d4152",
+    "type": "dark_bigpine",
+    "x": 4864,
+    "y": 5248,
+    "scale": 1
+  },
+  {
+    "id": "d4153",
+    "type": "dark_deadtree",
+    "x": 4926,
+    "y": 5249,
+    "scale": 1
+  },
+  {
+    "id": "d4154",
+    "type": "pine",
+    "x": 4994,
+    "y": 5247,
+    "scale": 1
+  },
+  {
+    "id": "d4155",
+    "type": "dark_bigpine",
+    "x": 5060,
+    "y": 5244,
+    "scale": 1
+  },
+  {
+    "id": "d4156",
+    "type": "dark_bigpine",
+    "x": 5085,
+    "y": 5248,
+    "scale": 1
+  },
+  {
+    "id": "d4157",
+    "type": "dark_deadtree",
+    "x": 5575,
+    "y": 5252,
+    "scale": 1
+  },
+  {
+    "id": "d4158",
+    "type": "dark_deadtree",
+    "x": 5607,
+    "y": 5254,
+    "scale": 1
+  },
+  {
+    "id": "d4159",
+    "type": "spot_crystal_blue",
+    "x": 5630,
+    "y": 5249,
+    "scale": 1
+  },
+  {
+    "id": "d4160",
+    "type": "dark_bigpine",
+    "x": 5733,
+    "y": 5244,
+    "scale": 1
+  },
+  {
+    "id": "d4161",
+    "type": "dark_deadtree",
+    "x": 348,
+    "y": 5283,
+    "scale": 1
+  },
+  {
+    "id": "d4162",
+    "type": "pine",
+    "x": 382,
+    "y": 5283,
+    "scale": 1
+  },
+  {
+    "id": "d4163",
+    "type": "dark_thorn",
+    "x": 475,
+    "y": 5280,
+    "scale": 1
+  },
+  {
+    "id": "d4164",
+    "type": "dark_deadtree",
+    "x": 511,
+    "y": 5286,
+    "scale": 1
+  },
+  {
+    "id": "d4165",
+    "type": "dark_deadtree",
+    "x": 542,
+    "y": 5282,
+    "scale": 1
+  },
+  {
+    "id": "d4166",
+    "type": "dark_bigpine",
+    "x": 740,
+    "y": 5284,
+    "scale": 1
+  },
+  {
+    "id": "d4167",
+    "type": "pine",
+    "x": 795,
+    "y": 5276,
+    "scale": 1
+  },
+  {
+    "id": "d4168",
+    "type": "dark_bigpine",
+    "x": 959,
+    "y": 5286,
+    "scale": 1
+  },
+  {
+    "id": "d4169",
+    "type": "dark_thorn",
+    "x": 1018,
+    "y": 5275,
+    "scale": 1
+  },
+  {
+    "id": "d4170",
+    "type": "dark_bigpine",
+    "x": 1056,
+    "y": 5278,
+    "scale": 1
+  },
+  {
+    "id": "d4171",
+    "type": "dark_deadtree",
+    "x": 1082,
+    "y": 5285,
+    "scale": 1
+  },
+  {
+    "id": "d4172",
+    "type": "dark_bigpine",
+    "x": 1116,
+    "y": 5282,
+    "scale": 1
+  },
+  {
+    "id": "d4173",
+    "type": "spot_crystal_red",
+    "x": 1156,
+    "y": 5280,
+    "scale": 1
+  },
+  {
+    "id": "d4174",
+    "type": "dark_bigpine",
+    "x": 1252,
+    "y": 5273,
+    "scale": 1
+  },
+  {
+    "id": "d4175",
+    "type": "dark_bigpine",
+    "x": 1280,
+    "y": 5282,
+    "scale": 1
+  },
+  {
+    "id": "d4176",
+    "type": "pine",
+    "x": 1315,
+    "y": 5283,
+    "scale": 1
+  },
+  {
+    "id": "d4177",
+    "type": "spot_crystal_blue",
+    "x": 1374,
+    "y": 5283,
+    "scale": 1
+  },
+  {
+    "id": "d4178",
+    "type": "dark_thorn",
+    "x": 1569,
+    "y": 5279,
+    "scale": 1
+  },
+  {
+    "id": "d4179",
+    "type": "dark_bigpine",
+    "x": 1669,
+    "y": 5280,
+    "scale": 1
+  },
+  {
+    "id": "d4180",
+    "type": "dark_deadtree",
+    "x": 1788,
+    "y": 5284,
+    "scale": 1
+  },
+  {
+    "id": "d4181",
+    "type": "dark_bigpine",
+    "x": 1820,
+    "y": 5283,
+    "scale": 1
+  },
+  {
+    "id": "d4182",
+    "type": "dark_deadtree",
+    "x": 1858,
+    "y": 5273,
+    "scale": 1
+  },
+  {
+    "id": "d4183",
+    "type": "dark_bigpine",
+    "x": 1982,
+    "y": 5286,
+    "scale": 1
+  },
+  {
+    "id": "d4184",
+    "type": "spot_crystal_blue",
+    "x": 2176,
+    "y": 5279,
+    "scale": 1
+  },
+  {
+    "id": "d4185",
+    "type": "rockCluster",
+    "x": 2278,
+    "y": 5278,
+    "scale": 1
+  },
+  {
+    "id": "d4186",
+    "type": "dark_bigpine",
+    "x": 2595,
+    "y": 5277,
+    "scale": 1
+  },
+  {
+    "id": "d4187",
+    "type": "dark_bigpine",
+    "x": 2690,
+    "y": 5285,
+    "scale": 1
+  },
+  {
+    "id": "d4188",
+    "type": "dark_thorn",
+    "x": 2759,
+    "y": 5280,
+    "scale": 1
+  },
+  {
+    "id": "d4189",
+    "type": "dark_deadtree",
+    "x": 2782,
+    "y": 5276,
+    "scale": 1
+  },
+  {
+    "id": "d4190",
+    "type": "dark_bigpine",
+    "x": 2874,
+    "y": 5284,
+    "scale": 1
+  },
+  {
+    "id": "d4191",
+    "type": "dark_bigpine",
+    "x": 3012,
+    "y": 5282,
+    "scale": 1
+  },
+  {
+    "id": "d4192",
+    "type": "dark_thorn",
+    "x": 3072,
+    "y": 5283,
+    "scale": 1
+  },
+  {
+    "id": "d4193",
+    "type": "dark_thorn",
+    "x": 3131,
+    "y": 5284,
+    "scale": 1
+  },
+  {
+    "id": "d4194",
+    "type": "dark_bigpine",
+    "x": 3296,
+    "y": 5279,
+    "scale": 1
+  },
+  {
+    "id": "d4195",
+    "type": "dark_bigrock",
+    "x": 3330,
+    "y": 5277,
+    "scale": 1
+  },
+  {
+    "id": "d4196",
+    "type": "dark_bigpine",
+    "x": 3361,
+    "y": 5279,
+    "scale": 1
+  },
+  {
+    "id": "d4197",
+    "type": "dark_bigpine",
+    "x": 3525,
+    "y": 5274,
+    "scale": 1
+  },
+  {
+    "id": "d4198",
+    "type": "dark_bigpine",
+    "x": 3642,
+    "y": 5283,
+    "scale": 1
+  },
+  {
+    "id": "d4199",
+    "type": "dark_deadtree",
+    "x": 3683,
+    "y": 5279,
+    "scale": 1
+  },
+  {
+    "id": "d4200",
+    "type": "spot_crystal_blue",
+    "x": 3782,
+    "y": 5274,
+    "scale": 1
+  },
+  {
+    "id": "d4201",
+    "type": "spot_crystal_red",
+    "x": 3807,
+    "y": 5277,
+    "scale": 1
+  },
+  {
+    "id": "d4202",
+    "type": "spot_crystal_blue",
+    "x": 3867,
+    "y": 5274,
+    "scale": 1
+  },
+  {
+    "id": "d4203",
+    "type": "dark_icecrystal",
+    "x": 3903,
+    "y": 5277,
+    "scale": 1
+  },
+  {
+    "id": "d4204",
+    "type": "spot_crystal_blue",
+    "x": 3996,
+    "y": 5275,
+    "scale": 1
+  },
+  {
+    "id": "d4205",
+    "type": "dark_deadtree",
+    "x": 4091,
+    "y": 5273,
+    "scale": 1
+  },
+  {
+    "id": "d4206",
+    "type": "dark_deadtree",
+    "x": 4128,
+    "y": 5287,
+    "scale": 1
+  },
+  {
+    "id": "d4207",
+    "type": "dark_deadtree",
+    "x": 4160,
+    "y": 5286,
+    "scale": 1
+  },
+  {
+    "id": "d4208",
+    "type": "dark_deadtree",
+    "x": 4221,
+    "y": 5279,
+    "scale": 1
+  },
+  {
+    "id": "d4209",
+    "type": "dark_bigpine",
+    "x": 4289,
+    "y": 5279,
+    "scale": 1
+  },
+  {
+    "id": "d4210",
+    "type": "dark_deadtree",
+    "x": 4320,
+    "y": 5277,
+    "scale": 1
+  },
+  {
+    "id": "d4211",
+    "type": "dark_bigpine",
+    "x": 4385,
+    "y": 5283,
+    "scale": 1
+  },
+  {
+    "id": "d4212",
+    "type": "dark_thorn",
+    "x": 4509,
+    "y": 5280,
+    "scale": 1
+  },
+  {
+    "id": "d4213",
+    "type": "dark_bigpine",
+    "x": 4640,
+    "y": 5283,
+    "scale": 1
+  },
+  {
+    "id": "d4214",
+    "type": "dark_deadtree",
+    "x": 4862,
+    "y": 5287,
+    "scale": 1
+  },
+  {
+    "id": "d4215",
+    "type": "dark_deadtree",
+    "x": 5024,
+    "y": 5282,
+    "scale": 1
+  },
+  {
+    "id": "d4216",
+    "type": "dark_deadtree",
+    "x": 5060,
+    "y": 5277,
+    "scale": 1
+  },
+  {
+    "id": "d4217",
+    "type": "spot_crystal_blue",
+    "x": 5116,
+    "y": 5280,
+    "scale": 1
+  },
+  {
+    "id": "d4218",
+    "type": "spot_crystal_blue",
+    "x": 5181,
+    "y": 5285,
+    "scale": 1
+  },
+  {
+    "id": "d4219",
+    "type": "dark_deadtree",
+    "x": 5242,
+    "y": 5287,
+    "scale": 1
+  },
+  {
+    "id": "d4220",
+    "type": "pine",
+    "x": 5600,
+    "y": 5273,
+    "scale": 1
+  },
+  {
+    "id": "d4221",
+    "type": "spot_crystal_blue",
+    "x": 5755,
+    "y": 5276,
+    "scale": 1
+  },
+  {
+    "id": "d4222",
+    "type": "dark_bigpine",
+    "x": 160,
+    "y": 5319,
+    "scale": 1
+  },
+  {
+    "id": "d4223",
+    "type": "dark_deadtree",
+    "x": 190,
+    "y": 5318,
+    "scale": 1
+  },
+  {
+    "id": "d4224",
+    "type": "dark_bigpine",
+    "x": 220,
+    "y": 5318,
+    "scale": 1
+  },
+  {
+    "id": "d4225",
+    "type": "spot_crystal_blue",
+    "x": 252,
+    "y": 5313,
+    "scale": 1
+  },
+  {
+    "id": "d4226",
+    "type": "dark_thorn",
+    "x": 327,
+    "y": 5310,
+    "scale": 1
+  },
+  {
+    "id": "d4227",
+    "type": "dark_deadtree",
+    "x": 352,
+    "y": 5312,
+    "scale": 1
+  },
+  {
+    "id": "d4228",
+    "type": "dark_deadtree",
+    "x": 412,
+    "y": 5316,
+    "scale": 1
+  },
+  {
+    "id": "d4229",
+    "type": "pine",
+    "x": 516,
+    "y": 5310,
+    "scale": 1
+  },
+  {
+    "id": "d4230",
+    "type": "dark_bigpine",
+    "x": 542,
+    "y": 5311,
+    "scale": 1
+  },
+  {
+    "id": "d4231",
+    "type": "dark_deadtree",
+    "x": 603,
+    "y": 5312,
+    "scale": 1
+  },
+  {
+    "id": "d4232",
+    "type": "pine",
+    "x": 700,
+    "y": 5305,
+    "scale": 1
+  },
+  {
+    "id": "d4233",
+    "type": "pine",
+    "x": 826,
+    "y": 5307,
+    "scale": 1
+  },
+  {
+    "id": "d4234",
+    "type": "pine",
+    "x": 889,
+    "y": 5316,
+    "scale": 1
+  },
+  {
+    "id": "d4235",
+    "type": "dark_bigpine",
+    "x": 998,
+    "y": 5311,
+    "scale": 1
+  },
+  {
+    "id": "d4236",
+    "type": "dark_deadtree",
+    "x": 1029,
+    "y": 5307,
+    "scale": 1
+  },
+  {
+    "id": "d4237",
+    "type": "dark_bigpine",
+    "x": 1054,
+    "y": 5314,
+    "scale": 1
+  },
+  {
+    "id": "d4238",
+    "type": "dark_deadtree",
+    "x": 1276,
+    "y": 5315,
+    "scale": 1
+  },
+  {
+    "id": "d4239",
+    "type": "dark_thorn",
+    "x": 1318,
+    "y": 5316,
+    "scale": 1
+  },
+  {
+    "id": "d4240",
+    "type": "dark_bigpine",
+    "x": 1604,
+    "y": 5308,
+    "scale": 1
+  },
+  {
+    "id": "d4241",
+    "type": "dark_bigpine",
+    "x": 1722,
+    "y": 5312,
+    "scale": 1
+  },
+  {
+    "id": "d4242",
+    "type": "dark_bigpine",
+    "x": 1757,
+    "y": 5310,
+    "scale": 1
+  },
+  {
+    "id": "d4243",
+    "type": "dark_deadtree",
+    "x": 1796,
+    "y": 5318,
+    "scale": 1
+  },
+  {
+    "id": "d4244",
+    "type": "dark_deadtree",
+    "x": 1859,
+    "y": 5306,
+    "scale": 1
+  },
+  {
+    "id": "d4245",
+    "type": "dark_bigpine",
+    "x": 1887,
+    "y": 5308,
+    "scale": 1
+  },
+  {
+    "id": "d4246",
+    "type": "spot_crystal_blue",
+    "x": 1950,
+    "y": 5308,
+    "scale": 1
+  },
+  {
+    "id": "d4247",
+    "type": "dark_bigpine",
+    "x": 2205,
+    "y": 5311,
+    "scale": 1
+  },
+  {
+    "id": "d4248",
+    "type": "dark_deadtree",
+    "x": 2693,
+    "y": 5314,
+    "scale": 1
+  },
+  {
+    "id": "d4249",
+    "type": "dark_bigpine",
+    "x": 2725,
+    "y": 5314,
+    "scale": 1
+  },
+  {
+    "id": "d4250",
+    "type": "dark_deadtree",
+    "x": 2780,
+    "y": 5312,
+    "scale": 1
+  },
+  {
+    "id": "d4251",
+    "type": "dark_bigpine",
+    "x": 2855,
+    "y": 5310,
+    "scale": 1
+  },
+  {
+    "id": "d4252",
+    "type": "bush",
+    "x": 2886,
+    "y": 5316,
+    "scale": 1
+  },
+  {
+    "id": "d4253",
+    "type": "dark_deadtree",
+    "x": 2913,
+    "y": 5312,
+    "scale": 1
+  },
+  {
+    "id": "d4254",
+    "type": "dark_bigpine",
+    "x": 2939,
+    "y": 5316,
+    "scale": 1
+  },
+  {
+    "id": "d4255",
+    "type": "spot_crystal_red",
+    "x": 2975,
+    "y": 5308,
+    "scale": 1
+  },
+  {
+    "id": "d4256",
+    "type": "bush",
+    "x": 3007,
+    "y": 5319,
+    "scale": 1
+  },
+  {
+    "id": "d4257",
+    "type": "spot_crystal_blue",
+    "x": 3037,
+    "y": 5316,
+    "scale": 1
+  },
+  {
+    "id": "d4258",
+    "type": "bush",
+    "x": 3103,
+    "y": 5313,
+    "scale": 1
+  },
+  {
+    "id": "d4259",
+    "type": "dark_deadtree",
+    "x": 3164,
+    "y": 5309,
+    "scale": 1
+  },
+  {
+    "id": "d4260",
+    "type": "dark_deadtree",
+    "x": 3263,
+    "y": 5306,
+    "scale": 1
+  },
+  {
+    "id": "d4261",
+    "type": "dark_thorn",
+    "x": 3581,
+    "y": 5315,
+    "scale": 1
+  },
+  {
+    "id": "d4262",
+    "type": "spot_crystal_blue",
+    "x": 3613,
+    "y": 5311,
+    "scale": 1
+  },
+  {
+    "id": "d4263",
+    "type": "dark_bigpine",
+    "x": 3653,
+    "y": 5307,
+    "scale": 1
+  },
+  {
+    "id": "d4264",
+    "type": "dark_bigpine",
+    "x": 3678,
+    "y": 5307,
+    "scale": 1
+  },
+  {
+    "id": "d4265",
+    "type": "pine",
+    "x": 3899,
+    "y": 5310,
+    "scale": 1
+  },
+  {
+    "id": "d4266",
+    "type": "dark_bigpine",
+    "x": 4026,
+    "y": 5312,
+    "scale": 1
+  },
+  {
+    "id": "d4267",
+    "type": "dark_deadtree",
+    "x": 4155,
+    "y": 5306,
+    "scale": 1
+  },
+  {
+    "id": "d4268",
+    "type": "dark_deadtree",
+    "x": 4195,
+    "y": 5305,
+    "scale": 1
+  },
+  {
+    "id": "d4269",
+    "type": "dark_bigpine",
+    "x": 4226,
+    "y": 5319,
+    "scale": 1
+  },
+  {
+    "id": "d4270",
+    "type": "dark_thorn",
+    "x": 4253,
+    "y": 5314,
+    "scale": 1
+  },
+  {
+    "id": "d4271",
+    "type": "dark_thorn",
+    "x": 4281,
+    "y": 5319,
+    "scale": 1
+  },
+  {
+    "id": "d4272",
+    "type": "dark_deadtree",
+    "x": 4325,
+    "y": 5312,
+    "scale": 1
+  },
+  {
+    "id": "d4273",
+    "type": "dark_deadtree",
+    "x": 4482,
+    "y": 5316,
+    "scale": 1
+  },
+  {
+    "id": "d4274",
+    "type": "dark_deadtree",
+    "x": 4610,
+    "y": 5317,
+    "scale": 1
+  },
+  {
+    "id": "d4275",
+    "type": "dark_bigpine",
+    "x": 4770,
+    "y": 5308,
+    "scale": 1
+  },
+  {
+    "id": "d4276",
+    "type": "dark_deadtree",
+    "x": 4868,
+    "y": 5319,
+    "scale": 1
+  },
+  {
+    "id": "d4277",
+    "type": "dark_thorn",
+    "x": 5178,
+    "y": 5312,
+    "scale": 1
+  },
+  {
+    "id": "d4278",
+    "type": "dark_deadtree",
+    "x": 5242,
+    "y": 5318,
+    "scale": 1
+  },
+  {
+    "id": "d4279",
+    "type": "dark_thorn",
+    "x": 5700,
+    "y": 5310,
+    "scale": 1
+  },
+  {
+    "id": "d4280",
+    "type": "dark_bigpine",
+    "x": 58,
+    "y": 5345,
+    "scale": 1
+  },
+  {
+    "id": "d4281",
+    "type": "dark_deadtree",
+    "x": 167,
+    "y": 5350,
+    "scale": 1
+  },
+  {
+    "id": "d4282",
+    "type": "dark_thorn",
+    "x": 194,
+    "y": 5350,
+    "scale": 1
+  },
+  {
+    "id": "d4283",
+    "type": "dark_deadtree",
+    "x": 225,
+    "y": 5342,
+    "scale": 1
+  },
+  {
+    "id": "d4284",
+    "type": "dark_bigpine",
+    "x": 390,
+    "y": 5338,
+    "scale": 1
+  },
+  {
+    "id": "d4285",
+    "type": "dark_bigpine",
+    "x": 483,
+    "y": 5344,
+    "scale": 1
+  },
+  {
+    "id": "d4286",
+    "type": "dark_deadtree",
+    "x": 551,
+    "y": 5345,
+    "scale": 1
+  },
+  {
+    "id": "d4287",
+    "type": "dark_deadtree",
+    "x": 579,
+    "y": 5347,
+    "scale": 1
+  },
+  {
+    "id": "d4288",
+    "type": "dark_bigpine",
+    "x": 925,
+    "y": 5350,
+    "scale": 1
+  },
+  {
+    "id": "d4289",
+    "type": "dark_bigpine",
+    "x": 1063,
+    "y": 5350,
+    "scale": 1
+  },
+  {
+    "id": "d4290",
+    "type": "dark_bigpine",
+    "x": 1309,
+    "y": 5343,
+    "scale": 1
+  },
+  {
+    "id": "d4291",
+    "type": "dark_deadtree",
+    "x": 1342,
+    "y": 5343,
+    "scale": 1
+  },
+  {
+    "id": "d4292",
+    "type": "pine",
+    "x": 1439,
+    "y": 5344,
+    "scale": 1
+  },
+  {
+    "id": "d4293",
+    "type": "dark_bigpine",
+    "x": 1540,
+    "y": 5342,
+    "scale": 1
+  },
+  {
+    "id": "d4294",
+    "type": "pine",
+    "x": 1635,
+    "y": 5343,
+    "scale": 1
+  },
+  {
+    "id": "d4295",
+    "type": "dark_bigpine",
+    "x": 1694,
+    "y": 5344,
+    "scale": 1
+  },
+  {
+    "id": "d4296",
+    "type": "dark_bigpine",
+    "x": 1731,
+    "y": 5343,
+    "scale": 1
+  },
+  {
+    "id": "d4297",
+    "type": "dark_deadtree",
+    "x": 1798,
+    "y": 5347,
+    "scale": 1
+  },
+  {
+    "id": "d4298",
+    "type": "dark_bigpine",
+    "x": 1853,
+    "y": 5347,
+    "scale": 1
+  },
+  {
+    "id": "d4299",
+    "type": "dark_deadtree",
+    "x": 1888,
+    "y": 5340,
+    "scale": 1
+  },
+  {
+    "id": "d4300",
+    "type": "dark_bigpine",
+    "x": 2011,
+    "y": 5348,
+    "scale": 1
+  },
+  {
+    "id": "d4301",
+    "type": "dark_bigpine",
+    "x": 2050,
+    "y": 5347,
+    "scale": 1
+  },
+  {
+    "id": "d4302",
+    "type": "dark_deadtree",
+    "x": 2080,
+    "y": 5347,
+    "scale": 1
+  },
+  {
+    "id": "d4303",
+    "type": "dark_deadtree",
+    "x": 2138,
+    "y": 5348,
+    "scale": 1
+  },
+  {
+    "id": "d4304",
+    "type": "spot_crystal_blue",
+    "x": 2524,
+    "y": 5346,
+    "scale": 1
+  },
+  {
+    "id": "d4305",
+    "type": "spot_crystal_blue",
+    "x": 2597,
+    "y": 5341,
+    "scale": 1
+  },
+  {
+    "id": "d4306",
+    "type": "dark_bigpine",
+    "x": 2682,
+    "y": 5344,
+    "scale": 1
+  },
+  {
+    "id": "d4307",
+    "type": "bush",
+    "x": 2714,
+    "y": 5345,
+    "scale": 1
+  },
+  {
+    "id": "d4308",
+    "type": "dark_thorn",
+    "x": 2811,
+    "y": 5339,
+    "scale": 1
+  },
+  {
+    "id": "d4309",
+    "type": "dark_bigrock",
+    "x": 2877,
+    "y": 5346,
+    "scale": 1
+  },
+  {
+    "id": "d4310",
+    "type": "dark_thorn",
+    "x": 2946,
+    "y": 5344,
+    "scale": 1
+  },
+  {
+    "id": "d4311",
+    "type": "dark_deadtree",
+    "x": 2973,
+    "y": 5346,
+    "scale": 1
+  },
+  {
+    "id": "d4312",
+    "type": "dark_icecrystal",
+    "x": 3228,
+    "y": 5345,
+    "scale": 1
+  },
+  {
+    "id": "d4313",
+    "type": "dark_thorn",
+    "x": 3260,
+    "y": 5347,
+    "scale": 1
+  },
+  {
+    "id": "d4314",
+    "type": "bush",
+    "x": 3424,
+    "y": 5337,
+    "scale": 1
+  },
+  {
+    "id": "d4315",
+    "type": "dark_deadtree",
+    "x": 3459,
+    "y": 5346,
+    "scale": 1
+  },
+  {
+    "id": "d4316",
+    "type": "dark_deadtree",
+    "x": 3684,
+    "y": 5341,
+    "scale": 1
+  },
+  {
+    "id": "d4317",
+    "type": "dark_bigpine",
+    "x": 4033,
+    "y": 5339,
+    "scale": 1
+  },
+  {
+    "id": "d4318",
+    "type": "dark_bigpine",
+    "x": 4065,
+    "y": 5347,
+    "scale": 1
+  },
+  {
+    "id": "d4319",
+    "type": "dark_bigpine",
+    "x": 4131,
+    "y": 5348,
+    "scale": 1
+  },
+  {
+    "id": "d4320",
+    "type": "dark_thorn",
+    "x": 4192,
+    "y": 5350,
+    "scale": 1
+  },
+  {
+    "id": "d4321",
+    "type": "dark_bigpine",
+    "x": 4291,
+    "y": 5347,
+    "scale": 1
+  },
+  {
+    "id": "d4322",
+    "type": "dark_bigpine",
+    "x": 4316,
+    "y": 5347,
+    "scale": 1
+  },
+  {
+    "id": "d4323",
+    "type": "dark_bigpine",
+    "x": 4380,
+    "y": 5346,
+    "scale": 1
+  },
+  {
+    "id": "d4324",
+    "type": "dark_deadtree",
+    "x": 4411,
+    "y": 5347,
+    "scale": 1
+  },
+  {
+    "id": "d4325",
+    "type": "pine",
+    "x": 4455,
+    "y": 5337,
+    "scale": 1
+  },
+  {
+    "id": "d4326",
+    "type": "dark_deadtree",
+    "x": 4477,
+    "y": 5341,
+    "scale": 1
+  },
+  {
+    "id": "d4327",
+    "type": "bush",
+    "x": 4548,
+    "y": 5344,
+    "scale": 1
+  },
+  {
+    "id": "d4328",
+    "type": "dark_bigpine",
+    "x": 4707,
+    "y": 5341,
+    "scale": 1
+  },
+  {
+    "id": "d4329",
+    "type": "dark_bigpine",
+    "x": 4736,
+    "y": 5344,
+    "scale": 1
+  },
+  {
+    "id": "d4330",
+    "type": "dark_bigpine",
+    "x": 4795,
+    "y": 5344,
+    "scale": 1
+  },
+  {
+    "id": "d4331",
+    "type": "dark_icecrystal",
+    "x": 4930,
+    "y": 5347,
+    "scale": 1
+  },
+  {
+    "id": "d4332",
+    "type": "pine",
+    "x": 5029,
+    "y": 5342,
+    "scale": 1
+  },
+  {
+    "id": "d4333",
+    "type": "dark_deadtree",
+    "x": 5213,
+    "y": 5342,
+    "scale": 1
+  },
+  {
+    "id": "d4334",
+    "type": "dark_bigpine",
+    "x": 5253,
+    "y": 5351,
+    "scale": 1
+  },
+  {
+    "id": "d4335",
+    "type": "spot_crystal_blue",
+    "x": 5470,
+    "y": 5344,
+    "scale": 1
+  },
+  {
+    "id": "d4336",
+    "type": "dark_thorn",
+    "x": 5507,
+    "y": 5350,
+    "scale": 1
+  },
+  {
+    "id": "d4337",
+    "type": "bush",
+    "x": 5564,
+    "y": 5349,
+    "scale": 1
+  },
+  {
+    "id": "d4338",
+    "type": "rockCluster",
+    "x": 92,
+    "y": 5380,
+    "scale": 1
+  },
+  {
+    "id": "d4339",
+    "type": "dark_bigrock",
+    "x": 122,
+    "y": 5374,
+    "scale": 1
+  },
+  {
+    "id": "d4340",
+    "type": "spot_crystal_blue",
+    "x": 154,
+    "y": 5371,
+    "scale": 1
+  },
+  {
+    "id": "d4341",
+    "type": "dark_bigpine",
+    "x": 515,
+    "y": 5382,
+    "scale": 1
+  },
+  {
+    "id": "d4342",
+    "type": "dark_bigpine",
+    "x": 704,
+    "y": 5375,
+    "scale": 1
+  },
+  {
+    "id": "d4343",
+    "type": "spot_crystal_red",
+    "x": 774,
+    "y": 5373,
+    "scale": 1
+  },
+  {
+    "id": "d4344",
+    "type": "dark_bigpine",
+    "x": 929,
+    "y": 5382,
+    "scale": 1
+  },
+  {
+    "id": "d4345",
+    "type": "dark_bigpine",
+    "x": 1089,
+    "y": 5375,
+    "scale": 1
+  },
+  {
+    "id": "d4346",
+    "type": "dark_bigpine",
+    "x": 1189,
+    "y": 5372,
+    "scale": 1
+  },
+  {
+    "id": "d4347",
+    "type": "dark_bigpine",
+    "x": 1274,
+    "y": 5375,
+    "scale": 1
+  },
+  {
+    "id": "d4348",
+    "type": "dark_bigpine",
+    "x": 1346,
+    "y": 5373,
+    "scale": 1
+  },
+  {
+    "id": "d4349",
+    "type": "bush",
+    "x": 1375,
+    "y": 5378,
+    "scale": 1
+  },
+  {
+    "id": "d4350",
+    "type": "dark_thorn",
+    "x": 1410,
+    "y": 5382,
+    "scale": 1
+  },
+  {
+    "id": "d4351",
+    "type": "dark_deadtree",
+    "x": 1439,
+    "y": 5373,
+    "scale": 1
+  },
+  {
+    "id": "d4352",
+    "type": "spot_crystal_red",
+    "x": 1568,
+    "y": 5380,
+    "scale": 1
+  },
+  {
+    "id": "d4353",
+    "type": "dark_deadtree",
+    "x": 1730,
+    "y": 5378,
+    "scale": 1
+  },
+  {
+    "id": "d4354",
+    "type": "dark_deadtree",
+    "x": 1799,
+    "y": 5380,
+    "scale": 1
+  },
+  {
+    "id": "d4355",
+    "type": "dark_deadtree",
+    "x": 1851,
+    "y": 5370,
+    "scale": 1
+  },
+  {
+    "id": "d4356",
+    "type": "dark_bigpine",
+    "x": 1894,
+    "y": 5380,
+    "scale": 1
+  },
+  {
+    "id": "d4357",
+    "type": "dark_bigpine",
+    "x": 1914,
+    "y": 5372,
+    "scale": 1
+  },
+  {
+    "id": "d4358",
+    "type": "spot_crystal_blue",
+    "x": 2172,
+    "y": 5381,
+    "scale": 1
+  },
+  {
+    "id": "d4359",
+    "type": "pine",
+    "x": 2243,
+    "y": 5383,
+    "scale": 1
+  },
+  {
+    "id": "d4360",
+    "type": "dark_bigrock",
+    "x": 2268,
+    "y": 5381,
+    "scale": 1
+  },
+  {
+    "id": "d4361",
+    "type": "dark_bigpine",
+    "x": 2682,
+    "y": 5379,
+    "scale": 1
+  },
+  {
+    "id": "d4362",
+    "type": "dark_bigpine",
+    "x": 2714,
+    "y": 5382,
+    "scale": 1
+  },
+  {
+    "id": "d4363",
+    "type": "dark_deadtree",
+    "x": 2778,
+    "y": 5379,
+    "scale": 1
+  },
+  {
+    "id": "d4364",
+    "type": "pine",
+    "x": 2910,
+    "y": 5372,
+    "scale": 1
+  },
+  {
+    "id": "d4365",
+    "type": "pine",
+    "x": 2945,
+    "y": 5374,
+    "scale": 1
+  },
+  {
+    "id": "d4366",
+    "type": "bush",
+    "x": 3007,
+    "y": 5378,
+    "scale": 1
+  },
+  {
+    "id": "d4367",
+    "type": "dark_thorn",
+    "x": 3037,
+    "y": 5377,
+    "scale": 1
+  },
+  {
+    "id": "d4368",
+    "type": "pine",
+    "x": 3099,
+    "y": 5378,
+    "scale": 1
+  },
+  {
+    "id": "d4369",
+    "type": "dark_bigpine",
+    "x": 3172,
+    "y": 5383,
+    "scale": 1
+  },
+  {
+    "id": "d4370",
+    "type": "dark_bigpine",
+    "x": 3199,
+    "y": 5382,
+    "scale": 1
+  },
+  {
+    "id": "d4371",
+    "type": "dark_bigpine",
+    "x": 3268,
+    "y": 5370,
+    "scale": 1
+  },
+  {
+    "id": "d4372",
+    "type": "dark_bigpine",
+    "x": 3294,
+    "y": 5370,
+    "scale": 1
+  },
+  {
+    "id": "d4373",
+    "type": "dark_deadtree",
+    "x": 3359,
+    "y": 5378,
+    "scale": 1
+  },
+  {
+    "id": "d4374",
+    "type": "dark_bigpine",
+    "x": 3387,
+    "y": 5373,
+    "scale": 1
+  },
+  {
+    "id": "d4375",
+    "type": "dark_thorn",
+    "x": 3491,
+    "y": 5382,
+    "scale": 1
+  },
+  {
+    "id": "d4376",
+    "type": "dark_deadtree",
+    "x": 3612,
+    "y": 5378,
+    "scale": 1
+  },
+  {
+    "id": "d4377",
+    "type": "dark_deadtree",
+    "x": 3712,
+    "y": 5375,
+    "scale": 1
+  },
+  {
+    "id": "d4378",
+    "type": "dark_icecrystal",
+    "x": 4001,
+    "y": 5377,
+    "scale": 1
+  },
+  {
+    "id": "d4379",
+    "type": "dark_thorn",
+    "x": 4064,
+    "y": 5373,
+    "scale": 1
+  },
+  {
+    "id": "d4380",
+    "type": "dark_deadtree",
+    "x": 4165,
+    "y": 5373,
+    "scale": 1
+  },
+  {
+    "id": "d4381",
+    "type": "dark_deadtree",
+    "x": 4256,
+    "y": 5376,
+    "scale": 1
+  },
+  {
+    "id": "d4382",
+    "type": "dark_deadtree",
+    "x": 4324,
+    "y": 5382,
+    "scale": 1
+  },
+  {
+    "id": "d4383",
+    "type": "dark_bigrock",
+    "x": 4416,
+    "y": 5377,
+    "scale": 1
+  },
+  {
+    "id": "d4384",
+    "type": "dark_bigpine",
+    "x": 4480,
+    "y": 5370,
+    "scale": 1
+  },
+  {
+    "id": "d4385",
+    "type": "dark_icecrystal",
+    "x": 4517,
+    "y": 5376,
+    "scale": 1
+  },
+  {
+    "id": "d4386",
+    "type": "dark_deadtree",
+    "x": 4636,
+    "y": 5377,
+    "scale": 1
+  },
+  {
+    "id": "d4387",
+    "type": "dark_deadtree",
+    "x": 4735,
+    "y": 5379,
+    "scale": 1
+  },
+  {
+    "id": "d4388",
+    "type": "dark_deadtree",
+    "x": 4775,
+    "y": 5383,
+    "scale": 1
+  },
+  {
+    "id": "d4389",
+    "type": "dark_bigpine",
+    "x": 4865,
+    "y": 5375,
+    "scale": 1
+  },
+  {
+    "id": "d4390",
+    "type": "dark_deadtree",
+    "x": 5060,
+    "y": 5370,
+    "scale": 1
+  },
+  {
+    "id": "d4391",
+    "type": "dark_thorn",
+    "x": 5119,
+    "y": 5381,
+    "scale": 1
+  },
+  {
+    "id": "d4392",
+    "type": "dark_icecrystal",
+    "x": 5316,
+    "y": 5373,
+    "scale": 1
+  },
+  {
+    "id": "d4393",
+    "type": "dark_bigrock",
+    "x": 5339,
+    "y": 5371,
+    "scale": 1
+  },
+  {
+    "id": "d4394",
+    "type": "pine",
+    "x": 5566,
+    "y": 5377,
+    "scale": 1
+  },
+  {
+    "id": "d4395",
+    "type": "dark_thorn",
+    "x": 5790,
+    "y": 5381,
+    "scale": 1
+  },
+  {
+    "id": "d4396",
+    "type": "dark_bigpine",
+    "x": 102,
+    "y": 5413,
+    "scale": 1
+  },
+  {
+    "id": "d4397",
+    "type": "pine",
+    "x": 129,
+    "y": 5407,
+    "scale": 1
+  },
+  {
+    "id": "d4398",
+    "type": "dark_thorn",
+    "x": 159,
+    "y": 5408,
+    "scale": 1
+  },
+  {
+    "id": "d4399",
+    "type": "dark_bigpine",
+    "x": 326,
+    "y": 5412,
+    "scale": 1
+  },
+  {
+    "id": "boss_arena_crystal_0",
+    "type": "spot_crystal_blue",
+    "x": 5088,
+    "y": 256,
+    "scale": 1
+  },
+  {
+    "id": "boss_arena_crystal_1",
+    "type": "spot_crystal_blue",
+    "x": 5664,
+    "y": 256,
+    "scale": 1
+  },
+  {
+    "id": "boss_arena_crystal_2",
+    "type": "spot_crystal_red",
+    "x": 5024,
+    "y": 416,
+    "scale": 1
+  },
+  {
+    "id": "boss_arena_crystal_3",
+    "type": "spot_crystal_red",
+    "x": 5728,
+    "y": 416,
+    "scale": 1
+  },
+  {
+    "id": "boss_arena_crystal_4",
+    "type": "spot_crystal_blue",
+    "x": 5120,
+    "y": 608,
+    "scale": 1
+  },
+  {
+    "id": "boss_arena_crystal_5",
+    "type": "spot_crystal_blue",
+    "x": 5632,
+    "y": 608,
+    "scale": 1
+  },
+  {
+    "id": "boss_arena_gold_0",
+    "type": "spot_gold",
+    "x": 4960,
+    "y": 192,
+    "scale": 1
+  },
+  {
+    "id": "boss_arena_gold_1",
+    "type": "spot_gold",
+    "x": 5792,
+    "y": 224,
+    "scale": 1
+  },
+  {
+    "id": "boss_arena_gold_2",
+    "type": "spot_gold",
+    "x": 4928,
+    "y": 576,
+    "scale": 1
+  },
+  {
+    "id": "boss_arena_gold_3",
+    "type": "spot_gold",
+    "x": 5792,
+    "y": 640,
+    "scale": 1
+  },
+  {
+    "id": "boss_arena_gold_4",
+    "type": "spot_gold",
+    "x": 5216,
+    "y": 736,
+    "scale": 1
+  },
+  {
+    "id": "boss_arena_gold_5",
+    "type": "spot_gold",
+    "x": 5568,
+    "y": 736,
+    "scale": 1
+  },
+  {
+    "id": "boss_arena_tree_0",
+    "type": "oak",
+    "x": 4832,
+    "y": 96,
+    "scale": 1
+  },
+  {
+    "id": "boss_arena_tree_1",
+    "type": "pine",
+    "x": 5024,
+    "y": 96,
+    "scale": 1
+  },
+  {
+    "id": "boss_arena_tree_2",
+    "type": "oak",
+    "x": 5728,
+    "y": 96,
+    "scale": 1
+  },
+  {
+    "id": "boss_arena_tree_3",
+    "type": "pine",
+    "x": 5824,
+    "y": 352,
+    "scale": 1
+  },
+  {
+    "id": "boss_arena_tree_4",
+    "type": "pine",
+    "x": 4832,
+    "y": 448,
+    "scale": 1
+  },
+  {
+    "id": "boss_arena_tree_5",
+    "type": "oak",
+    "x": 4896,
+    "y": 736,
+    "scale": 1
+  },
+  {
+    "id": "boss_arena_tree_6",
+    "type": "oak",
+    "x": 5760,
+    "y": 800,
+    "scale": 1
+  },
+  {
+    "id": "boss_arena_tree_7",
+    "type": "pine",
+    "x": 5056,
+    "y": 832,
+    "scale": 1
+  },
+  {
+    "id": "boss_arena_tree_8",
+    "type": "pine",
+    "x": 5696,
+    "y": 864,
+    "scale": 1
+  },
+  {
+    "id": "boss_arena_rock_0",
+    "type": "rockCluster",
+    "x": 4928,
+    "y": 320,
+    "scale": 1
+  },
+  {
+    "id": "boss_arena_rock_1",
+    "type": "rockPair",
+    "x": 5792,
+    "y": 480,
+    "scale": 1
+  },
+  {
+    "id": "boss_arena_rock_2",
+    "type": "rockMonolith",
+    "x": 5056,
+    "y": 704,
+    "scale": 1
+  },
+  {
+    "id": "boss_arena_rock_3",
+    "type": "rockCluster",
+    "x": 5696,
+    "y": 704,
     "scale": 1
   }
 ]

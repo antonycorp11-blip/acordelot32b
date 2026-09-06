@@ -29,7 +29,7 @@ interface Props {
 
 const GOLD = '#f7c84b';
 const PORTRAIT: Record<PlayerCharacterKey, string> = {
-  akles: '/assets/characters/portraits/akles.webp',
+  akles: '/assets/characters/hero_base.png',
   wins: '/assets/characters/portraits/wins.webp',
   huans: '/assets/characters/portraits/huans.webp',
 };
@@ -96,7 +96,7 @@ const MaterialCards: React.FC<{ cost: Record<string, number> | null; inventory: 
       const meta = ITEM_META[key];
       const have = inventory[key] ?? 0;
       const ok = have >= need;
-      return <button key={key} type="button" aria-label={`Ver ${meta?.name ?? key}`} onClick={() => setSelected(selected === key ? null : key)} className={`ac-material min-w-[64px] flex-1 rounded-[10px] border p-1.5 text-center transition active:scale-95 ${selected === key ? 'border-[#ffe176] bg-[#5a4012]/40 ring-2 ring-[#f7c84b]/30' : ok ? 'border-emerald-500/55 bg-emerald-950/25' : i === 0 ? 'border-sky-400/60 bg-sky-950/25' : 'border-violet-500/45 bg-violet-950/20'}`}>
+      return <button key={key} type="button" aria-label={`Ver ${meta?.name ?? key}`} onClick={() => setSelected(selected === key ? null : key)} className={`ac-material min-w-0 flex-1 rounded-[10px] border p-1.5 text-center transition active:scale-95 ${selected === key ? 'border-[#ffe176] bg-[#5a4012]/40 ring-2 ring-[#f7c84b]/30' : ok ? 'border-emerald-500/55 bg-emerald-950/25' : i === 0 ? 'border-sky-400/60 bg-sky-950/25' : 'border-violet-500/45 bg-violet-950/20'}`}>
         <div className="mx-auto flex h-9 items-center justify-center">
           {meta?.img ? <img src={meta.img} alt="" className="h-9 w-9 object-contain" /> : <span className="text-2xl">{meta?.icon ?? '◆'}</span>}
         </div>
@@ -116,7 +116,7 @@ function findPiece(engine: GameEngine, key: string | null) {
 
 const Roster: React.FC<{ engine: GameEngine; refresh: () => void }> = ({ engine, refresh }) => {
   const all: PlayerCharacterKey[] = ['akles', 'wins', 'huans'];
-  return <aside className="flex w-[8.5%] min-w-[70px] flex-col items-center gap-3 border-r border-[#263854] bg-[#071225]/70 py-4">
+  return <aside className="ac-roster flex w-[8.5%] min-w-[70px] flex-col items-center gap-3 border-r border-[#263854] bg-[#071225]/70 py-4">
     {all.map((key) => {
       const unlocked = engine.availableCharacters.includes(key);
       const active = engine.activeCharacter === key;
@@ -130,7 +130,7 @@ const Roster: React.FC<{ engine: GameEngine; refresh: () => void }> = ({ engine,
   </aside>;
 };
 
-const CharacterTab: React.FC<{ engine: GameEngine; power: number; canLevelUp: boolean; onLevelUp: () => void; inventory: Record<string, number>; refresh: () => void }> = ({ engine, power, canLevelUp, onLevelUp, inventory, refresh }) => {
+const CharacterTab: React.FC<{ engine: GameEngine; power: number; canLevelUp: boolean; onLevelUp: () => void; inventory: Record<string, number>; refresh: () => void; onEquipment: (slot: EquipSlotKey, key: string) => void }> = ({ engine, power, canLevelUp, onLevelUp, inventory, refresh, onEquipment }) => {
   const s = engine.stats;
   const key = engine.activeCharacter;
   const copy = CHARACTER_COPY[key];
@@ -139,13 +139,13 @@ const CharacterTab: React.FC<{ engine: GameEngine; power: number; canLevelUp: bo
   const levelCost = { partitura_bronze: 3, clave: 5, crystal_blue_raw: 1 };
   return <div className="flex h-full min-h-0">
     <Roster engine={engine} refresh={refresh} />
-    <section className="ac-stage relative w-[42%] min-w-[290px] overflow-hidden border-r border-[#263854] bg-[#061123]">
+    <section className="ac-character-stage ac-stage relative w-[42%] min-w-[290px] overflow-hidden border-r border-[#263854] bg-[#061123]">
       <img src="/assets/ui/character-stage-acordelot.png" alt="" className="absolute inset-0 h-full w-full object-cover opacity-80" />
       <div className="absolute inset-0 bg-gradient-to-t from-[#071326] via-transparent to-[#071326]/20" />
       <img src={PORTRAIT[key]} alt={s.name} className="absolute bottom-[2%] left-1/2 h-[89%] -translate-x-1/2 object-contain drop-shadow-[0_15px_16px_rgba(0,0,0,.8)] [image-rendering:auto]" />
       <p className="absolute bottom-[8%] left-[6%] max-w-[150px] -rotate-6 font-serif text-[clamp(13px,1.4vw,22px)] italic leading-snug text-[#f5c961] drop-shadow">A música move<br />novas histórias.</p>
     </section>
-    <section className="min-w-0 flex-1 overflow-y-auto p-[clamp(12px,1.4vw,24px)]">
+    <section className="ac-character-detail min-w-0 flex-1 overflow-hidden p-[clamp(12px,1.4vw,24px)]">
       <div className="grid grid-cols-[1fr_250px] gap-3">
         <div>
           <h2 className="font-serif text-[clamp(26px,2.4vw,42px)] font-bold leading-none text-white">{s.name}</h2>
@@ -166,7 +166,7 @@ const CharacterTab: React.FC<{ engine: GameEngine; power: number; canLevelUp: bo
         <Panel className="p-3"><h3 className="mb-2 text-sm font-black text-white">Atributos Base</h3>{[
           [Heart, 'HP Máximo', s.maxHp, 'text-rose-400'], [Sword, 'Ataque', s.forca, 'text-sky-400'], [Shield, 'Defesa', s.defense, 'text-indigo-400'], [Star, 'Taxa Crítica', `${s.critChance}%`, 'text-yellow-300'], [Zap, 'Energia Máxima', s.maxEnergy, 'text-cyan-400'],
         ].map(([Icon, label, value, color]: any) => <div key={label} className="flex items-center gap-2 py-1 text-[12px]"><Icon className={`h-4 w-4 ${color}`} /><span className="flex-1 text-[#9fb1d0]">{label}</span><b className="text-white">{value}</b></div>)}</Panel>
-        <Panel className="p-3"><h3 className="mb-2 text-sm font-black text-white">Equipamentos</h3><div className="grid grid-cols-3 gap-2">{equipped.length ? equipped.map((entry: any) => <div key={entry.piece.key} className="text-center"><div className="relative mx-auto grid aspect-square max-h-[80px] place-items-center rounded-xl border-2" style={{ borderColor: entry.set.color, background: `${entry.set.color}18` }}><img src={entry.piece.img} alt="" className="h-[75%] w-[75%] object-contain" /><span className="absolute inset-x-1 bottom-0 rounded bg-[#061123]/90 text-[9px] font-black">+{engine.getPieceLevel(entry.piece.key)}</span></div><p className="mt-1 truncate text-[9px] text-[#aab8d2]">{EQUIP_SLOT_LABEL[entry.slot]}</p></div>) : <p className="col-span-3 py-5 text-center text-xs text-[#657895]">Equipe peças para ativar conjuntos.</p>}</div></Panel>
+        <Panel className="p-3"><h3 className="mb-2 text-sm font-black text-white">Equipamentos</h3><div className="grid grid-cols-3 gap-2">{equipped.length ? equipped.map((entry: any) => <button type="button" aria-label={`Abrir ${entry.piece.name}`} onClick={() => onEquipment(entry.slot, entry.piece.key)} key={entry.piece.key} className="group text-center"><div className="relative mx-auto grid aspect-square max-h-[80px] place-items-center rounded-xl border-2 transition group-active:scale-95" style={{ borderColor: entry.set.color, background: `${entry.set.color}18` }}><img src={entry.piece.img} alt="" className="h-[75%] w-[75%] object-contain transition group-hover:scale-110" /><span className="absolute inset-x-1 bottom-0 rounded bg-[#061123]/90 text-[9px] font-black">+{engine.getPieceLevel(entry.piece.key)}</span></div><p className="mt-1 truncate text-[9px] text-[#aab8d2]">{EQUIP_SLOT_LABEL[entry.slot]}</p></button>) : <p className="col-span-3 py-5 text-center text-xs text-[#657895]">Equipe peças para ativar conjuntos.</p>}</div></Panel>
       </div>
       <Panel className="mt-3 flex items-center gap-4 p-3"><div className="min-w-0 flex-1"><h3 className="text-sm font-black text-white">Materiais para evolução</h3><div className="mt-2 max-w-[390px]"><MaterialCards cost={levelCost} inventory={inventory} /></div></div><button type="button" disabled={!canLevelUp} onClick={() => { onLevelUp(); refresh(); }} className={`min-w-[190px] rounded-xl px-5 py-4 text-base font-black ${canLevelUp ? 'bg-gradient-to-r from-emerald-600 to-teal-500 text-white shadow-[0_0_20px_rgba(16,185,129,.25)]' : 'bg-[#183047] text-[#64748b]'}`}><ArrowUp className="mr-2 inline h-5 w-5" />Subir de Nível</button></Panel>
     </section>
@@ -191,13 +191,13 @@ const SkillsTab: React.FC<{ engine: GameEngine; inventory: Record<string, number
   const canUpgrade = slot === null ? engine.canUpgradePassive(skill.passiveIds[0]) : engine.canUpgradeSkill(slot);
   const requirement = slot === null ? null : engine.skillUpgradeRequirement(slot);
   const doUpgrade = () => { if (slot === null ? engine.upgradePassive(skill.passiveIds[0]) : engine.upgradeSkill(slot)) refresh(); };
-  return <div className="grid h-full min-h-0 grid-cols-[30%_70%]">
+  return <div className="ac-skills grid h-full min-h-0 grid-cols-[30%_70%]">
     <aside className="overflow-y-auto border-r border-[#263854] bg-[#071225]/72 p-4">
       <h3 className="mb-3 flex items-center gap-2 text-base font-black text-[#9fb1d0]"><Swords className="h-5 w-5 text-white" /> Skills Ativas</h3>
       <div className="space-y-2">{skills.map((item) => <button key={item.key} type="button" onClick={() => setSelectedKey(item.key)} className={`flex w-full items-center gap-3 rounded-xl border p-2 text-left transition ${item.key === skill.key ? 'border-[#f5cc54] bg-[#172641] shadow-[0_0_14px_rgba(245,204,84,.18)]' : 'border-[#263854] bg-[#08162a] hover:border-[#526783]'}`}><SkillOrb skill={item} /><div className="min-w-0 flex-1"><p className="truncate text-sm font-black text-white">{item.name}</p><p className="text-xs text-[#9fb1d0]">{item.kind}</p></div><b className="text-xs text-[#c5d1e7]">Nv. {item.key.startsWith('skill') ? engine.getSkillLevel(Number(item.key.slice(-1)) - 1) : engine.getAnyPassiveLevel(item.passiveIds[0])}</b></button>)}</div>
     </aside>
-    <section className="min-w-0 overflow-y-auto p-5">
-      <div className="grid grid-cols-[220px_1fr_220px] gap-5">
+    <section className="ac-skills-detail min-w-0 overflow-hidden p-5">
+      <div className="ac-skills-hero grid grid-cols-[220px_minmax(0,1fr)_220px] gap-5">
         <div className="grid place-items-center rounded-2xl bg-[radial-gradient(circle,rgba(191,143,33,.18),transparent_68%)]"><SkillOrb skill={skill} large /></div>
         <div className="min-w-0"><h2 className="font-serif text-[clamp(25px,2.5vw,42px)] font-bold leading-tight text-white">{skill.name}</h2><span className="mt-2 inline-block rounded-lg border border-rose-500/70 bg-rose-950/50 px-3 py-1 text-xs font-black text-rose-300">{skill.kind}</span><div className="mt-4 flex items-center justify-between"><p className="font-serif text-2xl font-black text-white">Nv. {level} <span className="text-[#526783]">/ 5</span></p><span className="text-xs text-[#8194b5]">{level >= 5 ? 'Máximo' : 'Progresso da habilidade'}</span></div><div className="mt-2 h-3 rounded-full bg-[#263854]"><div className="h-full rounded-full bg-gradient-to-r from-sky-500 to-cyan-300" style={{ width: `${level * 20}%` }} /></div><p className="mt-5 text-[15px] leading-relaxed text-[#c1cbe0]">{skill.explanation}</p></div>
         <Panel className="grid place-items-center border-[#a9791d]/70 p-4 text-center"><p className="text-sm text-[#c4cee0]">Dano Atual</p><Sword className="mt-3 h-8 w-8 text-[#ffd65a]" /><p className="mt-1 font-serif text-[clamp(28px,3vw,52px)] font-black text-[#ffe27a]">{skill.damage}</p><p className="text-sm text-[#ffd65a]">{skill.cooldown} · {skill.cost}</p></Panel>
@@ -208,13 +208,17 @@ const SkillsTab: React.FC<{ engine: GameEngine; inventory: Record<string, number
   </div>;
 };
 
-const EquipmentTab: React.FC<{ engine: GameEngine; inventory: Record<string, number> }> = ({ engine, inventory }) => {
+const EquipmentTab: React.FC<{ engine: GameEngine; inventory: Record<string, number>; initialSlot?: EquipSlotKey; initialKey?: string }> = ({ engine, inventory, initialSlot, initialKey }) => {
   const [, refresh] = React.useReducer((n) => n + 1, 0);
   const sets = EQUIP_SETS.filter((s) => equipSetClass(s) === engine.characterClassKey);
-  const [slot, setSlot] = React.useState<EquipSlotKey>('colar');
+  const [slot, setSlot] = React.useState<EquipSlotKey>(initialSlot ?? 'colar');
   const rows = sets.map((set) => ({ set, piece: set.pieces[slot] }));
-  const [key, setKey] = React.useState(rows[0]?.piece.key ?? '');
-  React.useEffect(() => setKey(sets[0]?.pieces[slot].key ?? ''), [slot, engine.activeCharacter]);
+  const [key, setKey] = React.useState(initialKey ?? rows[0]?.piece.key ?? '');
+  React.useEffect(() => {
+    const nextSlot = initialSlot ?? 'colar';
+    setSlot(nextSlot);
+    setKey(initialKey ?? sets[0]?.pieces[nextSlot].key ?? '');
+  }, [engine.activeCharacter, initialKey, initialSlot]);
   const selected = rows.find((r) => r.piece.key === key) ?? rows[0];
   if (!selected) return <div className="grid h-full place-items-center text-slate-400">Nenhum equipamento disponível para esta classe.</div>;
   const { set, piece } = selected;
@@ -226,7 +230,7 @@ const EquipmentTab: React.FC<{ engine: GameEngine; inventory: Record<string, num
   const pieceArt = piece.img;
   return <div className="grid h-full min-h-0 grid-cols-[30%_25%_45%]">
     <aside className="min-h-0 border-r border-[#263854] bg-[#071225]/72 p-4">
-      <div className="grid grid-cols-4 gap-2">{EQUIP_SLOT_ORDER.map((s) => { const Icon = SLOT_ICON[s]; return <button key={s} type="button" onClick={() => setSlot(s)} className={`rounded-xl border py-3 text-center ${slot === s ? 'border-[#f5cf55] bg-[#4d3a13]/25 text-[#ffe06b]' : 'border-[#263854] bg-[#071326] text-[#7e92b4]'}`}><Icon className="mx-auto h-7 w-7" /><span className="mt-1 block text-[10px] font-black">{EQUIP_SLOT_LABEL[s]}</span></button>; })}</div>
+      <div className="grid grid-cols-4 gap-2">{EQUIP_SLOT_ORDER.map((s) => { const Icon = SLOT_ICON[s]; return <button key={s} type="button" onClick={() => { setSlot(s); setKey(sets[0]?.pieces[s].key ?? ''); }} className={`rounded-xl border py-3 text-center ${slot === s ? 'border-[#f5cf55] bg-[#4d3a13]/25 text-[#ffe06b]' : 'border-[#263854] bg-[#071326] text-[#7e92b4]'}`}><Icon className="mx-auto h-7 w-7" /><span className="mt-1 block text-[10px] font-black">{EQUIP_SLOT_LABEL[s]}</span></button>; })}</div>
       <div className="mt-4 h-[calc(100%-78px)] space-y-2 overflow-y-auto pr-1">{rows.map(({ set: rowSet, piece: row }) => <button key={row.key} type="button" onClick={() => setKey(row.key)} className={`flex w-full items-center gap-3 rounded-xl border p-2 text-left ${row.key === piece.key ? 'border-sky-400 bg-sky-950/35' : 'border-[#263854] bg-[#071326]'}`}><div className="grid h-14 w-14 shrink-0 place-items-center rounded-lg border" style={{ borderColor: rowSet.color, background: `${rowSet.color}18` }}>{row.img ? <img src={row.img} alt="" className="h-12 w-12 object-contain" /> : <CircleDot className="h-9 w-9" style={{ color: rowSet.color }} />}</div><div className="min-w-0 flex-1"><p className="truncate text-xs font-black text-white">{row.name}</p><p className="truncate text-[10px] text-[#8194b5]">{rowSet.name}</p></div><b className="text-sm text-[#dce5f7]">+{engine.getPieceLevel(row.key)}</b></button>)}</div>
     </aside>
     <section className="ac-stage relative overflow-hidden border-r border-[#263854] bg-[#071326]">
@@ -235,11 +239,11 @@ const EquipmentTab: React.FC<{ engine: GameEngine; inventory: Record<string, num
       {pieceArt ? <img src={pieceArt} alt={piece.name} className="absolute left-1/2 top-[43%] h-[42%] w-[82%] -translate-x-1/2 -translate-y-1/2 object-contain drop-shadow-[0_0_30px_rgba(245,194,64,.48)]" /> : <CircleDot className="absolute left-1/2 top-[43%] h-32 w-32 -translate-x-1/2 -translate-y-1/2 text-[#f0c34b] drop-shadow-[0_0_30px_rgba(245,194,64,.48)]" />}
       <Panel className="absolute inset-x-4 bottom-4 p-3 font-serif text-xs italic leading-relaxed text-[#b8c5dc]">“{piece.passive?.desc ?? `Uma peça de ${set.name}, afinada para acompanhar seu portador.`}”</Panel>
     </section>
-    <section className="min-w-0 overflow-y-auto p-5"><h2 className="font-serif text-[clamp(22px,2.2vw,38px)] font-bold leading-tight text-white">{piece.name}</h2><p className="mt-1 text-sm font-bold text-[#94a9ce]">{EQUIP_SLOT_LABEL[slot]} · Tier {set.tier} · {set.name}</p>
+    <section className="ac-equipment-detail min-w-0 overflow-hidden p-5"><h2 className="font-serif text-[clamp(22px,2.2vw,38px)] font-bold leading-tight text-white">{piece.name}</h2><p className="mt-1 text-sm font-bold text-[#94a9ce]">{EQUIP_SLOT_LABEL[slot]} · Tier {set.tier} · {set.name}</p>
       <div className="mt-3 grid grid-cols-[1fr_1fr] gap-3"><Panel className="border-[#d0a436]/70 px-4 py-3"><p className="font-serif text-3xl font-black text-[#ffe06b]">+{level} <span className="text-[#536987]">/ +15</span></p></Panel><Panel className="px-4 py-3"><p className="text-xs font-bold text-white">Nv. {engine.stats.level} <span className="text-[#5e7392]">/ 50</span></p><div className="mt-2 h-2 rounded bg-[#263854]"><div className="h-full w-1/4 rounded bg-sky-400" /></div></Panel></div>
       <div className="mt-3 grid grid-cols-2 gap-3"><Panel className="p-3"><h3 className="mb-2 text-sm font-black text-[#a9bae0]">Atributos Base</h3>{stats.map(([stat, value]) => { const Icon = STAT_ICON[stat] ?? Sparkles; return <div key={stat} className="flex items-center gap-2 border-b border-[#1d2d45] py-1.5 text-xs"><Icon className="h-4 w-4 text-sky-400" /><span className="flex-1 text-[#b1bfd6]">{STAT_LABELS[stat]}</span><b className="text-white">+{value}%</b></div>; })}</Panel><Panel className="p-3"><h3 className="mb-2 text-sm font-black text-[#a9bae0]">Aprimoramento (+{level})</h3>{stats.map(([stat, value]) => <div key={stat} className="flex justify-between border-b border-[#1d2d45] py-1.5 text-xs"><span className="text-[#b1bfd6]">{STAT_LABELS[stat]}</span><b className="text-white">+{Math.round(value * (1 + level * .08) * 10) / 10}%</b></div>)}</Panel></div>
       <div className="mt-3 grid grid-cols-2 gap-3"><Panel className="p-3"><h3 className="text-sm font-black text-[#a9bae0]">Habilidade Passiva</h3><p className="mt-2 text-sm font-black text-white">{piece.passive?.name ?? 'Afinação do Conjunto'}</p><p className="mt-1 text-[11px] leading-relaxed text-[#9fb0ca]">{piece.passive?.desc ?? 'Fortalece os atributos da peça a cada aprimoramento.'}</p></Panel><Panel className="p-3"><h3 className="text-sm font-black text-[#a9bae0]">{set.name}</h3><p className={`mt-3 text-xs ${setCount >= 2 ? 'text-[#ffe06b]' : 'text-[#7184a2]'}`}><b>2 peças</b> · {Object.entries(set.bonus2).map(([k,v]) => `+${v}% ${STAT_LABELS[k as StatKey]}`).join(', ')}</p><p className={`mt-2 text-xs ${setCount >= 4 ? 'text-[#ffe06b]' : 'text-[#7184a2]'}`}><b>4 peças</b> · {Object.entries(set.bonus4).map(([k,v]) => `+${v}% ${STAT_LABELS[k as StatKey]}`).join(', ')}</p></Panel></div>
-      <Panel className="mt-3 flex items-center gap-3 p-3"><div className="min-w-0 flex-1"><h3 className="mb-2 text-sm font-black text-[#a9bae0]">Materiais para aprimoramento</h3><MaterialCards cost={cost} inventory={inventory} /></div><div className="flex w-[180px] flex-col gap-2"><button type="button" onClick={() => { equipped ? engine.unequipSlot(slot) : engine.equipPiece(piece.key); refresh(); }} className="rounded-xl border border-sky-500/60 bg-sky-950/40 py-2 text-xs font-black text-sky-200">{equipped ? 'Desequipar' : 'Equipar'}</button><button type="button" disabled={!engine.canUpgradePiece(piece.key)} onClick={() => { engine.upgradePiece(piece.key); refresh(); }} className={`rounded-xl py-3 text-base font-black ${engine.canUpgradePiece(piece.key) ? 'bg-gradient-to-r from-emerald-600 to-teal-400 text-white' : 'bg-[#173148] text-[#62738f]'}`}><ArrowUp className="mr-1 inline h-5 w-5" />Aprimorar</button></div></Panel>
+      <Panel className="ac-equipment-actions mt-3 grid grid-cols-[minmax(0,1fr)_150px] items-center gap-2 p-3"><div className="min-w-0"><h3 className="mb-2 text-sm font-black text-[#a9bae0]">Materiais para aprimoramento</h3><MaterialCards cost={cost} inventory={inventory} /></div><div className="flex min-w-0 flex-col gap-2"><button type="button" onClick={() => { equipped ? engine.unequipSlot(slot) : engine.equipPiece(piece.key); refresh(); }} className="rounded-xl border border-sky-500/60 bg-sky-950/40 py-2 text-xs font-black text-sky-200">{equipped ? 'Desequipar' : 'Equipar'}</button><button type="button" disabled={!engine.canUpgradePiece(piece.key)} onClick={() => { engine.upgradePiece(piece.key); refresh(); }} className={`rounded-xl py-3 text-sm font-black ${engine.canUpgradePiece(piece.key) ? 'bg-gradient-to-r from-emerald-600 to-teal-400 text-white' : 'bg-[#173148] text-[#62738f]'}`}><ArrowUp className="mr-1 inline h-4 w-4" />Aprimorar</button></div></Panel>
     </section>
   </div>;
 };
@@ -255,6 +259,7 @@ const AdvancedTab: React.FC<{ engine: GameEngine; onSpend: (attr: AttrKey) => vo
 
 export const CharacterScreen: React.FC<Props> = ({ open, onClose, stats, power, canLevelUp, onLevelUp, onSpend, engine, inventory = {}, initialTab }) => {
   const [tab, setTab] = React.useState<Tab>('ficha');
+  const [equipmentFocus, setEquipmentFocus] = React.useState<{ slot: EquipSlotKey; key?: string }>({ slot: 'colar' });
   const [, refresh] = React.useReducer((n) => n + 1, 0);
   React.useEffect(() => { if (open) setTab(initialTab ?? 'ficha'); }, [open, initialTab]);
   if (!open || !engine) return null;
@@ -269,12 +274,18 @@ export const CharacterScreen: React.FC<Props> = ({ open, onClose, stats, power, 
         .ac-sheet-head { height: 50px !important; padding-left: 20px !important; padding-right: 20px !important; }
         .ac-sheet-head > svg:first-child { width: 25px !important; height: 25px !important; margin-right: 12px !important; }
         .ac-sheet-head > button svg { width: 23px !important; height: 23px !important; }
-        .ac-sheet-main { zoom: .82; }
+        .ac-sheet-main { zoom: .74; }
         .ac-sheet-nav { display: none !important; }
         .ac-mobile-tabs { display: flex !important; }
         .ac-close { margin-left: 12px !important; }
         .ac-skill-total { margin-left: auto !important; margin-right: 8px !important; padding: 4px 8px !important; gap: 6px !important; }
         .ac-skill-total > span { width: 22px !important; height: 22px !important; }
+        .ac-skill-total > span:nth-child(2) { display: none !important; }
+        .ac-roster { min-width: 58px !important; width: 7.5% !important; }
+        .ac-character-stage { min-width: 0 !important; width: 40% !important; }
+        .ac-character-detail, .ac-skills-detail, .ac-equipment-detail { overflow: hidden !important; padding: 12px !important; }
+        .ac-skills-hero { grid-template-columns: 170px minmax(0,1fr) 185px !important; gap: 12px !important; }
+        .ac-equipment-actions { grid-template-columns: minmax(0,1fr) 130px !important; }
       }
       @media (max-height: 330px) and (orientation: landscape) {
         .ac-sheet-main { zoom: .68; }
@@ -295,7 +306,7 @@ export const CharacterScreen: React.FC<Props> = ({ open, onClose, stats, power, 
     <div className="absolute inset-0 bg-[#020817]/65 backdrop-blur-[4px]" onClick={onClose} />
     <div className="ac-sheet relative flex h-[min(890px,94vh)] w-[min(1540px,96vw)] flex-col overflow-hidden rounded-[26px] border border-[#a87516] bg-[radial-gradient(circle_at_40%_0%,#10233f_0%,#071326_38%,#040d1d_100%)] text-[#dce6f8] shadow-[0_24px_80px_rgba(0,0,0,.75),inset_0_0_50px_rgba(24,66,110,.08)]">
       <header className="ac-sheet-head relative z-10 flex h-[72px] shrink-0 items-center border-b border-[#263854] px-8"><Music2 className="mr-5 h-9 w-9 text-[#f6ce62]" /><h1 className="whitespace-nowrap text-[clamp(18px,1.6vw,28px)] font-black text-[#f8d96f]">{title} — {engine.stats.name || stats.name}</h1>{tab === 'skills' && <div className="ac-skill-total ml-auto mr-6 flex items-center gap-3 rounded-xl border border-[#263854] bg-[#071326] px-4 py-2 text-xs text-[#b8c6dd]"><span className="grid h-7 w-7 place-items-center rounded-full border border-[#c38c1f] bg-[#563b0b] text-[#ffe06b]">♪</span><span className="hidden sm:inline">Níveis de Skill</span><b className="text-xl text-[#ffe06b]">{engine.skillLevels[engine.activeCharacter].reduce((a,b) => a + b, 0)}</b></div>}<div className={`ac-mobile-tabs ml-auto hidden items-center gap-1.5 ${tab === 'skills' ? '!ml-2' : ''}`}>{TABS.map(({ key, label, icon: Icon }) => <button key={key} type="button" aria-label={label} title={label} onClick={() => setTab(key)} className={`grid h-8 w-8 place-items-center rounded-lg border transition ${tab === key ? 'border-[#f7c84b] bg-[#5a4012]/45 text-[#ffe176] shadow-[0_0_12px_rgba(247,200,75,.2)]' : 'border-[#293c58] bg-[#08162a] text-[#8295b5]'}`}><Icon className="h-4 w-4" /></button>)}</div><button type="button" aria-label="Fechar" onClick={onClose} className={`ac-close ${tab !== 'skills' ? 'ml-auto' : ''} ml-3 text-[#8fa2c3] hover:text-white`}><X className="h-8 w-8" /></button></header>
-      <main className="ac-sheet-main min-h-0 flex-1 overflow-hidden">{tab === 'ficha' && <CharacterTab engine={engine} power={power} canLevelUp={canLevelUp} onLevelUp={onLevelUp} inventory={inventory} refresh={refresh} />}{tab === 'skills' && <SkillsTab engine={engine} inventory={inventory} />}{tab === 'equipamentos' && <EquipmentTab engine={engine} inventory={inventory} />}{tab === 'ferramentas' && <AdvancedTab engine={engine} onSpend={onSpend} />}</main>
+      <main className="ac-sheet-main min-h-0 flex-1 overflow-hidden">{tab === 'ficha' && <CharacterTab engine={engine} power={power} canLevelUp={canLevelUp} onLevelUp={onLevelUp} inventory={inventory} refresh={refresh} onEquipment={(slot, key) => { setEquipmentFocus({ slot, key }); setTab('equipamentos'); }} />}{tab === 'skills' && <SkillsTab engine={engine} inventory={inventory} />}{tab === 'equipamentos' && <EquipmentTab engine={engine} inventory={inventory} initialSlot={equipmentFocus.slot} initialKey={equipmentFocus.key} />}{tab === 'ferramentas' && <AdvancedTab engine={engine} onSpend={onSpend} />}</main>
       <nav className="ac-sheet-nav grid h-[84px] shrink-0 grid-cols-4 border-t border-[#263854] bg-[#061123]/95">{TABS.map(({ key, label, icon: Icon }) => <button key={key} type="button" onClick={() => setTab(key)} className={`relative flex flex-col items-center justify-center gap-1 border-r border-[#172842] text-sm font-black transition ${tab === key ? 'bg-[#3e2d11]/38 text-[#ffd535]' : 'text-[#7386a6] hover:bg-[#0b1930] hover:text-[#bac8dc]'}`}>{tab === key && <span className="absolute inset-x-0 top-0 h-[3px] bg-[#ffc928] shadow-[0_0_12px_#ffc928]" />}<Icon className="h-6 w-6" />{label}</button>)}</nav>
     </div>
   </div>;

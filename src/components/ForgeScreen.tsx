@@ -165,7 +165,7 @@ export const ForgeScreen: React.FC<Props> = ({ open, onClose, engine, inventory,
                   <span className="text-2xl shrink-0">🎁</span>
                   <div className="flex-1 min-w-0">
                     <p className="text-xs font-black text-amber-200">Presente de Dório recebido!</p>
-                    <p className="text-[10px] text-amber-300/80 mt-0.5">Madeira ×10 · Pedra ×10 · Ouro refinado ×2 — suficiente para forjar machado e picareta dourados.</p>
+                    <p className="text-[10px] text-amber-300/80 mt-0.5">Madeira ×6 · Pedra ×6 — suficiente para forjar machado e picareta básicos.</p>
                   </div>
                   <button type="button" onClick={() => setShowGift(false)} className="shrink-0 text-amber-400/60 hover:text-amber-200 text-lg leading-none">×</button>
                 </div>
@@ -176,16 +176,17 @@ export const ForgeScreen: React.FC<Props> = ({ open, onClose, engine, inventory,
                   <div key={kind} className="rounded-xl border border-amber-800/35 bg-black/40 p-3">
                     <h3 className="text-xs font-black text-amber-200 mb-2">{kind === 'axe' ? '🪓 Machado' : '⛏️ Picareta'}</h3>
                     <div className="space-y-2">
-                      {(['gold', 'crystal'] as ToolTier[]).map((tier) => {
+                      {(['wood', 'gold', 'crystal'] as ToolTier[]).map((tier) => {
                         const owned = (kind === 'axe' ? engine.ownedAxes : engine.ownedPicks).includes(tier);
                         const cost = engine.toolForgeCost(tier)!;
                         const can = engine.canForgeTool(kind, tier);
-                        const label = tier === 'gold' ? 'Dourado' : 'Cristalino';
+                        const label = tier === 'wood' ? 'Básica (Madeira)' : tier === 'gold' ? 'Dourada' : 'Cristalina';
+                        const tierIcon = tier === 'wood' ? '🪜' : tier === 'gold' ? '✨' : '💎';
                         return (
                           <div key={tier} className="flex items-center gap-3 rounded-lg border border-white/8 bg-slate-950/50 p-2">
                             <img src={`/assets/tools/${kind}_${tier}.png`} alt="" className="h-10 w-10 object-contain shrink-0" />
                             <div className="flex-1 min-w-0">
-                              <p className="text-[11px] font-black text-white">{label}</p>
+                              <p className="text-[11px] font-black text-white">{tierIcon} {label}</p>
                               <div className="mt-1"><CostRow cost={cost} inventory={inventory} /></div>
                             </div>
                             <button

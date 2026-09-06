@@ -1388,8 +1388,9 @@ export class GameEngine {
   // Ferramentas de coleta (Akles NÃO segura na mão — a ferramenta aparece ao
   // lado dele e bate no alvo durante a coleta; ele fica parado).
   static readonly TOOL_TIERS: ToolTier[] = ['wood', 'gold', 'crystal'];
-  ownedAxes: ToolTier[] = ['wood'];
-  ownedPicks: ToolTier[] = ['wood'];
+  // Começa sem ferramentas — Akles forja as primeiras na Ferraria Harmônica com Dório.
+  ownedAxes: ToolTier[] = [];
+  ownedPicks: ToolTier[] = [];
   equippedAxe: ToolTier = 'wood';
   equippedPick: ToolTier = 'wood';
   onToolsChange?: (t: { axe: ToolTier; pick: ToolTier }) => void;
@@ -1457,7 +1458,7 @@ export class GameEngine {
   }
 
   toolForgeCost(tier: ToolTier): Record<string, number> | null {
-    if (tier === 'wood') return null;
+    if (tier === 'wood') return { wood: 3, stone: 3 };
     return tier === 'gold'
       ? { wood: 5, stone: 5, gold_refined: 1 }
       : { wood: 8, stone: 8, gold_refined: 2, crystal_blue_refined: 2 };
@@ -1466,8 +1467,11 @@ export class GameEngine {
   canForgeTool(kind: 'axe' | 'pick', tier: ToolTier): boolean {
     const owned = kind === 'axe' ? this.ownedAxes : this.ownedPicks;
     if (owned.includes(tier)) return false;
-    const prior: ToolTier = tier === 'crystal' ? 'gold' : 'wood';
-    if (!owned.includes(prior)) return false;
+    // Wood não exige prior — é o tier inicial forjável
+    if (tier !== 'wood') {
+      const prior: ToolTier = tier === 'crystal' ? 'gold' : 'wood';
+      if (!owned.includes(prior)) return false;
+    }
     const cost = this.toolForgeCost(tier);
     return !!cost && Object.entries(cost).every(([key, amount]) => (this.inventory[key] || 0) >= amount);
   }
@@ -3285,8 +3289,8 @@ export class GameEngine {
         'Sou Dório. Esta é a Ferraria Harmônica: o único lugar seguro para sintetizar metais e cristais.',
         'Madeira inicia uma ferramenta. Ouro dá ritmo ao impacto. Cristal faz a matéria lembrar onde deve quebrar.',
         'Armas também sobem de +1, +2 e além somente na minha bigorna. Skills e passivas continuam sendo treinadas nos seus próprios painéis.',
-        'Primeira visita merece um presente de ferreiro. Tome: madeira, pedra e ouro refinado — suficiente para forjar seu primeiro machado e sua primeira picareta dourados.',
-        'Escolha com cuidado lá dentro: primeiro as ferramentas, depois venha falar de armas. E se ouvir a bigorna responder ao seu nome, não responda de volta.',
+        'Primeira visita merece um presente de ferreiro. Tome: madeira e pedra — suficiente para forjar seu primeiro machado e sua primeira picareta.',
+        'Escolha com cuidado lá dentro: primeiro as ferramentas básicas, depois venha falar de armas. E se ouvir a bigorna responder ao seu nome, não responda de volta.',
       ] : [
         'A forja está acesa. Hoje ela parece bem-humorada — só queimou duas luvas.',
         'Entre e escolha: síntese, ferramentas ou aprimoramento de arma.',
@@ -3379,11 +3383,10 @@ export class GameEngine {
       }
     } else if (talking?.id === 'npc_ferreiro') {
       if (this.voicesMissionAccepted && this.marketIntroStage === 'smith_intro') {
-        // Presente de boas-vindas: materiais exatos para forjar machado dourado + picareta dourada
-        // Custo de cada: { wood:5, stone:5, gold_refined:1 } × 2 ferramentas
-        this.addToInventory('wood', 10);
-        this.addToInventory('stone', 10);
-        this.addToInventory('gold_refined', 2);
+        // Presente de boas-vindas: madeira + pedra para forjar machado básico + picareta básica
+        // Custo de cada: { wood:3, stone:3 } × 2 ferramentas
+        this.addToInventory('wood', 6);
+        this.addToInventory('stone', 6);
         this.onInventoryChange?.({ ...this.inventory });
         this.marketIntroStage = 'collecting';
         const woodCount = Math.min(3, this.inventory['wood'] || 0);

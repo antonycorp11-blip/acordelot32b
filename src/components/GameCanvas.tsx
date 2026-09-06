@@ -52,7 +52,7 @@ import { saveGlobalHudLayout } from '../game/hudSync';
 import { networkManager, ChatMessage } from '../game/networkManager';
 import { playMusicalTone, speakMusically, stopMusicalVoice, unlockMusicalVoice } from '../game/musicalVoice';
 
-type OpeningPhase = 'awakening' | 'discovery' | 'encounter' | 'aftermath' | 'echoes' | 'gate' | 'mirella' | 'rest';
+type OpeningPhase = 'awakening' | 'discovery' | 'encounter' | 'aftermath' | 'echoes' | 'gate' | 'mirella' | 'rest' | 'morning';
 type TutorialStage = 'cinematic' | 'movement' | 'explore' | 'combat' | 'follow' | 'full';
 
 const OPENING_LINES: Record<OpeningPhase, Array<{ speaker: string; voice: string; text: string }>> = {
@@ -100,6 +100,28 @@ const OPENING_LINES: Record<OpeningPhase, Array<{ speaker: string; voice: string
     { speaker: 'Narração', voice: 'narrator', text: 'Do lado de fora, a lanterna de Pippo permanece acesa por mais alguns minutos.' },
     { speaker: 'Narração', voice: 'narrator', text: 'A manhã trará um mundo novo — e perguntas que ninguém parece disposto a responder.' },
   ],
+  morning: [
+    { speaker: 'Mirella', voice: 'mirella', text: 'Bom dia. A estrada até Acordelot é longa, mas você precisa falar com quem pode ajudá-lo.' },
+    { speaker: 'Mirella', voice: 'mirella', text: 'Vá ao centro da cidade e procure o Sr. Antony. Ele é o líder de Acordelot.' },
+    { speaker: 'Pippo', voice: 'pippo', text: 'Eu mostro o começo do caminho. E prometo não correr... muito.' },
+  ],
+};
+
+const DIALOGUE_PORTRAITS: Record<string, { src: string; sheet?: 'npc' | 'guard' }> = {
+  akles: { src: CHARACTER_PORTRAITS.akles },
+  pippo: { src: '/assets/characters/npcs/seminima.png', sheet: 'npc' },
+  mirella: { src: '/assets/characters/npcs/cadencia.png', sheet: 'npc' },
+  guard_muralha: { src: '/assets/characters/knight_idle.png', sheet: 'guard' },
+};
+
+const NPC_PORTRAIT_SOURCES: Record<string, { src: string; sheet: 'npc' | 'guard' }> = {
+  cadencia: { src: '/assets/characters/npcs/cadencia.png', sheet: 'npc' },
+  tonico: { src: '/assets/characters/npcs/tonico.png', sheet: 'npc' },
+  setimo: { src: '/assets/characters/npcs/setimo.png', sheet: 'npc' },
+  seminima: { src: '/assets/characters/npcs/seminima.png', sheet: 'npc' },
+  diapasao: { src: '/assets/characters/npcs/diapasao.png', sheet: 'npc' },
+  guard: { src: '/assets/characters/knight_idle.png', sheet: 'guard' },
+  merchant: { src: '/assets/ancient-ruins/Characters/NPC Merchant-idle.png', sheet: 'npc' },
 };
 
 interface PropPaletteItem {
@@ -788,6 +810,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
 
     engine.onQuestsChange = () => setQuestTick((t) => t + 1);
     engine.onCharacterChange = () => setCharacterTick((t) => t + 1);
+    engine.onStoryVoice = (text, voice) => speakMusically(text, voice, Math.max(.12, bgmVolume * .34));
     engine.onStoryBeat = (beat) => {
       if (beat === 'movement_learned') {
         setTutorialStage('explore');
@@ -825,6 +848,14 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
         setTutorialStage('cinematic');
         setOpeningLine(0);
         setOpeningPhase('mirella');
+      } else if (beat === 'house_entered') {
+        setTutorialStage('cinematic');
+        setOpeningLine(0);
+        setOpeningPhase('rest');
+      } else if (beat === 'morning_arrival') {
+        setTutorialStage('cinematic');
+        setOpeningLine(0);
+        setOpeningPhase('morning');
       }
     };
 
@@ -904,7 +935,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
     speakMusically(
       currentOpeningLine.text,
       currentOpeningLine.voice,
-      isBgmMuted ? 0 : Math.max(.09, bgmVolume * .31),
+      Math.max(.12, bgmVolume * .34),
     );
   }, [currentOpeningLine, bgmVolume, isBgmMuted]);
 
@@ -913,7 +944,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
     speakMusically(
       dlgLines[dialogueIdx],
       interaction.npc?.id ?? interaction.npc?.name ?? 'npc',
-      isBgmMuted ? 0 : Math.max(.09, bgmVolume * .31),
+      Math.max(.12, bgmVolume * .34),
     );
   }, [interaction.isTalking, interaction.npc?.id, dialogueIdx]);
 
@@ -957,14 +988,19 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
       return;
     }
     if (openingPhase === 'mirella') {
-      setOpeningLine(0);
-      setOpeningPhase('rest');
+      setOpeningPhase(null);
+      engineRef.current?.beginHouseRest();
       return;
     }
     if (openingPhase === 'rest') {
       setOpeningPhase(null);
-      setTutorialStage('follow');
       engineRef.current?.finishOpeningRest();
+      return;
+    }
+    if (openingPhase === 'morning') {
+      setOpeningPhase(null);
+      setTutorialStage('follow');
+      engineRef.current?.finishMorningBriefing();
       return;
     }
     setOpeningPhase(null);
@@ -1108,6 +1144,9 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
   };
 
   const dlgLines = interaction.npc?.dialogue ?? interaction.dialogue ?? [];
+  const regularDialoguePortrait = interaction.npc?.spriteType
+    ? NPC_PORTRAIT_SOURCES[interaction.npc.spriteType]
+    : undefined;
   const handleNextDialogue = () => {
     if (dialogueIdx < dlgLines.length - 1) {
       setDialogueIdx((prev) => prev + 1);
@@ -1718,14 +1757,32 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
                       openingPhase === 'aftermath' ? 'MEMÓRIA DO CORPO' :
                         openingPhase === 'echoes' ? 'TRÊS ECOS' :
                           openingPhase === 'gate' ? 'O MENINO DA LANTERNA' :
-                            openingPhase === 'mirella' ? 'ABRIGO' : 'ANTES DO AMANHECER'}
+                            openingPhase === 'mirella' ? 'ABRIGO' :
+                              openingPhase === 'rest' ? 'ANTES DO AMANHECER' : 'UMA LONGA ESTRADA'}
               </p>
             </div>
 
             <div className="w-[min(560px,72vw)]">
               <div className="rounded-xl border border-violet-300/30 bg-slate-950/90 backdrop-blur-md shadow-[0_10px_36px_rgba(0,0,0,.65)] overflow-hidden">
                 <div className="h-0.5 bg-gradient-to-r from-transparent via-violet-300/80 to-transparent" />
-                <div className="px-3 py-2.5">
+                <div className="px-3 py-2.5 flex items-center gap-3">
+                  {DIALOGUE_PORTRAITS[currentOpeningLine.voice] && (
+                    <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-xl border border-amber-300/40 bg-slate-900 shadow-inner">
+                      {DIALOGUE_PORTRAITS[currentOpeningLine.voice].sheet ? (
+                        <div
+                          className="absolute inset-0 bg-no-repeat"
+                          style={{
+                            backgroundImage: `url(${DIALOGUE_PORTRAITS[currentOpeningLine.voice].src})`,
+                            backgroundSize: DIALOGUE_PORTRAITS[currentOpeningLine.voice].sheet === 'npc' ? '1000% 400%' : '400% 400%',
+                            backgroundPosition: '0% 0%',
+                          }}
+                        />
+                      ) : (
+                        <img src={DIALOGUE_PORTRAITS[currentOpeningLine.voice].src} alt="" className="h-full w-full object-cover object-top" />
+                      )}
+                    </div>
+                  )}
+                  <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-1.5 mb-1">
                     <span className="text-violet-300 text-xs">♪</span>
                     <p className={`text-[9px] font-black uppercase tracking-[.18em] ${currentOpeningLine.speaker === 'Narração' ? 'text-slate-400' : 'text-amber-300'}`}>
@@ -1761,10 +1818,13 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
                                   : openingPhase === 'gate'
                                     ? 'Ir com Pippo'
                                     : openingPhase === 'mirella'
-                                      ? 'Descansar'
-                                      : 'Amanhecer'}
+                                      ? 'Entrar na casa'
+                                      : openingPhase === 'rest'
+                                        ? 'Amanhecer'
+                                        : 'Procurar o Sr. Antony'}
                       <ChevronRight className="w-4 h-4" />
                     </button>
+                  </div>
                   </div>
                 </div>
               </div>
@@ -2233,12 +2293,25 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
               <X className="w-4 h-4" />
             </button>
 
-            <p className="text-[11px] mb-2" style={{ color: (interaction.npc?.accent ?? '#f59e0b') }}>
+            {regularDialoguePortrait && !showShop && (
+              <div className="absolute left-4 top-8 h-16 w-16 overflow-hidden rounded-xl border bg-slate-900" style={{ borderColor: (interaction.npc?.accent ?? '#f59e0b') + '88' }}>
+                <div
+                  className="absolute inset-0 bg-no-repeat"
+                  style={{
+                    backgroundImage: `url(${regularDialoguePortrait.src})`,
+                    backgroundSize: regularDialoguePortrait.sheet === 'npc' ? '1000% 400%' : '400% 400%',
+                    backgroundPosition: '0% 0%',
+                  }}
+                />
+              </div>
+            )}
+
+            <p className={`text-[11px] mb-2 ${regularDialoguePortrait && !showShop ? 'ml-20' : ''}`} style={{ color: (interaction.npc?.accent ?? '#f59e0b') }}>
               {interaction.npc?.title ?? interaction.merchantTitle ?? ''}
             </p>
 
             {!showShop ? (
-              <div>
+              <div className={regularDialoguePortrait ? 'ml-20' : ''}>
                 <p className="text-sm text-slate-100 leading-relaxed min-h-[52px]">
                   {dlgLines[dialogueIdx] ?? '...'}
                 </p>

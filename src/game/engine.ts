@@ -538,6 +538,7 @@ export interface InteractionNpc {
   accent: string;
   dialogue: string[];
   isMerchant: boolean;
+  spriteType?: NPC['spriteType'];
 }
 export interface InteractionState {
   nearNpc?: InteractionNpc;
@@ -1150,9 +1151,9 @@ export class GameEngine {
   companionVisible = false;
   storyControlLocked = false;
   storyObjective: { title: string; text: string; progress: number; target: number; ready: boolean } | null = null;
-  onStoryBeat?: (beat: 'movement_learned' | 'attack_learned' | 'opening_sound_found' | 'shinkers_appear' | 'shinkers_defeated' | 'three_echoes_found' | 'gate_arrival' | 'mirella_arrival' | 'opening_mission_complete') => void;
+  onStoryBeat?: (beat: 'movement_learned' | 'attack_learned' | 'opening_sound_found' | 'shinkers_appear' | 'shinkers_defeated' | 'three_echoes_found' | 'gate_arrival' | 'mirella_arrival' | 'house_entered' | 'morning_arrival' | 'opening_mission_complete') => void;
   private openingSoundTarget: Point | null = null;
-  private storyStage: 'idle' | 'follow_vibration' | 'sol_bemol_scene' | 'find_origin' | 'encounter_scene' | 'fight' | 'aftermath' | 'find_echoes' | 'echo_scene' | 'follow_echoes' | 'gate_scene' | 'follow_pippo' | 'mirella_scene' | 'complete' = 'idle';
+  private storyStage: 'idle' | 'follow_vibration' | 'sol_bemol_scene' | 'find_origin' | 'encounter_scene' | 'fight' | 'aftermath' | 'find_echoes' | 'echo_scene' | 'follow_echoes' | 'gate_scene' | 'follow_pippo' | 'mirella_scene' | 'entering_house' | 'rest_scene' | 'morning_scene' | 'complete' = 'idle';
   private storyMoveOrigin: Point | null = null;
   private storyMovementTaught = false;
   private storyAttackTaught = false;
@@ -1160,6 +1161,9 @@ export class GameEngine {
   private storyEchoIds = new Set<string>();
   private suspendedStoryEnemies: Enemy[] = [];
   private storyCheckpoint: Point | null = null;
+  private storyDialogueIndex = 0;
+  private storyDialogueAt = 0;
+  onStoryVoice?: (text: string, voice: string) => void;
   private storyActorMoves: Array<{
     kind: 'player' | 'npc' | 'enemy';
     id?: string;
@@ -1183,8 +1187,9 @@ export class GameEngine {
 
   // Balões de fala (NPCs, Akles e Chat Multiplayer)
   private bubbles: Array<{
-    who: 'npc' | 'akles' | 'remotePlayer';
+    who: 'npc' | 'enemy' | 'akles' | 'remotePlayer';
     npcId?: string;
+    enemyId?: string;
     remotePlayerId?: string;
     playerName?: string;
     text: string;
@@ -2486,8 +2491,10 @@ export class GameEngine {
     const targets: Array<[number, number]> = [[gateCol - .8, gateRow], [gateCol + .8, gateRow], [gateCol, gateRow - .7]];
     [...this.storyEchoIds].forEach((id, index) => {
       const [col, row] = targets[index] ?? targets[0];
-      this.moveStoryActor('enemy', id, col * TILE_SIZE + 8, row * TILE_SIZE + 8, 38);
+      this.moveStoryActor('enemy', id, col * TILE_SIZE + 8, row * TILE_SIZE + 8, 62);
     });
+    this.storyDialogueIndex = 0;
+    this.storyDialogueAt = this.timeElapsed + 2;
     this.onQuestsChange?.();
   }
 
@@ -2516,28 +2523,65 @@ export class GameEngine {
     const startX = gate ? gate.x + gate.w / 2 : 36 * TILE_SIZE;
     const startY = gate ? gate.y + gate.h + 28 : 72 * TILE_SIZE;
     const pippo = this.ensureStoryNpc('story_pippo', 'Pippo', 'seminima', startX + 28, startY, '#fbbf24');
-    const destination = { x: 36 * TILE_SIZE, y: 34 * TILE_SIZE };
+    const destination = this.mirellaHomeDoor();
     const mirella = this.ensureStoryNpc('story_mirella', 'Mirella', 'cadencia', destination.x + 42, destination.y - 8, '#c084fc');
     mirella.direction = 'down';
-    this.moveStoryActor('npc', pippo.id, destination.x, destination.y, 48);
+    this.moveStoryActor('npc', pippo.id, destination.x, destination.y, 64);
+    this.storyDialogueIndex = 0;
+    this.storyDialogueAt = this.timeElapsed + 2;
     this.storyObjective = { title: 'Despertar sem Nome', text: 'Siga Pippo até Mirella', progress: 0, target: 1, ready: false };
     this.onQuestsChange?.();
   }
 
+  private mirellaHomeDoor() {
+    const gate = this.props.find((prop) => prop.type === 'wallGate');
+    const homes = this.props.filter((prop) => ['bldgLodgeEast', 'lodgeWest', 'bldgHerbalistWest', 'herbalistEast', 'residentialFront'].includes(prop.type));
+    const home = homes.sort((a, b) => {
+      const gx = gate?.x ?? 36 * TILE_SIZE, gy = gate?.y ?? 70 * TILE_SIZE;
+      return Math.hypot(a.x - gx, a.y - gy) - Math.hypot(b.x - gx, b.y - gy);
+    })[0];
+    return home
+      ? { x: home.x + home.w / 2 - 14, y: home.y + home.h + 4, insideY: home.y + home.h * .7 }
+      : { x: 36 * TILE_SIZE, y: 58 * TILE_SIZE, insideY: 57 * TILE_SIZE };
+  }
+
+  beginHouseRest() {
+    this.storyStage = 'entering_house';
+    this.storyControlLocked = true;
+    const door = this.mirellaHomeDoor();
+    const pippo = this.npcs.find((npc) => npc.id === 'story_pippo');
+    const mirella = this.npcs.find((npc) => npc.id === 'story_mirella');
+    this.moveStoryActor('player', undefined, door.x, door.insideY, 44);
+    if (pippo) this.moveStoryActor('npc', pippo.id, door.x - 13, door.insideY, 42);
+    if (mirella) this.moveStoryActor('npc', mirella.id, door.x + 13, door.insideY, 42);
+  }
+
   finishOpeningRest() {
+    this.storyStage = 'morning_scene';
+    this.storyControlLocked = true;
+    this.setTimeOfDay('day');
+    this.stats.hp = this.stats.maxHp;
+    const door = this.mirellaHomeDoor();
+    this.player.x = door.x; this.player.y = door.y + 34;
+    const pippo = this.npcs.find((npc) => npc.id === 'story_pippo');
+    const mirella = this.npcs.find((npc) => npc.id === 'story_mirella');
+    if (pippo) { pippo.x = door.x - 34; pippo.y = door.y + 4; pippo.direction = 'down'; }
+    if (mirella) { mirella.x = door.x + 30; mirella.y = door.y; mirella.direction = 'down'; }
+    this.onStatsChange?.({ ...this.stats });
+    this.onStoryBeat?.('morning_arrival');
+  }
+
+  finishMorningBriefing() {
     this.storyStage = 'complete';
     this.storyControlLocked = false;
     this.autoDayCycle = true;
-    this.setTimeOfDay('day');
-    this.stats.hp = this.stats.maxHp;
     this.playerInvuln = 4;
     this.enemies = [
       ...this.enemies.filter((enemy) => !this.storyEnemyIds.has(enemy.id) && !this.storyEchoIds.has(enemy.id)),
       ...this.suspendedStoryEnemies,
     ];
     this.suspendedStoryEnemies = [];
-    this.storyObjective = { title: 'Despertar sem Nome', text: 'Missão concluída', progress: 1, target: 1, ready: true };
-    this.onStatsChange?.({ ...this.stats });
+    this.storyObjective = { title: 'A Estrada para Acordelot', text: 'Vá ao centro da cidade e procure o Sr. Antony', progress: 0, target: 1, ready: false };
     this.onQuestsChange?.();
     this.onStoryBeat?.('opening_mission_complete');
   }
@@ -2822,6 +2866,7 @@ export class GameEngine {
       accent: n.accent ?? '#f59e0b',
       dialogue: n.dialogue ?? ['...'],
       isMerchant: n.isMerchant === true || n.spriteType === 'merchant',
+      spriteType: n.spriteType,
     };
   }
 
@@ -4580,6 +4625,30 @@ export class GameEngine {
     // expira balões
     this.bubbles = this.bubbles.filter((b) => now - b.born < b.ttl);
 
+    // Conversa de percurso: guia o ritmo da caminhada sem abrir outra caixa
+    // de diálogo e dá personalidade aos acompanhantes.
+    if ((this.storyStage === 'follow_echoes' || this.storyStage === 'follow_pippo') && now >= this.storyDialogueAt) {
+      const echoIds = [...this.storyEchoIds];
+      const echoLines = [
+        { who: 'enemy' as const, enemyId: echoIds[0], text: '♪ Dó... dó...', voice: 'pippo' },
+        { who: 'akles' as const, text: 'Vocês querem que eu siga?', voice: 'akles' },
+        { who: 'enemy' as const, enemyId: echoIds[1], text: '♪ Mi—sol, mi—sol...', voice: 'wins' },
+        { who: 'akles' as const, text: 'Isso é uma resposta? Acho que é.', voice: 'akles' },
+      ];
+      const pippoLines = [
+        { who: 'npc' as const, npcId: 'story_pippo', text: 'Mirella mora logo depois da muralha.', voice: 'pippo' },
+        { who: 'akles' as const, text: 'Você sempre conversa com desconhecidos na floresta?', voice: 'akles' },
+        { who: 'npc' as const, npcId: 'story_pippo', text: 'Só com os que chegam escoltados por um acorde.', voice: 'pippo' },
+        { who: 'npc' as const, npcId: 'story_pippo', text: 'A estrada para Acordelot é longa. Hoje você precisa dormir.', voice: 'pippo' },
+      ];
+      const lines = this.storyStage === 'follow_echoes' ? echoLines : pippoLines;
+      const line = lines[this.storyDialogueIndex % lines.length];
+      this.bubbles.push({ ...line, born: now, ttl: 4.4 });
+      this.onStoryVoice?.(line.text, line.voice);
+      this.storyDialogueIndex++;
+      this.storyDialogueAt = now + 5.2;
+    }
+
     // NPC mais próximo dentro do raio de "bark" (maior que o de conversa)
     let barkNpc: NPC | null = null;
     let bd = 128;
@@ -5428,6 +5497,14 @@ export class GameEngine {
         this.storyObjective = { title: 'Despertar sem Nome', text: 'Abrigo de Mirella', progress: 1, target: 1, ready: true };
         this.onQuestsChange?.();
         this.onStoryBeat?.('mirella_arrival');
+      }
+    }
+
+    if (this.storyStage === 'entering_house') {
+      const entering = this.storyActorMoves.some((move) => move.kind === 'player' || move.id === 'story_pippo' || move.id === 'story_mirella');
+      if (!entering) {
+        this.storyStage = 'rest_scene';
+        this.onStoryBeat?.('house_entered');
       }
     }
 
@@ -6360,6 +6437,12 @@ export class GameEngine {
         ax = rp.x + 12 - camX;
         ay = rp.y - 20 - camY;
         accent = '#38bdf8';
+      } else if (b.who === 'enemy') {
+        const enemy = b.enemyId ? this.enemies.find((candidate) => candidate.id === b.enemyId) : null;
+        if (!enemy) continue;
+        ax = enemy.x + 8 - camX;
+        ay = enemy.y - 22 - camY;
+        accent = '#a7f3d0';
       } else {
         const npc = this.npcs.find((n) => n.id === b.npcId);
         if (!npc) continue;
@@ -7002,7 +7085,7 @@ export class GameEngine {
       ctx.beginPath();
       ctx.ellipse(cx + npc.width / 2, cy + npc.height - 2, 11, 4.5, 0, 0, Math.PI * 2);
       ctx.fill();
-      ctx.drawImage(sheet, col * fw, row * fh, fw, fh, cx - 5, cy - 7, 38, 46);
+      ctx.drawImage(sheet, col * fw, row * fh, fw, fh, cx - 10, cy - 17, 48, 58);
       if (this.nearestNpcId === npc.id && !this.talkingNpcId) {
         const my = cy - 8 + Math.sin(this.timeElapsed * 5) * 2;
         ctx.fillStyle = npc.accent ?? '#60a5fa';
@@ -7017,7 +7100,7 @@ export class GameEngine {
     const sheet = sheetKey ? (this.assets?.[sheetKey] as HTMLImageElement | undefined) : undefined;
     if (sheet && sheet.complete && sheet.naturalWidth > 0) {
       const m = NPC_ANIM;
-      const disp = 0.34;
+      const disp = 0.44;
       const dispW = m.cw * disp;
       const dispH = m.ch * disp;
       const row = AKLES_DIR_ROW[npc.direction];

@@ -3290,7 +3290,7 @@ export class GameEngine {
             target: 2,
             ready: false,
           };
-          this.onInventoryChange?.();
+          this.onInventoryChange?.({ ...this.inventory });
           this.onQuestsChange?.();
         }
       }

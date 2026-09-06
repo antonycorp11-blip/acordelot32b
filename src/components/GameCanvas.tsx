@@ -34,7 +34,7 @@ import { GameEngine, InteractionState, SelectedPropInfo, TimeOfDay, CHARACTER_PO
 import { TouchControls } from './TouchControls';
 import { Inventory } from './Inventory';
 import { PlayerHud } from './PlayerHud';
-import { CharacterScreen } from './CharacterScreen';
+import { CharacterScreen } from './CharacterScreenPremium';
 import { DayCycleIndicator } from './DayCycleIndicator';
 import { SynthesisScreen } from './SynthesisScreen';
 import { PartituraScreen } from './PartituraScreen';

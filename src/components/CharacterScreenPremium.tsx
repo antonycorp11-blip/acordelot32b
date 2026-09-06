@@ -80,24 +80,31 @@ const SKILLS: Record<PlayerCharacterKey, SkillInfo[]> = {
 };
 
 const Panel: React.FC<React.PropsWithChildren<{ className?: string }>> = ({ className = '', children }) => (
-  <div className={`rounded-[14px] border border-[#263854] bg-[#071326]/82 shadow-[inset_0_1px_rgba(255,255,255,.025)] ${className}`}>{children}</div>
+  <div className={`ac-panel rounded-[14px] border border-[#263854] bg-[#071326]/82 shadow-[inset_0_1px_rgba(255,255,255,.025)] ${className}`}>{children}</div>
 );
 
-const MaterialCards: React.FC<{ cost: Record<string, number> | null; inventory: Record<string, number> }> = ({ cost, inventory }) => (
-  <div className="flex min-w-0 gap-2">
+const MaterialCards: React.FC<{ cost: Record<string, number> | null; inventory: Record<string, number> }> = ({ cost, inventory }) => {
+  const [selected, setSelected] = React.useState<string | null>(null);
+  const selectedNeed = selected && cost ? cost[selected] : 0;
+  const selectedMeta = selected ? ITEM_META[selected] : null;
+  return <div className="relative flex min-w-0 gap-2">
+    {selected && selectedMeta && <button type="button" aria-label="Fechar detalhes do material" onClick={() => setSelected(null)} className="absolute bottom-[calc(100%+7px)] left-0 z-40 w-[245px] rounded-xl border border-[#d2a83d]/60 bg-[#071326]/98 p-3 text-left shadow-[0_12px_35px_rgba(0,0,0,.65),0_0_18px_rgba(247,200,75,.12)]">
+      <span className="flex items-center gap-3">{selectedMeta.img ? <img src={selectedMeta.img} alt="" className="h-10 w-10 object-contain" /> : <span className="text-2xl">{selectedMeta.icon}</span>}<span><b className="block text-xs text-[#ffe176]">{selectedMeta.name}</b><span className="text-[10px] text-[#a8b7ce]">Você tem {inventory[selected] ?? 0} · Necessário {selectedNeed}</span></span></span>
+      <span className="mt-2 block text-[10px] leading-relaxed text-[#91a3bf]">{selectedMeta.desc ?? 'Material usado no aprimoramento e evolução.'}</span>
+    </button>}
     {cost ? Object.entries(cost).slice(0, 4).map(([key, need], i) => {
       const meta = ITEM_META[key];
       const have = inventory[key] ?? 0;
       const ok = have >= need;
-      return <div key={key} className={`min-w-[64px] flex-1 rounded-[10px] border p-1.5 text-center ${ok ? 'border-emerald-500/55 bg-emerald-950/25' : i === 0 ? 'border-sky-400/60 bg-sky-950/25' : 'border-violet-500/45 bg-violet-950/20'}`}>
+      return <button key={key} type="button" aria-label={`Ver ${meta?.name ?? key}`} onClick={() => setSelected(selected === key ? null : key)} className={`ac-material min-w-[64px] flex-1 rounded-[10px] border p-1.5 text-center transition active:scale-95 ${selected === key ? 'border-[#ffe176] bg-[#5a4012]/40 ring-2 ring-[#f7c84b]/30' : ok ? 'border-emerald-500/55 bg-emerald-950/25' : i === 0 ? 'border-sky-400/60 bg-sky-950/25' : 'border-violet-500/45 bg-violet-950/20'}`}>
         <div className="mx-auto flex h-9 items-center justify-center">
           {meta?.img ? <img src={meta.img} alt="" className="h-9 w-9 object-contain" /> : <span className="text-2xl">{meta?.icon ?? '◆'}</span>}
         </div>
         <p className={`text-[10px] font-black tabular-nums ${ok ? 'text-white' : 'text-rose-300'}`}>{have}/{need}</p>
-      </div>;
+      </button>;
     }) : <div className="flex h-16 flex-1 items-center justify-center text-xs font-bold text-amber-300">Nível máximo alcançado</div>}
-  </div>
-);
+  </div>;
+};
 
 function findPiece(engine: GameEngine, key: string | null) {
   if (!key) return null;
@@ -132,7 +139,7 @@ const CharacterTab: React.FC<{ engine: GameEngine; power: number; canLevelUp: bo
   const levelCost = { partitura_bronze: 3, clave: 5, crystal_blue_raw: 1 };
   return <div className="flex h-full min-h-0">
     <Roster engine={engine} refresh={refresh} />
-    <section className="relative w-[42%] min-w-[290px] overflow-hidden border-r border-[#263854] bg-[#061123]">
+    <section className="ac-stage relative w-[42%] min-w-[290px] overflow-hidden border-r border-[#263854] bg-[#061123]">
       <img src="/assets/ui/character-stage-acordelot.png" alt="" className="absolute inset-0 h-full w-full object-cover opacity-80" />
       <div className="absolute inset-0 bg-gradient-to-t from-[#071326] via-transparent to-[#071326]/20" />
       <img src={PORTRAIT[key]} alt={s.name} className="absolute bottom-[2%] left-1/2 h-[89%] -translate-x-1/2 object-contain drop-shadow-[0_15px_16px_rgba(0,0,0,.8)] [image-rendering:auto]" />
@@ -222,7 +229,7 @@ const EquipmentTab: React.FC<{ engine: GameEngine; inventory: Record<string, num
       <div className="grid grid-cols-4 gap-2">{EQUIP_SLOT_ORDER.map((s) => { const Icon = SLOT_ICON[s]; return <button key={s} type="button" onClick={() => setSlot(s)} className={`rounded-xl border py-3 text-center ${slot === s ? 'border-[#f5cf55] bg-[#4d3a13]/25 text-[#ffe06b]' : 'border-[#263854] bg-[#071326] text-[#7e92b4]'}`}><Icon className="mx-auto h-7 w-7" /><span className="mt-1 block text-[10px] font-black">{EQUIP_SLOT_LABEL[s]}</span></button>; })}</div>
       <div className="mt-4 h-[calc(100%-78px)] space-y-2 overflow-y-auto pr-1">{rows.map(({ set: rowSet, piece: row }) => <button key={row.key} type="button" onClick={() => setKey(row.key)} className={`flex w-full items-center gap-3 rounded-xl border p-2 text-left ${row.key === piece.key ? 'border-sky-400 bg-sky-950/35' : 'border-[#263854] bg-[#071326]'}`}><div className="grid h-14 w-14 shrink-0 place-items-center rounded-lg border" style={{ borderColor: rowSet.color, background: `${rowSet.color}18` }}>{row.img ? <img src={row.img} alt="" className="h-12 w-12 object-contain" /> : <CircleDot className="h-9 w-9" style={{ color: rowSet.color }} />}</div><div className="min-w-0 flex-1"><p className="truncate text-xs font-black text-white">{row.name}</p><p className="truncate text-[10px] text-[#8194b5]">{rowSet.name}</p></div><b className="text-sm text-[#dce5f7]">+{engine.getPieceLevel(row.key)}</b></button>)}</div>
     </aside>
-    <section className="relative overflow-hidden border-r border-[#263854] bg-[#071326]">
+    <section className="ac-stage relative overflow-hidden border-r border-[#263854] bg-[#071326]">
       <img src="/assets/ui/character-stage-acordelot.png" alt="" className="absolute inset-0 h-full w-full object-cover opacity-55" /><div className="absolute inset-0 bg-gradient-to-t from-[#071326] via-transparent to-[#071326]/40" />
       <span className="absolute left-4 top-4 flex items-center gap-2 rounded-full border border-[#35506f] bg-[#071326]/90 px-3 py-1 text-[10px] font-bold text-[#dbe6f9]"><img src={PORTRAIT[engine.activeCharacter]} alt="" className="h-7 w-7 rounded-full object-contain" />{equipped ? 'Equipado' : 'Disponível'}</span>
       {pieceArt ? <img src={pieceArt} alt={piece.name} className="absolute left-1/2 top-[43%] h-[42%] w-[82%] -translate-x-1/2 -translate-y-1/2 object-contain drop-shadow-[0_0_30px_rgba(245,194,64,.48)]" /> : <CircleDot className="absolute left-1/2 top-[43%] h-32 w-32 -translate-x-1/2 -translate-y-1/2 text-[#f0c34b] drop-shadow-[0_0_30px_rgba(245,194,64,.48)]" />}
@@ -258,24 +265,36 @@ export const CharacterScreen: React.FC<Props> = ({ open, onClose, stats, power, 
          altura, preservamos o desenho 16:9 e reduzimos o miolo como uma
          unidade, em vez de transformar cada painel numa página rolável. */
       @media (max-height: 650px) and (orientation: landscape) {
-        .ac-sheet { width: calc(100vw - 12px) !important; height: calc(100vh - 12px) !important; border-radius: 18px !important; }
+        .ac-sheet { width: calc(100vw - 48px - env(safe-area-inset-left) - env(safe-area-inset-right)) !important; height: calc(100vh - 48px - env(safe-area-inset-top) - env(safe-area-inset-bottom)) !important; border-radius: 18px !important; }
         .ac-sheet-head { height: 50px !important; padding-left: 20px !important; padding-right: 20px !important; }
         .ac-sheet-head > svg:first-child { width: 25px !important; height: 25px !important; margin-right: 12px !important; }
         .ac-sheet-head > button svg { width: 23px !important; height: 23px !important; }
-        .ac-sheet-main { zoom: .76; }
-        .ac-sheet-nav { height: 56px !important; }
-        .ac-sheet-nav button { gap: 0 !important; font-size: 10px !important; }
-        .ac-sheet-nav button svg { width: 18px !important; height: 18px !important; }
+        .ac-sheet-main { zoom: .82; }
+        .ac-sheet-nav { display: none !important; }
+        .ac-mobile-tabs { display: flex !important; }
+        .ac-close { margin-left: 12px !important; }
+        .ac-skill-total { margin-left: auto !important; margin-right: 8px !important; padding: 4px 8px !important; gap: 6px !important; }
+        .ac-skill-total > span { width: 22px !important; height: 22px !important; }
       }
       @media (max-height: 330px) and (orientation: landscape) {
         .ac-sheet-main { zoom: .68; }
         .ac-sheet-head { height: 44px !important; }
-        .ac-sheet-nav { height: 48px !important; }
       }
+      .ac-sheet::before { content: ''; position: absolute; z-index: 2; pointer-events: none; inset: 0; border-radius: inherit; background: linear-gradient(112deg, transparent 20%, rgba(96,165,250,.045) 42%, rgba(250,204,21,.07) 50%, transparent 62%); transform: translateX(-75%); animation: acSheen 9s ease-in-out infinite; }
+      .ac-sheet::after { content: ''; position: absolute; z-index: 1; pointer-events: none; inset: 0; border-radius: inherit; box-shadow: inset 0 0 28px rgba(56,189,248,.06), inset 0 0 2px rgba(250,204,21,.55); }
+      .ac-panel { transition: border-color .2s ease, box-shadow .2s ease, transform .2s ease; }
+      .ac-panel:hover { border-color: rgba(96,165,250,.42); box-shadow: inset 0 1px rgba(255,255,255,.035), 0 0 18px rgba(14,165,233,.07); }
+      .ac-material { position: relative; overflow: hidden; }
+      .ac-material::after { content: ''; position: absolute; inset: -60% -30%; pointer-events: none; background: linear-gradient(105deg, transparent 40%, rgba(255,255,255,.16) 50%, transparent 60%); transform: translateX(-75%); animation: acMaterialShine 4.5s ease-in-out infinite; }
+      .ac-stage::after { content: ''; position: absolute; inset: 0; pointer-events: none; opacity: .65; background-image: radial-gradient(circle, rgba(255,218,92,.9) 0 1px, transparent 1.7px), radial-gradient(circle, rgba(96,165,250,.65) 0 1px, transparent 1.8px); background-size: 83px 83px, 127px 127px; background-position: 13px 29px, 47px 9px; animation: acMotes 8s linear infinite; }
+      @keyframes acSheen { 0%,70% { transform: translateX(-75%); } 88%,100% { transform: translateX(75%); } }
+      @keyframes acMaterialShine { 0%,72% { transform: translateX(-80%); } 100% { transform: translateX(80%); } }
+      @keyframes acMotes { from { transform: translateY(10px); } to { transform: translateY(-73px); } }
+      @media (prefers-reduced-motion: reduce) { .ac-sheet::before, .ac-material::after, .ac-stage::after { animation: none !important; } }
     `}</style>
     <div className="absolute inset-0 bg-[#020817]/65 backdrop-blur-[4px]" onClick={onClose} />
     <div className="ac-sheet relative flex h-[min(890px,94vh)] w-[min(1540px,96vw)] flex-col overflow-hidden rounded-[26px] border border-[#a87516] bg-[radial-gradient(circle_at_40%_0%,#10233f_0%,#071326_38%,#040d1d_100%)] text-[#dce6f8] shadow-[0_24px_80px_rgba(0,0,0,.75),inset_0_0_50px_rgba(24,66,110,.08)]">
-      <header className="ac-sheet-head flex h-[72px] shrink-0 items-center border-b border-[#263854] px-8"><Music2 className="mr-5 h-9 w-9 text-[#f6ce62]" /><h1 className="text-[clamp(18px,1.6vw,28px)] font-black text-[#f8d96f]">{title} — {engine.stats.name || stats.name}</h1>{tab === 'skills' && <div className="ml-auto mr-6 flex items-center gap-3 rounded-xl border border-[#263854] bg-[#071326] px-4 py-2 text-xs text-[#b8c6dd]"><span className="grid h-7 w-7 place-items-center rounded-full border border-[#c38c1f] bg-[#563b0b] text-[#ffe06b]">♪</span>Níveis de Skill <b className="text-xl text-[#ffe06b]">{engine.skillLevels[engine.activeCharacter].reduce((a,b) => a + b, 0)}</b></div>}<button type="button" onClick={onClose} className={`${tab !== 'skills' ? 'ml-auto' : ''} text-[#8fa2c3] hover:text-white`}><X className="h-8 w-8" /></button></header>
+      <header className="ac-sheet-head relative z-10 flex h-[72px] shrink-0 items-center border-b border-[#263854] px-8"><Music2 className="mr-5 h-9 w-9 text-[#f6ce62]" /><h1 className="whitespace-nowrap text-[clamp(18px,1.6vw,28px)] font-black text-[#f8d96f]">{title} — {engine.stats.name || stats.name}</h1>{tab === 'skills' && <div className="ac-skill-total ml-auto mr-6 flex items-center gap-3 rounded-xl border border-[#263854] bg-[#071326] px-4 py-2 text-xs text-[#b8c6dd]"><span className="grid h-7 w-7 place-items-center rounded-full border border-[#c38c1f] bg-[#563b0b] text-[#ffe06b]">♪</span><span className="hidden sm:inline">Níveis de Skill</span><b className="text-xl text-[#ffe06b]">{engine.skillLevels[engine.activeCharacter].reduce((a,b) => a + b, 0)}</b></div>}<div className={`ac-mobile-tabs ml-auto hidden items-center gap-1.5 ${tab === 'skills' ? '!ml-2' : ''}`}>{TABS.map(({ key, label, icon: Icon }) => <button key={key} type="button" aria-label={label} title={label} onClick={() => setTab(key)} className={`grid h-8 w-8 place-items-center rounded-lg border transition ${tab === key ? 'border-[#f7c84b] bg-[#5a4012]/45 text-[#ffe176] shadow-[0_0_12px_rgba(247,200,75,.2)]' : 'border-[#293c58] bg-[#08162a] text-[#8295b5]'}`}><Icon className="h-4 w-4" /></button>)}</div><button type="button" aria-label="Fechar" onClick={onClose} className={`ac-close ${tab !== 'skills' ? 'ml-auto' : ''} ml-3 text-[#8fa2c3] hover:text-white`}><X className="h-8 w-8" /></button></header>
       <main className="ac-sheet-main min-h-0 flex-1 overflow-hidden">{tab === 'ficha' && <CharacterTab engine={engine} power={power} canLevelUp={canLevelUp} onLevelUp={onLevelUp} inventory={inventory} refresh={refresh} />}{tab === 'skills' && <SkillsTab engine={engine} inventory={inventory} />}{tab === 'equipamentos' && <EquipmentTab engine={engine} inventory={inventory} />}{tab === 'ferramentas' && <AdvancedTab engine={engine} onSpend={onSpend} />}</main>
       <nav className="ac-sheet-nav grid h-[84px] shrink-0 grid-cols-4 border-t border-[#263854] bg-[#061123]/95">{TABS.map(({ key, label, icon: Icon }) => <button key={key} type="button" onClick={() => setTab(key)} className={`relative flex flex-col items-center justify-center gap-1 border-r border-[#172842] text-sm font-black transition ${tab === key ? 'bg-[#3e2d11]/38 text-[#ffd535]' : 'text-[#7386a6] hover:bg-[#0b1930] hover:text-[#bac8dc]'}`}>{tab === key && <span className="absolute inset-x-0 top-0 h-[3px] bg-[#ffc928] shadow-[0_0_12px_#ffc928]" />}<Icon className="h-6 w-6" />{label}</button>)}</nav>
     </div>

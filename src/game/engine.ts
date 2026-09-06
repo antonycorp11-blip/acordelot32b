@@ -2751,6 +2751,11 @@ export class GameEngine {
     this.player.isMoving = false;
     this.heroRunning = false;
     this.player.actionState = 'idle';
+    // No iOS, um diálogo pode substituir o elemento que possuía o toque antes
+    // de chegar pointerup/pointercancel. Avisa o HUD para soltar também o id do
+    // ponteiro; zerar somente o vetor do motor deixava o analógico sem aceitar
+    // o próximo toque depois da conversa.
+    window.dispatchEvent(new Event('acordelot-reset-controls'));
   }
 
   beginOpeningScene() {
@@ -2926,7 +2931,10 @@ export class GameEngine {
     const mirella = this.ensureStoryNpc('story_mirella', 'Mirella', 'cadencia', destination.x + 42, destination.y - 8, '#c084fc');
     mirella.direction = 'down';
     const avenueX = 36 * TILE_SIZE;
-    this.moveStoryActor('npc', pippo.id, avenueX, startY, 72, [
+    // Pippo primeiro corre até Akles e só então assume a dianteira. O jogador
+    // continua no controle do próprio personagem durante todo o trajeto.
+    this.moveStoryActor('npc', pippo.id, this.player.x + 34, this.player.y, 125, [
+      { x: avenueX, y: startY },
       { x: avenueX, y: destination.y },
       { x: destination.x, y: destination.y },
     ]);

@@ -198,6 +198,19 @@ export const TouchControls: React.FC<TouchControlsProps> = ({
   }, [engineRef]);
 
   useEffect(() => {
+    const releaseControls = () => reset();
+    window.addEventListener('acordelot-reset-controls', releaseControls);
+    window.addEventListener('blur', releaseControls);
+    const onVisibility = () => { if (document.hidden) releaseControls(); };
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => {
+      window.removeEventListener('acordelot-reset-controls', releaseControls);
+      window.removeEventListener('blur', releaseControls);
+      document.removeEventListener('visibilitychange', onVisibility);
+    };
+  }, [reset]);
+
+  useEffect(() => {
     return () => {
       reset();
     };
@@ -206,6 +219,7 @@ export const TouchControls: React.FC<TouchControlsProps> = ({
   const onPointerDown = (e: React.PointerEvent) => {
     if (hudEdit) return;
     if (pointerIdRef.current !== null) return;
+    try { e.currentTarget.setPointerCapture(e.pointerId); } catch {}
     pointerIdRef.current = e.pointerId;
     const rect = baseRef.current!.getBoundingClientRect();
     originRef.current = { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
@@ -316,6 +330,10 @@ export const TouchControls: React.FC<TouchControlsProps> = ({
   const showAttack = tutorialStage === 'combat' || tutorialStage === 'follow' || tutorialStage === 'full';
   const showFullHud = tutorialStage === 'full' || forceEditMode;
 
+  useEffect(() => {
+    if (!showJoystick) reset();
+  }, [showJoystick, reset]);
+
   // Botão arrastável: id próprio, posição própria, funciona em qualquer lugar da tela.
   const D: React.FC<{ id: string; className: string; title: string; onAction: () => void; aimSlot?: number; style?: React.CSSProperties; children: React.ReactNode }> = ({
     id,
@@ -384,6 +402,9 @@ export const TouchControls: React.FC<TouchControlsProps> = ({
       {showJoystick && <div
         ref={baseRef}
         onPointerDown={hudEdit ? startDrag('joystick') : onPointerDown}
+        onPointerUp={reset}
+        onPointerCancel={reset}
+        onLostPointerCapture={reset}
         className={`absolute pointer-events-auto rounded-full border border-amber-400/40 bg-slate-950/40 backdrop-blur-sm shadow-2xl ${
           hudEdit ? 'outline outline-2 outline-dashed outline-amber-400/80 outline-offset-2' : ''
         }`}

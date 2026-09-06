@@ -50,9 +50,10 @@ import { saveWorldMapToCloud, syncWorldMapFromCloud } from '../game/worldMapSync
 import { loadCloudSave, applySaveToEngine, setupAutoSave, saveToCloud } from '../game/saveManager';
 import { saveGlobalHudLayout } from '../game/hudSync';
 import { networkManager, ChatMessage } from '../game/networkManager';
-import { playMusicalTone, speakMusically, stopMusicalVoice } from '../game/musicalVoice';
+import { playMusicalTone, speakMusically, stopMusicalVoice, unlockMusicalVoice } from '../game/musicalVoice';
 
 type OpeningPhase = 'awakening' | 'discovery' | 'encounter' | 'aftermath' | 'echoes';
+type TutorialStage = 'cinematic' | 'movement' | 'explore' | 'combat' | 'follow' | 'full';
 
 const OPENING_LINES: Record<OpeningPhase, Array<{ speaker: string; voice: string; text: string }>> = {
   awakening: [
@@ -573,6 +574,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
   const [saveReady, setSaveReady] = useState(false);
   const [openingPhase, setOpeningPhase] = useState<OpeningPhase | null>(null);
   const [openingLine, setOpeningLine] = useState(0);
+  const [tutorialStage, setTutorialStage] = useState<TutorialStage>('cinematic');
   const openingStarted = useRef(false);
   const [showMobileHudEditor, setShowMobileHudEditor] = useState(false);
   const [currentHudLayout, setCurrentHudLayout] = useState<any>(null);
@@ -772,17 +774,25 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
     engine.onQuestsChange = () => setQuestTick((t) => t + 1);
     engine.onCharacterChange = () => setCharacterTick((t) => t + 1);
     engine.onStoryBeat = (beat) => {
-      if (beat === 'opening_sound_found') {
+      if (beat === 'movement_learned') {
+        setTutorialStage('explore');
+      } else if (beat === 'attack_learned') {
+        setTutorialStage('follow');
+      } else if (beat === 'opening_sound_found') {
+        setTutorialStage('cinematic');
         playMusicalTone(369.99, .72, isBgmMuted ? 0 : .13); // Sol♭4 / F♯4
         setOpeningLine(0);
         setOpeningPhase('discovery');
       } else if (beat === 'shinkers_appear') {
+        setTutorialStage('cinematic');
         setOpeningLine(0);
         setOpeningPhase('encounter');
       } else if (beat === 'shinkers_defeated') {
+        setTutorialStage('cinematic');
         setOpeningLine(0);
         setOpeningPhase('aftermath');
       } else if (beat === 'three_echoes_found') {
+        setTutorialStage('cinematic');
         setOpeningLine(0);
         setOpeningPhase('echoes');
         if (!isBgmMuted) {
@@ -790,6 +800,8 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
           window.setTimeout(() => playMusicalTone(329.63, .2, .1), 230);
           window.setTimeout(() => playMusicalTone(392, .35, .11), 460);
         }
+      } else if (beat === 'opening_mission_complete') {
+        setTutorialStage('follow');
       }
     };
 
@@ -857,6 +869,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
     if (!assetsLoaded || !saveReady || openingStarted.current || !engineRef.current) return;
     openingStarted.current = true;
     engineRef.current.beginOpeningScene();
+    setTutorialStage('cinematic');
     setOpeningLine(0);
     setOpeningPhase('awakening');
   }, [assetsLoaded, saveReady, user?.id]);
@@ -868,7 +881,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
     speakMusically(
       currentOpeningLine.text,
       currentOpeningLine.voice,
-      isBgmMuted ? 0 : Math.max(.035, bgmVolume * .2),
+      isBgmMuted ? 0 : Math.max(.09, bgmVolume * .31),
     );
   }, [currentOpeningLine, bgmVolume, isBgmMuted]);
 
@@ -877,12 +890,13 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
     speakMusically(
       dlgLines[dialogueIdx],
       interaction.npc?.id ?? interaction.npc?.name ?? 'npc',
-      isBgmMuted ? 0 : Math.max(.035, bgmVolume * .2),
+      isBgmMuted ? 0 : Math.max(.09, bgmVolume * .31),
     );
   }, [interaction.isTalking, interaction.npc?.id, dialogueIdx]);
 
   const advanceOpening = () => {
     if (!openingPhase) return;
+    unlockMusicalVoice();
     const lines = OPENING_LINES[openingPhase];
     if (openingLine < lines.length - 1) {
       setOpeningLine((line) => line + 1);
@@ -891,25 +905,30 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
     stopMusicalVoice();
     if (openingPhase === 'awakening') {
       setOpeningPhase(null);
+      setTutorialStage('movement');
       engineRef.current?.releaseOpeningControl();
       return;
     }
     if (openingPhase === 'discovery') {
       setOpeningPhase(null);
+      setTutorialStage('explore');
       engineRef.current?.finishOpeningDiscovery();
       return;
     }
     if (openingPhase === 'encounter') {
       setOpeningPhase(null);
+      setTutorialStage('combat');
       engineRef.current?.beginShinkerEncounter();
       return;
     }
     if (openingPhase === 'aftermath') {
       setOpeningPhase(null);
+      setTutorialStage('explore');
       engineRef.current?.revealThreeEchoes();
       return;
     }
     setOpeningPhase(null);
+    setTutorialStage('follow');
     engineRef.current?.finishThreeEchoes();
   };
 
@@ -1649,11 +1668,10 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
         </div>
 
         {openingPhase && currentOpeningLine && (
-          <div className="fixed inset-0 z-[60] pointer-events-auto select-none flex flex-col justify-end bg-gradient-to-b from-black/55 via-transparent to-black/80">
-            <div className="absolute inset-x-0 top-0 h-[9vh] bg-black/85 border-b border-violet-300/10" />
-            <div className="absolute top-[3vh] left-1/2 -translate-x-1/2 text-center">
-              <p className="text-[9px] sm:text-[11px] font-black uppercase tracking-[.38em] text-violet-200/70">Capítulo I</p>
-              <p className="mt-1 text-sm sm:text-lg font-black tracking-[.14em] text-white/90 drop-shadow-lg">
+          <div className="fixed inset-0 z-[60] pointer-events-auto select-none flex items-end justify-center pb-[max(8px,env(safe-area-inset-bottom))]">
+            <div className="absolute left-3 top-3 rounded-lg border border-violet-300/20 bg-slate-950/78 px-3 py-1.5 backdrop-blur-sm">
+              <p className="text-[8px] font-black uppercase tracking-[.28em] text-violet-200/70">Capítulo I · Missão 1</p>
+              <p className="text-[10px] font-black tracking-[.1em] text-white/90 drop-shadow-lg">
                 {openingPhase === 'awakening' ? 'O SOM NA ESCURIDÃO' :
                   openingPhase === 'discovery' ? 'SOL BEMOL' :
                     openingPhase === 'encounter' ? 'CRIATURAS DISSONANTES' :
@@ -1661,20 +1679,20 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
               </p>
             </div>
 
-            <div className="w-full px-4 pb-[max(22px,env(safe-area-inset-bottom))]">
-              <div className="mx-auto max-w-3xl rounded-2xl border border-violet-300/25 bg-slate-950/94 backdrop-blur-lg shadow-[0_16px_70px_rgba(0,0,0,.75)] overflow-hidden">
+            <div className="w-[min(560px,72vw)]">
+              <div className="rounded-xl border border-violet-300/30 bg-slate-950/90 backdrop-blur-md shadow-[0_10px_36px_rgba(0,0,0,.65)] overflow-hidden">
                 <div className="h-0.5 bg-gradient-to-r from-transparent via-violet-300/80 to-transparent" />
-                <div className="p-4 sm:p-5">
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="text-violet-300 text-sm">♪</span>
-                    <p className={`text-[10px] font-black uppercase tracking-[.2em] ${currentOpeningLine.speaker === 'Narração' ? 'text-slate-400' : 'text-amber-300'}`}>
+                <div className="px-3 py-2.5">
+                  <div className="flex items-center gap-1.5 mb-1">
+                    <span className="text-violet-300 text-xs">♪</span>
+                    <p className={`text-[9px] font-black uppercase tracking-[.18em] ${currentOpeningLine.speaker === 'Narração' ? 'text-slate-400' : 'text-amber-300'}`}>
                       {currentOpeningLine.speaker}
                     </p>
                   </div>
-                  <p className={`min-h-[52px] text-sm sm:text-base leading-relaxed ${currentOpeningLine.speaker === 'Narração' ? 'italic text-slate-200' : 'font-semibold text-white'}`}>
+                  <p className={`min-h-[30px] text-[11px] sm:text-sm leading-snug ${currentOpeningLine.speaker === 'Narração' ? 'italic text-slate-200' : 'font-semibold text-white'}`}>
                     {currentOpeningLine.text}
                   </p>
-                  <div className="mt-3 flex items-center justify-between gap-3">
+                  <div className="mt-2 flex items-center justify-between gap-3">
                     <div className="flex gap-1.5">
                       {OPENING_LINES[openingPhase].map((_, index) => (
                         <span key={index} className={`h-1 rounded-full transition-all ${index === openingLine ? 'w-6 bg-violet-300' : 'w-2 bg-slate-700'}`} />
@@ -1683,7 +1701,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
                     <button
                       type="button"
                       onClick={advanceOpening}
-                      className="cursor-pointer shrink-0 rounded-xl bg-violet-300 hover:bg-violet-200 text-slate-950 px-4 py-2 text-xs font-black flex items-center gap-1.5 active:scale-95 transition"
+                      className="cursor-pointer shrink-0 rounded-lg bg-violet-300 hover:bg-violet-200 text-slate-950 px-3 py-1.5 text-[10px] font-black flex items-center gap-1 active:scale-95 transition"
                     >
                       {openingLine < OPENING_LINES[openingPhase].length - 1
                         ? 'Continuar'
@@ -1702,13 +1720,12 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
                 </div>
               </div>
             </div>
-            <div className="absolute inset-x-0 bottom-0 h-2 bg-black" />
           </div>
         )}
       </div>
 
       {/* Barra de vida + retrato + XP */}
-      {!isEditMode && stats && (
+      {!isEditMode && stats && tutorialStage !== 'cinematic' && (
         <PlayerHud
           stats={{ ...stats, maxEnergy: engineRef.current?.effectiveMaxEnergy ?? stats.maxEnergy }}
           onOpenSheet={() => { setSheetInitialTab('ficha'); setShowSheet(true); }}
@@ -1737,6 +1754,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
             setShowSheet((v) => !v);
           }}
           forceEditMode={showMobileHudEditor}
+          tutorialStage={showMobileHudEditor ? 'full' : tutorialStage}
           onLayoutChange={(layout) => {
             setCurrentHudLayout(layout);
           }}
@@ -1759,7 +1777,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
       )}
 
       {/* HUD de coleta — desktop */}
-      {!isEditMode && !isTouchDevice && (
+      {!isEditMode && !isTouchDevice && tutorialStage === 'full' && (
         <div className="fixed bottom-6 right-6 z-30 flex items-end gap-3 pointer-events-auto">
           <button
             type="button"
@@ -1865,6 +1883,21 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
             <span className="text-[9px] font-bold">Coletar</span>
           </button>
         </div>
+      )}
+
+      {!isEditMode && !isTouchDevice && tutorialStage === 'movement' && (
+        <div className="fixed left-1/2 bottom-8 z-30 -translate-x-1/2 rounded-xl border border-cyan-300/60 bg-slate-950/92 px-4 py-2 text-sm font-black text-cyan-100 shadow-xl animate-pulse">
+          Use WASD ou as setas para andar
+        </div>
+      )}
+      {!isEditMode && !isTouchDevice && tutorialStage === 'combat' && (
+        <button type="button" onClick={() => engineRef.current?.primaryAction()} className="fixed right-8 bottom-8 z-30 h-20 w-20 rounded-full border-2 border-rose-300 bg-rose-900/95 text-white shadow-[0_0_30px_rgba(251,113,133,.5)] animate-pulse">
+          <HudIcon name="attack" className="mx-auto h-12 w-12" />
+          <span className="sr-only">Atacar com J</span>
+        </button>
+      )}
+      {!isEditMode && !isTouchDevice && tutorialStage === 'combat' && (
+        <div className="fixed right-6 bottom-32 z-30 rounded-xl border border-rose-300/60 bg-slate-950/92 px-3 py-2 text-xs font-black text-rose-100">Pressione J para atacar</div>
       )}
 
       {/* Botão de falar com NPC próximo */}
@@ -2002,7 +2035,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
       )}
 
       {/* Top HUD: Indicador de Dia/Noite, Sala Online e Botão de Configurações */}
-      {!isEditMode && (
+      {!isEditMode && tutorialStage === 'full' && (
         <div
           className="absolute right-4 z-20 flex items-center gap-2"
           style={{ top: 'calc(12px + env(safe-area-inset-top))' }}
@@ -2034,7 +2067,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
       )}
 
       {/* Top Right Quick Controls — SÓ no desktop/Mac (some no celular) */}
-      {!isEditMode && !isTouchDevice && (
+      {!isEditMode && !isTouchDevice && tutorialStage === 'full' && (
         <div
           className="absolute right-4 z-20 flex items-center gap-2"
           style={{ top: 'calc(112px + env(safe-area-inset-top))' }}

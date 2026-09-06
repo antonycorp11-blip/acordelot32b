@@ -17,6 +17,7 @@ interface TouchControlsProps {
   onToggleSheet: () => void;
   forceEditMode?: boolean;
   onLayoutChange?: (layout: Record<Orientation, Layout>) => void;
+  tutorialStage?: 'cinematic' | 'movement' | 'explore' | 'combat' | 'follow' | 'full';
 }
 
 const JOYSTICK_SIZE = 132;
@@ -75,6 +76,7 @@ export const TouchControls: React.FC<TouchControlsProps> = ({
   onToggleSheet,
   forceEditMode = false,
   onLayoutChange,
+  tutorialStage = 'full',
 }) => {
   const baseRef = useRef<HTMLDivElement | null>(null);
   const originRef = useRef<{ x: number; y: number } | null>(null);
@@ -304,6 +306,9 @@ export const TouchControls: React.FC<TouchControlsProps> = ({
   const sideMenuStep = sideMenuIcon + 8;
   // 190px reserva o widget de clima inteiro em celulares largos.
   const sideMenuRight = (i: number) => `calc(${Math.round(190 + i * sideMenuStep)}px + env(safe-area-inset-right))`;
+  const showJoystick = tutorialStage !== 'cinematic';
+  const showAttack = tutorialStage === 'combat' || tutorialStage === 'follow' || tutorialStage === 'full';
+  const showFullHud = tutorialStage === 'full' || forceEditMode;
 
   // Botão arrastável: id próprio, posição própria, funciona em qualquer lugar da tela.
   const D: React.FC<{ id: string; className: string; title: string; onAction: () => void; aimSlot?: number; style?: React.CSSProperties; children: React.ReactNode }> = ({
@@ -370,7 +375,7 @@ export const TouchControls: React.FC<TouchControlsProps> = ({
       )}
 
       {/* Joystick — canto inferior esquerdo */}
-      <div
+      {showJoystick && <div
         ref={baseRef}
         onPointerDown={hudEdit ? startDrag('joystick') : onPointerDown}
         className={`absolute pointer-events-auto rounded-full border border-amber-400/40 bg-slate-950/40 backdrop-blur-sm shadow-2xl ${
@@ -398,9 +403,17 @@ export const TouchControls: React.FC<TouchControlsProps> = ({
             transform: `translate(calc(-50% + ${knob.x}px), calc(-50% + ${knob.y}px))`,
           }}
         />
-      </div>
+      </div>}
 
-      {/* Menu superior completo — todos os acessos permanecem visíveis. */}
+      {tutorialStage === 'movement' && (
+        <div className="absolute pointer-events-none left-[26px] bottom-[158px] rounded-xl border border-cyan-300/60 bg-slate-950/92 px-3 py-2 text-[11px] font-black text-cyan-100 shadow-[0_0_24px_rgba(34,211,238,.35)] animate-pulse">
+          Arraste o círculo para andar
+          <div className="absolute -bottom-2 left-12 h-4 w-4 rotate-45 border-b border-r border-cyan-300/60 bg-slate-950" />
+        </div>
+      )}
+
+      {/* Os sistemas são apresentados aos poucos pelo tutorial. */}
+      {showFullHud && <>
       <D id="btn_inv" className={`${actionBtn} absolute border-amber-400/50 bg-slate-950/80 text-amber-300`} title="Mochila" onAction={onToggleInventory} style={{ width: sideMenuIcon, height: sideMenuIcon, right: sideMenuRight(7), top: sideMenuTop }}>
         <HudIcon name="backpack" className="w-[82%] h-[82%]" />
       </D>
@@ -434,8 +447,10 @@ export const TouchControls: React.FC<TouchControlsProps> = ({
       <D id="btn_buff" className={`${actionBtn} absolute w-12 h-12 border-fuchsia-400/60 bg-fuchsia-950/85 text-fuchsia-200`} title="Usar item de buff" onAction={() => engineRef.current?.useBuffItem()} style={{ left: 'calc(150px + env(safe-area-inset-left))', bottom: 'calc(170px + env(safe-area-inset-bottom))' }}>
         <HudIcon name="potion-buff" className="w-10 h-10" />
       </D>
+      </>}
 
       {/* Ataque básico — vira "Coletar" sozinho perto de um recurso, fora de luta */}
+      {showAttack && (
       <D
         id="btn_attack"
         className={`${actionBtn} absolute w-[64px] h-[64px] ${
@@ -447,9 +462,18 @@ export const TouchControls: React.FC<TouchControlsProps> = ({
       >
         <HudIcon name={collectMode ? 'collect' : 'attack'} className="w-12 h-12" />
       </D>
+      )}
+
+      {tutorialStage === 'combat' && (
+        <div className="absolute pointer-events-none right-[42px] bottom-[126px] rounded-xl border border-rose-300/70 bg-slate-950/94 px-3 py-2 text-[11px] font-black text-rose-100 shadow-[0_0_28px_rgba(251,113,133,.45)] animate-pulse">
+          Toque aqui para atacar
+          <div className="absolute -bottom-2 right-12 h-4 w-4 rotate-45 border-b border-r border-rose-300/70 bg-slate-950" />
+        </div>
+      )}
 
       {/* Troca de personagem estilo Genshin — colada bem em cima do anel de
           skills (nunca em coluna que pode passar da altura da tela). */}
+      {showFullHud && <>
       {unlockedChars.map((ck, i) => {
         const active = activeChar === ck;
         return (
@@ -478,6 +502,7 @@ export const TouchControls: React.FC<TouchControlsProps> = ({
       <D id="btn_resonance" aimSlot={0} className={`${actionBtn} absolute w-[46px] h-[46px] border-blue-400/50 bg-blue-950/80 text-blue-300`} title={`${skillNames[0]} · arraste para mirar`} onAction={() => {}} style={{ right: 'calc(146px + env(safe-area-inset-right))', bottom: 'calc(52px + env(safe-area-inset-bottom))' }}>
         <HudIcon name="resonance" className="w-9 h-9" />
       </D>
+      </>}
 
       {skillAim && (
         <div className="absolute pointer-events-none rounded-full border-2 border-cyan-300/80 bg-cyan-400/15 shadow-[0_0_24px_rgba(34,211,238,.45)]" style={{ width: 56, height: 56, left: skillAim.x + skillAim.dx - 28, top: skillAim.y + skillAim.dy - 28 }} />

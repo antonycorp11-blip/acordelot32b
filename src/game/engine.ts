@@ -1150,9 +1150,12 @@ export class GameEngine {
   companionVisible = false;
   storyControlLocked = false;
   storyObjective: { title: string; text: string; progress: number; target: number; ready: boolean } | null = null;
-  onStoryBeat?: (beat: 'opening_sound_found' | 'shinkers_appear' | 'shinkers_defeated' | 'three_echoes_found') => void;
+  onStoryBeat?: (beat: 'movement_learned' | 'attack_learned' | 'opening_sound_found' | 'shinkers_appear' | 'shinkers_defeated' | 'three_echoes_found' | 'opening_mission_complete') => void;
   private openingSoundTarget: Point | null = null;
-  private storyStage: 'idle' | 'follow_vibration' | 'sol_bemol_scene' | 'find_origin' | 'encounter_scene' | 'fight' | 'aftermath' | 'find_echoes' | 'echo_scene' | 'complete' = 'idle';
+  private storyStage: 'idle' | 'follow_vibration' | 'sol_bemol_scene' | 'find_origin' | 'encounter_scene' | 'fight' | 'aftermath' | 'find_echoes' | 'echo_scene' | 'follow_echoes' | 'complete' = 'idle';
+  private storyMoveOrigin: Point | null = null;
+  private storyMovementTaught = false;
+  private storyAttackTaught = false;
   private storyEnemyIds = new Set<string>();
   private storyEchoIds = new Set<string>();
   private storyActorMoves: Array<{
@@ -2355,9 +2358,12 @@ export class GameEngine {
     this.storyEchoIds.clear();
     this.storyActorMoves = [];
     this.enemies = this.enemies.filter((enemy) => !enemy.id.startsWith('enemy_90') && !enemy.id.startsWith('enemy_91'));
-    this.openingSoundTarget = { x: 36 * TILE_SIZE, y: 122 * TILE_SIZE };
+    this.openingSoundTarget = { x: 36 * TILE_SIZE, y: 150 * TILE_SIZE };
     this.player.x = 36 * TILE_SIZE;
-    this.player.y = 126 * TILE_SIZE;
+    this.player.y = 156 * TILE_SIZE;
+    this.storyMoveOrigin = { x: this.player.x, y: this.player.y };
+    this.storyMovementTaught = false;
+    this.storyAttackTaught = false;
     this.player.vx = 0;
     this.player.vy = 0;
     this.player.direction = 'down';
@@ -2381,7 +2387,7 @@ export class GameEngine {
     this.playerInvuln = Math.max(this.playerInvuln, 12);
     this.storyObjective = {
       title: 'Despertar sem Nome',
-      text: 'Siga a vibração entre as árvores',
+      text: 'Aprenda a se mover e siga a vibração',
       progress: 0,
       target: 1,
       ready: false,
@@ -2392,10 +2398,10 @@ export class GameEngine {
   finishOpeningDiscovery() {
     this.storyControlLocked = false;
     this.storyStage = 'find_origin';
-    this.openingSoundTarget = { x: 36 * TILE_SIZE, y: 116 * TILE_SIZE };
+    this.openingSoundTarget = { x: 36 * TILE_SIZE, y: 144 * TILE_SIZE };
     this.playerInvuln = Math.max(this.playerInvuln, 10);
     this.storyObjective = {
-      title: 'Sol Bemol',
+      title: 'Despertar sem Nome',
       text: 'Encontre a origem do som',
       progress: 0,
       target: 1,
@@ -2409,7 +2415,7 @@ export class GameEngine {
     this.storyStage = 'fight';
     this.openingSoundTarget = null;
     this.playerInvuln = 1.2;
-    const spawns: Array<[number, number, number]> = [[34, 117, 900001], [38, 117, 900002]];
+    const spawns: Array<[number, number, number]> = [[34, 145, 900001], [38, 145, 900002]];
     for (const [col, row, id] of spawns) {
       if (this.spawnEnemy('nocturno', col, row, id, 1)) {
         const enemyId = `enemy_${id}`;
@@ -2422,8 +2428,8 @@ export class GameEngine {
       }
     }
     this.storyObjective = {
-      title: 'Criaturas Dissonantes',
-      text: 'Derrote as criaturas que despertaram',
+      title: 'Despertar sem Nome',
+      text: 'Use o ataque básico contra as criaturas',
       progress: 0,
       target: Math.max(1, this.storyEnemyIds.size),
       ready: false,
@@ -2435,9 +2441,9 @@ export class GameEngine {
     this.storyControlLocked = false;
     this.storyStage = 'find_echoes';
     const spawns: Array<[string, number, number, number]> = [
-      ['eco_c', 35, 114, 910001],
-      ['eco_e', 37, 114, 910002],
-      ['eco_g', 36, 113, 910003],
+      ['eco_c', 35, 142, 910001],
+      ['eco_e', 37, 142, 910002],
+      ['eco_g', 36, 141, 910003],
     ];
     for (const [kind, col, row, id] of spawns) {
       if (!this.spawnEnemy(kind, col, row, id, 1)) continue;
@@ -2446,7 +2452,7 @@ export class GameEngine {
       this.moveStoryActor('enemy', enemyId, col * TILE_SIZE + 8, (row - 1) * TILE_SIZE + 8, 24);
     }
     this.storyObjective = {
-      title: 'Três Ecos',
+      title: 'Despertar sem Nome',
       text: 'Aproxime-se das três criaturas luminosas',
       progress: 0,
       target: 1,
@@ -2457,16 +2463,21 @@ export class GameEngine {
 
   finishThreeEchoes() {
     this.storyControlLocked = false;
-    this.storyStage = 'complete';
+    this.storyStage = 'follow_echoes';
     this.autoDayCycle = true;
     this.playerInvuln = Math.max(this.playerInvuln, 5);
     this.storyObjective = {
-      title: 'Três Ecos',
-      text: 'Siga Dó, Mi e Sol pela floresta',
+      title: 'Despertar sem Nome',
+      text: 'Siga Dó, Mi e Sol pelo caminho',
       progress: 0,
       target: 1,
       ready: false,
     };
+    const targets: Array<[number, number]> = [[35, 134], [37, 134], [36, 133]];
+    [...this.storyEchoIds].forEach((id, index) => {
+      const [col, row] = targets[index] ?? targets[0];
+      this.moveStoryActor('enemy', id, col * TILE_SIZE + 8, row * TILE_SIZE + 8, 38);
+    });
     this.onQuestsChange?.();
   }
 
@@ -2567,6 +2578,12 @@ export class GameEngine {
       this.skillCooldowns[this.activeCharacter][slot] = cds[slot] * this.cooldownMul;
     }
     if (action === 'attack') {
+      if (this.storyStage === 'fight' && !this.storyAttackTaught) {
+        this.storyAttackTaught = true;
+        if (this.storyObjective) this.storyObjective = { ...this.storyObjective, text: 'Derrote as duas criaturas' };
+        this.onQuestsChange?.();
+        this.onStoryBeat?.('attack_learned');
+      }
       // Compasso da Lâmina: encadeia o combo se apertado logo em seguida
       if (this.timeElapsed - this.lastAttackAt < 1.0) this.comboIndex = (this.comboIndex + 1) % 4;
       else this.comboIndex = 0;
@@ -3769,6 +3786,8 @@ export class GameEngine {
     opts: { crit?: boolean; isPulse?: boolean; skill?: boolean; networkFinal?: boolean } = {},
   ) {
     if (e.state === 'dead') return;
+    // Os três Ecos da abertura são guias narrativos, não alvos de combate.
+    if (this.storyEchoIds.has(e.id) && this.storyStage !== 'complete') return;
     this.lastCombatAt = this.timeElapsed;
     // Impacto Harmônico (Amplificação) — inimigo "com a DEF reduzida"
     if (!opts.networkFinal) {
@@ -4332,6 +4351,13 @@ export class GameEngine {
 
     for (const e of this.enemies) {
       const def = ENEMY_DEFS[e.kind];
+
+      if (this.storyActorMoves.some((move) => move.kind === 'enemy' && move.id === e.id)) {
+        e.animTimer += dt;
+        e.state = 'walk';
+        e.frame = Math.floor(e.animTimer * 7) % Math.max(1, def.cols);
+        continue;
+      }
 
       // Fora de vista: só conta respawn, congela IA (perf)
       const farSq = (px - e.x) ** 2 + (py - e.y) ** 2;
@@ -5275,6 +5301,12 @@ export class GameEngine {
     this.updateSkillTimers(dt);
 
     if (!this.storyControlLocked && this.openingSoundTarget && (this.storyStage === 'follow_vibration' || this.storyStage === 'find_origin')) {
+      if (this.storyStage === 'follow_vibration' && !this.storyMovementTaught && this.storyMoveOrigin && Math.hypot(this.player.x - this.storyMoveOrigin.x, this.player.y - this.storyMoveOrigin.y) > 30) {
+        this.storyMovementTaught = true;
+        if (this.storyObjective) this.storyObjective = { ...this.storyObjective, text: 'Siga a vibração pelo caminho' };
+        this.onQuestsChange?.();
+        this.onStoryBeat?.('movement_learned');
+      }
       const distance = Math.hypot(
         this.player.x + this.player.width / 2 - this.openingSoundTarget.x,
         this.player.y + this.player.height / 2 - this.openingSoundTarget.y,
@@ -5287,9 +5319,23 @@ export class GameEngine {
         this.storyStage = foundFirstSound ? 'sol_bemol_scene' : 'encounter_scene';
         this.storyObjective = foundFirstSound
           ? { title: 'Despertar sem Nome', text: 'Vibração encontrada', progress: 1, target: 1, ready: true }
-          : { title: 'Sol Bemol', text: 'A origem está logo adiante', progress: 1, target: 1, ready: true };
+          : { title: 'Despertar sem Nome', text: 'A origem está logo adiante', progress: 1, target: 1, ready: true };
         this.onQuestsChange?.();
         this.onStoryBeat?.(foundFirstSound ? 'opening_sound_found' : 'shinkers_appear');
+      }
+    }
+
+    if (!this.storyControlLocked && this.storyStage === 'follow_echoes' && this.storyEchoIds.size) {
+      const living = [...this.storyEchoIds]
+        .map((id) => this.enemies.find((enemy) => enemy.id === id && enemy.state !== 'dead'))
+        .filter((enemy): enemy is Enemy => !!enemy);
+      const lead = living.sort((a, b) => a.y - b.y)[0];
+      if (lead && lead.y < 136 * TILE_SIZE && Math.hypot(lead.x - this.player.x, lead.y - this.player.y) < 150) {
+        this.storyStage = 'complete';
+        this.autoDayCycle = true;
+        this.storyObjective = { title: 'Despertar sem Nome', text: 'Missão concluída', progress: 1, target: 1, ready: true };
+        this.onQuestsChange?.();
+        this.onStoryBeat?.('opening_mission_complete');
       }
     }
 
@@ -5303,7 +5349,7 @@ export class GameEngine {
         this.storyControlLocked = true;
         this.player.vx = 0;
         this.player.vy = 0;
-        this.storyObjective = { title: 'Três Ecos', text: 'Dó, Mi e Sol', progress: 1, target: 1, ready: true };
+        this.storyObjective = { title: 'Despertar sem Nome', text: 'Dó, Mi e Sol', progress: 1, target: 1, ready: true };
         this.onQuestsChange?.();
         this.onStoryBeat?.('three_echoes_found');
       }

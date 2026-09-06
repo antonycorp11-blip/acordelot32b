@@ -46,13 +46,13 @@ import { SettingsModal } from './SettingsModal';
 import { ChatBox } from './ChatBox';
 import { WorldMapScreen } from './WorldMapScreen';
 import { publishMapToCode, getGhToken, setGhToken } from '../game/mapPersist';
-import { saveWorldMapToCloud, syncWorldMapFromCloud } from '../game/worldMapSync';
+import { saveWorldMapToCloud } from '../game/worldMapSync';
 import { loadCloudSave, applySaveToEngine, setupAutoSave, saveToCloud } from '../game/saveManager';
 import { saveGlobalHudLayout } from '../game/hudSync';
 import { networkManager, ChatMessage } from '../game/networkManager';
 import { playMusicalTone, speakMusically, stopMusicalVoice, unlockMusicalVoice } from '../game/musicalVoice';
 
-type OpeningPhase = 'awakening' | 'discovery' | 'encounter' | 'aftermath' | 'echoes';
+type OpeningPhase = 'awakening' | 'discovery' | 'encounter' | 'aftermath' | 'echoes' | 'gate' | 'mirella' | 'rest';
 type TutorialStage = 'cinematic' | 'movement' | 'explore' | 'combat' | 'follow' | 'full';
 
 const OPENING_LINES: Record<OpeningPhase, Array<{ speaker: string; voice: string; text: string }>> = {
@@ -82,6 +82,23 @@ const OPENING_LINES: Record<OpeningPhase, Array<{ speaker: string; voice: string
     { speaker: 'Narração', voice: 'narrator', text: 'Separadas, eram três vozes. Juntas, formavam um acorde maior.' },
     { speaker: 'Akles', voice: 'akles', text: 'Vocês também me reconhecem, não é?' },
     { speaker: 'Narração', voice: 'narrator', text: 'Os três Ecos seguem pela floresta. Pela primeira vez, Akles possui uma direção.' },
+  ],
+  gate: [
+    { speaker: 'Narração', voice: 'narrator', text: 'As luzes param diante dos portões. Uma lanterna se ergue do outro lado da muralha.' },
+    { speaker: 'Pippo', voice: 'pippo', text: 'Ei! Senhor guarda, ele veio com os Ecos. Eles nunca trazem ninguém até aqui.' },
+    { speaker: 'Guarda', voice: 'guard_muralha', text: 'E apareceu na floresta à meia-noite. Fique perto do menino e mantenha as mãos onde eu possa ver.' },
+    { speaker: 'Pippo', voice: 'pippo', text: 'Eu sou Pippo. Venha comigo. Mirella vai saber o que fazer.' },
+  ],
+  mirella: [
+    { speaker: 'Mirella', voice: 'mirella', text: 'Pippo, você trouxe um desconhecido da floresta a esta hora?' },
+    { speaker: 'Pippo', voice: 'pippo', text: 'Não foi só eu. Dó, Mi e Sol trouxeram ele até o portão.' },
+    { speaker: 'Akles', voice: 'akles', text: 'Eu não lembro do meu nome... mas reconheci as notas.' },
+    { speaker: 'Mirella', voice: 'mirella', text: 'Então as perguntas podem esperar o amanhecer. Esta noite, você descansa sob nosso teto.' },
+  ],
+  rest: [
+    { speaker: 'Narração', voice: 'narrator', text: 'Pela primeira vez desde que abriu os olhos, Akles encontra silêncio sem perigo.' },
+    { speaker: 'Narração', voice: 'narrator', text: 'Do lado de fora, a lanterna de Pippo permanece acesa por mais alguns minutos.' },
+    { speaker: 'Narração', voice: 'narrator', text: 'A manhã trará um mundo novo — e perguntas que ninguém parece disposto a responder.' },
   ],
 };
 
@@ -684,8 +701,6 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
       };
     }
 
-    syncWorldMapFromCloud(engine);
-
     // Carrega save na nuvem e local de forma infalível
     let autoSaveCleanup: (() => void) | null = null;
     let saveTimeout: any = null;
@@ -802,6 +817,14 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
         }
       } else if (beat === 'opening_mission_complete') {
         setTutorialStage('follow');
+      } else if (beat === 'gate_arrival') {
+        setTutorialStage('cinematic');
+        setOpeningLine(0);
+        setOpeningPhase('gate');
+      } else if (beat === 'mirella_arrival') {
+        setTutorialStage('cinematic');
+        setOpeningLine(0);
+        setOpeningPhase('mirella');
       }
     };
 
@@ -925,6 +948,23 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
       setOpeningPhase(null);
       setTutorialStage('explore');
       engineRef.current?.revealThreeEchoes();
+      return;
+    }
+    if (openingPhase === 'gate') {
+      setOpeningPhase(null);
+      setTutorialStage('follow');
+      engineRef.current?.beginPippoEscort();
+      return;
+    }
+    if (openingPhase === 'mirella') {
+      setOpeningLine(0);
+      setOpeningPhase('rest');
+      return;
+    }
+    if (openingPhase === 'rest') {
+      setOpeningPhase(null);
+      setTutorialStage('follow');
+      engineRef.current?.finishOpeningRest();
       return;
     }
     setOpeningPhase(null);
@@ -1675,7 +1715,10 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
                 {openingPhase === 'awakening' ? 'O SOM NA ESCURIDÃO' :
                   openingPhase === 'discovery' ? 'SOL BEMOL' :
                     openingPhase === 'encounter' ? 'CRIATURAS DISSONANTES' :
-                      openingPhase === 'aftermath' ? 'MEMÓRIA DO CORPO' : 'TRÊS ECOS'}
+                      openingPhase === 'aftermath' ? 'MEMÓRIA DO CORPO' :
+                        openingPhase === 'echoes' ? 'TRÊS ECOS' :
+                          openingPhase === 'gate' ? 'O MENINO DA LANTERNA' :
+                            openingPhase === 'mirella' ? 'ABRIGO' : 'ANTES DO AMANHECER'}
               </p>
             </div>
 
@@ -1713,7 +1756,13 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
                               ? 'Preparar-se'
                               : openingPhase === 'aftermath'
                                 ? 'Seguir as luzes'
-                                : 'Seguir os Ecos'}
+                                : openingPhase === 'echoes'
+                                  ? 'Seguir os Ecos'
+                                  : openingPhase === 'gate'
+                                    ? 'Ir com Pippo'
+                                    : openingPhase === 'mirella'
+                                      ? 'Descansar'
+                                      : 'Amanhecer'}
                       <ChevronRight className="w-4 h-4" />
                     </button>
                   </div>

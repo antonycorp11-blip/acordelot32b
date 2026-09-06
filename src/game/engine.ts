@@ -1150,14 +1150,16 @@ export class GameEngine {
   companionVisible = false;
   storyControlLocked = false;
   storyObjective: { title: string; text: string; progress: number; target: number; ready: boolean } | null = null;
-  onStoryBeat?: (beat: 'movement_learned' | 'attack_learned' | 'opening_sound_found' | 'shinkers_appear' | 'shinkers_defeated' | 'three_echoes_found' | 'opening_mission_complete') => void;
+  onStoryBeat?: (beat: 'movement_learned' | 'attack_learned' | 'opening_sound_found' | 'shinkers_appear' | 'shinkers_defeated' | 'three_echoes_found' | 'gate_arrival' | 'mirella_arrival' | 'opening_mission_complete') => void;
   private openingSoundTarget: Point | null = null;
-  private storyStage: 'idle' | 'follow_vibration' | 'sol_bemol_scene' | 'find_origin' | 'encounter_scene' | 'fight' | 'aftermath' | 'find_echoes' | 'echo_scene' | 'follow_echoes' | 'complete' = 'idle';
+  private storyStage: 'idle' | 'follow_vibration' | 'sol_bemol_scene' | 'find_origin' | 'encounter_scene' | 'fight' | 'aftermath' | 'find_echoes' | 'echo_scene' | 'follow_echoes' | 'gate_scene' | 'follow_pippo' | 'mirella_scene' | 'complete' = 'idle';
   private storyMoveOrigin: Point | null = null;
   private storyMovementTaught = false;
   private storyAttackTaught = false;
   private storyEnemyIds = new Set<string>();
   private storyEchoIds = new Set<string>();
+  private suspendedStoryEnemies: Enemy[] = [];
+  private storyCheckpoint: Point | null = null;
   private storyActorMoves: Array<{
     kind: 'player' | 'npc' | 'enemy';
     id?: string;
@@ -2061,7 +2063,7 @@ export class GameEngine {
       this.syncPropAutoCollider(p);
     }
 
-    this.loadMapFromStorage();
+    this.loadMapFromStorage(true);
     this.ensureBossArena();
     this.rebuildColliderGrid();
     this.initHarvestables();
@@ -2357,11 +2359,15 @@ export class GameEngine {
     this.storyEnemyIds.clear();
     this.storyEchoIds.clear();
     this.storyActorMoves = [];
-    this.enemies = this.enemies.filter((enemy) => !enemy.id.startsWith('enemy_90') && !enemy.id.startsWith('enemy_91'));
+    // A abertura é uma instância narrativa: nenhum monstro normal do mundo
+    // aparece, agride ou interfere até Akles dormir em segurança.
+    this.suspendedStoryEnemies = this.enemies.filter((enemy) => !enemy.id.startsWith('enemy_90') && !enemy.id.startsWith('enemy_91'));
+    this.enemies = [];
     this.openingSoundTarget = { x: 36 * TILE_SIZE, y: 150 * TILE_SIZE };
     this.player.x = 36 * TILE_SIZE;
     this.player.y = 156 * TILE_SIZE;
     this.storyMoveOrigin = { x: this.player.x, y: this.player.y };
+    this.storyCheckpoint = { x: this.player.x, y: this.player.y };
     this.storyMovementTaught = false;
     this.storyAttackTaught = false;
     this.player.vx = 0;
@@ -2415,6 +2421,7 @@ export class GameEngine {
     this.storyStage = 'fight';
     this.openingSoundTarget = null;
     this.playerInvuln = 1.2;
+    this.storyCheckpoint = { x: this.player.x, y: this.player.y };
     const spawns: Array<[number, number, number]> = [[34, 145, 900001], [38, 145, 900002]];
     for (const [col, row, id] of spawns) {
       if (this.spawnEnemy('nocturno', col, row, id, 1)) {
@@ -2464,7 +2471,7 @@ export class GameEngine {
   finishThreeEchoes() {
     this.storyControlLocked = false;
     this.storyStage = 'follow_echoes';
-    this.autoDayCycle = true;
+    this.autoDayCycle = false;
     this.playerInvuln = Math.max(this.playerInvuln, 5);
     this.storyObjective = {
       title: 'Despertar sem Nome',
@@ -2473,12 +2480,66 @@ export class GameEngine {
       target: 1,
       ready: false,
     };
-    const targets: Array<[number, number]> = [[35, 134], [37, 134], [36, 133]];
+    const gate = this.props.find((prop) => prop.type === 'wallGate');
+    const gateCol = gate ? (gate.x + gate.w / 2) / TILE_SIZE : 36;
+    const gateRow = gate ? (gate.y + gate.h + 46) / TILE_SIZE : 72;
+    const targets: Array<[number, number]> = [[gateCol - .8, gateRow], [gateCol + .8, gateRow], [gateCol, gateRow - .7]];
     [...this.storyEchoIds].forEach((id, index) => {
       const [col, row] = targets[index] ?? targets[0];
       this.moveStoryActor('enemy', id, col * TILE_SIZE + 8, row * TILE_SIZE + 8, 38);
     });
     this.onQuestsChange?.();
+  }
+
+  private ensureStoryNpc(id: string, name: string, spriteType: NPC['spriteType'], x: number, y: number, accent: string) {
+    let npc = this.npcs.find((candidate) => candidate.id === id);
+    if (!npc) {
+      npc = {
+        id, name, title: 'Personagem da história', spriteType, accent,
+        x, y, vx: 0, vy: 0, direction: 'down', frame: 0, isMoving: false,
+        stepTimer: 0, width: 28, height: 40,
+        homeX: x, homeY: y, patrolRadius: 0, wanderTimer: 0, idleTimer: 0,
+        wanderTarget: null, speed: 44,
+        collider: { offsetX: 8, offsetY: 28, w: 12, h: 10 },
+        route: [{ x, y }], routeIdx: 0, routePause: 0,
+      };
+      this.npcs.push(npc);
+    }
+    npc.x = x; npc.y = y; npc.homeX = x; npc.homeY = y;
+    return npc;
+  }
+
+  beginPippoEscort() {
+    this.storyStage = 'follow_pippo';
+    this.storyControlLocked = false;
+    const gate = this.props.find((prop) => prop.type === 'wallGate');
+    const startX = gate ? gate.x + gate.w / 2 : 36 * TILE_SIZE;
+    const startY = gate ? gate.y + gate.h + 28 : 72 * TILE_SIZE;
+    const pippo = this.ensureStoryNpc('story_pippo', 'Pippo', 'seminima', startX + 28, startY, '#fbbf24');
+    const destination = { x: 36 * TILE_SIZE, y: 34 * TILE_SIZE };
+    const mirella = this.ensureStoryNpc('story_mirella', 'Mirella', 'cadencia', destination.x + 42, destination.y - 8, '#c084fc');
+    mirella.direction = 'down';
+    this.moveStoryActor('npc', pippo.id, destination.x, destination.y, 48);
+    this.storyObjective = { title: 'Despertar sem Nome', text: 'Siga Pippo até Mirella', progress: 0, target: 1, ready: false };
+    this.onQuestsChange?.();
+  }
+
+  finishOpeningRest() {
+    this.storyStage = 'complete';
+    this.storyControlLocked = false;
+    this.autoDayCycle = true;
+    this.setTimeOfDay('day');
+    this.stats.hp = this.stats.maxHp;
+    this.playerInvuln = 4;
+    this.enemies = [
+      ...this.enemies.filter((enemy) => !this.storyEnemyIds.has(enemy.id) && !this.storyEchoIds.has(enemy.id)),
+      ...this.suspendedStoryEnemies,
+    ];
+    this.suspendedStoryEnemies = [];
+    this.storyObjective = { title: 'Despertar sem Nome', text: 'Missão concluída', progress: 1, target: 1, ready: true };
+    this.onStatsChange?.({ ...this.stats });
+    this.onQuestsChange?.();
+    this.onStoryBeat?.('opening_mission_complete');
   }
 
   unlockCompanion() {
@@ -2507,6 +2568,12 @@ export class GameEngine {
           ? this.npcs.find((npc) => npc.id === move.id)
           : this.enemies.find((enemy) => enemy.id === move.id);
       if (!actor) return false;
+      const guidedActor = (this.storyStage === 'follow_echoes' && move.kind === 'enemy' && !!move.id && this.storyEchoIds.has(move.id))
+        || (this.storyStage === 'follow_pippo' && move.kind === 'npc' && move.id === 'story_pippo');
+      if (guidedActor && Math.hypot(actor.x - this.player.x, actor.y - this.player.y) > 145) {
+        if ('isMoving' in actor) actor.isMoving = false;
+        return true;
+      }
       const dx = move.x - actor.x;
       const dy = move.y - actor.y;
       const distance = Math.hypot(dx, dy);
@@ -3254,11 +3321,12 @@ export class GameEngine {
     }
   }
 
-  loadMapFromStorage() {
+  loadMapFromStorage(preferBundled = false) {
     try {
       let parsed: Array<{ id: string; type: string; x: number; y: number; scale: number }> | null = null;
+      const bundled = initialCustomMap as Array<{ id: string; type: string; x: number; y: number; scale: number }>;
       const data = localStorage.getItem('acordelot_map_v3');
-      if (data) {
+      if (!preferBundled && data) {
         try {
           parsed = JSON.parse(data);
         } catch (e) {
@@ -3269,15 +3337,8 @@ export class GameEngine {
       // Sem edições do usuário: usa o customMapLayout.json versionado se ele
       // tiver conteúdo; caso contrário mantém o layout padrão de buildMap().
       if (!parsed || !Array.isArray(parsed) || parsed.length === 0) {
-        const initial = initialCustomMap as Array<{
-          id: string;
-          type: string;
-          x: number;
-          y: number;
-          scale: number;
-        }>;
-        if (!Array.isArray(initial) || initial.length === 0) return;
-        parsed = initial;
+        if (!Array.isArray(bundled) || bundled.length === 0) return;
+        parsed = bundled;
       }
 
       if (!Array.isArray(parsed)) return;
@@ -3291,6 +3352,7 @@ export class GameEngine {
       // abaixo de DARK_START. Guardamos os originais para reanexar depois — a menos
       // que o snapshot já traga aquele id (usuário editou/moveu/apagou a sombria).
       const darkLine = DARK_START * TILE_SIZE;
+      const snapshotCoversDarkForest = parsed.some((item) => item.y >= darkLine);
       const darkProceduralProps = this.props.filter(
         (p) => EDITABLE_PROP_METAS[p.type] && p.y >= darkLine,
       );
@@ -3327,10 +3389,12 @@ export class GameEngine {
       }
 
       // Reanexa a Floresta Sombria procedural que o snapshot não cobre.
-      for (const dp of darkProceduralProps) {
-        if (savedIds.has(dp.id)) continue;
-        this.syncPropAutoCollider(dp);
-        rebuiltProps.push(dp);
+      if (!snapshotCoversDarkForest) {
+        for (const dp of darkProceduralProps) {
+          if (savedIds.has(dp.id)) continue;
+          this.syncPropAutoCollider(dp);
+          rebuiltProps.push(dp);
+        }
       }
 
       this.props = rebuiltProps;
@@ -3765,14 +3829,21 @@ export class GameEngine {
     this.addDamageText(this.player.x + 12, this.player.y - 4, `-${n}`, '#f87171', true);
     this.onStatsChange?.({ ...s });
     if (s.hp <= 0) {
-      // renasce na vila
+      // Durante a abertura, nunca quebra a narrativa mandando Akles à praça.
       s.hp = s.maxHp;
-      this.player.x = this.spawnPoint.x;
-      this.player.y = this.spawnPoint.y;
+      const respawn = this.storyStage !== 'complete' && this.storyCheckpoint
+        ? this.storyCheckpoint
+        : this.spawnPoint;
+      this.player.x = respawn.x;
+      this.player.y = respawn.y;
       this.player.actionState = 'idle';
       this.playerInvuln = 1.6;
       this.onStatsChange?.({ ...s });
-      this.onHarvestPopup?.('Você tombou... de volta à Vila', this.spawnPoint.x, this.spawnPoint.y);
+      this.onHarvestPopup?.(
+        this.storyStage !== 'complete' ? 'A melodia o traz de volta ao último passo…' : 'Você tombou... de volta à Vila',
+        respawn.x,
+        respawn.y,
+      );
     }
   }
 
@@ -4550,6 +4621,7 @@ export class GameEngine {
 
   updateNpcs(dt: number) {
     for (const npc of this.npcs) {
+      if (this.storyActorMoves.some((move) => move.kind === 'npc' && move.id === npc.id)) continue;
       if (npc.spriteType === 'merchant' || npc.isMerchant) continue;
       const talking = this.talkingNpcId === npc.id;
       const route = npc.route;
@@ -5330,12 +5402,32 @@ export class GameEngine {
         .map((id) => this.enemies.find((enemy) => enemy.id === id && enemy.state !== 'dead'))
         .filter((enemy): enemy is Enemy => !!enemy);
       const lead = living.sort((a, b) => a.y - b.y)[0];
-      if (lead && lead.y < 136 * TILE_SIZE && Math.hypot(lead.x - this.player.x, lead.y - this.player.y) < 150) {
-        this.storyStage = 'complete';
-        this.autoDayCycle = true;
-        this.storyObjective = { title: 'Despertar sem Nome', text: 'Missão concluída', progress: 1, target: 1, ready: true };
+      const gate = this.props.find((prop) => prop.type === 'wallGate');
+      const gateX = gate ? gate.x + gate.w / 2 : 36 * TILE_SIZE;
+      const gateY = gate ? gate.y + gate.h + 46 : 72 * TILE_SIZE;
+      if (lead && Math.hypot(lead.x - gateX, lead.y - gateY) < 90 && Math.hypot(gateX - this.player.x, gateY - this.player.y) < 180) {
+        this.storyStage = 'gate_scene';
+        this.storyControlLocked = true;
+        this.player.vx = 0;
+        this.player.vy = 0;
+        this.ensureStoryNpc('story_pippo', 'Pippo', 'seminima', gateX + 28, gateY - 12, '#fbbf24');
+        this.storyObjective = { title: 'Despertar sem Nome', text: 'Os portões de Acordelot', progress: 1, target: 1, ready: true };
         this.onQuestsChange?.();
-        this.onStoryBeat?.('opening_mission_complete');
+        this.onStoryBeat?.('gate_arrival');
+      }
+    }
+
+    if (!this.storyControlLocked && this.storyStage === 'follow_pippo') {
+      const pippo = this.npcs.find((npc) => npc.id === 'story_pippo');
+      const mirella = this.npcs.find((npc) => npc.id === 'story_mirella');
+      if (pippo && mirella && Math.hypot(pippo.x - mirella.x, pippo.y - mirella.y) < 80 && Math.hypot(this.player.x - mirella.x, this.player.y - mirella.y) < 150) {
+        this.storyStage = 'mirella_scene';
+        this.storyControlLocked = true;
+        this.player.vx = 0;
+        this.player.vy = 0;
+        this.storyObjective = { title: 'Despertar sem Nome', text: 'Abrigo de Mirella', progress: 1, target: 1, ready: true };
+        this.onQuestsChange?.();
+        this.onStoryBeat?.('mirella_arrival');
       }
     }
 

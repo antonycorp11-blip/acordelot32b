@@ -1191,6 +1191,7 @@ export class GameEngine {
   nearestNpcId: string | null = null;
   talkingNpcId: string | null = null;
   onInteractionChange?: (state: InteractionState) => void;
+  private _npcSyncTimer: number = 0; // re-sincroniza posições fixas periodicamente
 
   // Balões de fala (NPCs, Akles e Chat Multiplayer)
   private bubbles: Array<{
@@ -3284,8 +3285,8 @@ export class GameEngine {
         'Sou Dório. Esta é a Ferraria Harmônica: o único lugar seguro para sintetizar metais e cristais.',
         'Madeira inicia uma ferramenta. Ouro dá ritmo ao impacto. Cristal faz a matéria lembrar onde deve quebrar.',
         'Armas também sobem de +1, +2 e além somente na minha bigorna. Skills e passivas continuam sendo treinadas nos seus próprios painéis.',
-        'Escolha com cuidado lá dentro: refinar materiais, forjar ferramentas ou aprimorar a arma equipada.',
-        'E uma regra importante: se ouvir a bigorna responder ao seu nome, não responda de volta.',
+        'Primeira visita merece um presente de ferreiro. Tome: madeira, pedra e ouro refinado — suficiente para forjar seu primeiro machado e sua primeira picareta dourados.',
+        'Escolha com cuidado lá dentro: primeiro as ferramentas, depois venha falar de armas. E se ouvir a bigorna responder ao seu nome, não responda de volta.',
       ] : [
         'A forja está acesa. Hoje ela parece bem-humorada — só queimou duas luvas.',
         'Entre e escolha: síntese, ferramentas ou aprimoramento de arma.',
@@ -3378,12 +3379,18 @@ export class GameEngine {
       }
     } else if (talking?.id === 'npc_ferreiro') {
       if (this.voicesMissionAccepted && this.marketIntroStage === 'smith_intro') {
+        // Presente de boas-vindas: materiais exatos para forjar machado dourado + picareta dourada
+        // Custo de cada: { wood:5, stone:5, gold_refined:1 } × 2 ferramentas
+        this.addToInventory('wood', 10);
+        this.addToInventory('stone', 10);
+        this.addToInventory('gold_refined', 2);
+        this.onInventoryChange?.({ ...this.inventory });
         this.marketIntroStage = 'collecting';
         const woodCount = Math.min(3, this.inventory['wood'] || 0);
         const stoneCount = Math.min(3, this.inventory['stone'] || 0);
         this.storyObjective = {
           title: 'A Primeira Coleta do Mercado',
-          text: `Colete Madeira (${woodCount}/3) e Pedra (${stoneCount}/3) para Miro`,
+          text: `Forje as ferramentas na ferraria, depois colete Madeira (${woodCount}/3) e Pedra (${stoneCount}/3) para Miro`,
           progress: 0,
           target: 2,
           ready: false,
@@ -5951,6 +5958,12 @@ export class GameEngine {
     if (this.companionVisible) this.updateCompanion(dt);
     this.updateRemotePlayers(dt);
     this.updateNpcs(dt);
+    // Re-sincroniza posições fixas de NPCs a cada 2s (Dório, Miro, Lucian seguem o prédio)
+    this._npcSyncTimer += dt;
+    if (this._npcSyncTimer >= 2) {
+      this._npcSyncTimer = 0;
+      this.syncFixedNpcPositions();
+    }
     this.updateFragments(dt);
     if (!this.storyControlLocked) this.updateEnemies(dt);
     this.updateLightBeams(dt);

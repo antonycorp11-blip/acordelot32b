@@ -9,6 +9,7 @@ interface Props {
   onClose: () => void;
   engine: GameEngine | null;
   inventory: Record<string, number>;
+  openOnTools?: boolean;
 }
 
 type ForgeTab = 'refine' | 'tools' | 'weapon';
@@ -36,14 +37,17 @@ const CostRow: React.FC<{ cost: Record<string, number>; inventory: Record<string
   </div>
 );
 
-export const ForgeScreen: React.FC<Props> = ({ open, onClose, engine, inventory }) => {
+export const ForgeScreen: React.FC<Props> = ({ open, onClose, engine, inventory, openOnTools }) => {
   const [tab, setTab] = React.useState<ForgeTab>('refine');
   const [message, setMessage] = React.useState('Dório: "Escolha o trabalho. A bigorna não gosta de indecisão."');
   const [, refresh] = React.useReducer((n) => n + 1, 0);
+  const [showGift, setShowGift] = React.useState(false);
 
   React.useEffect(() => {
     if (open) {
-      setTab('refine');
+      const firstForge = openOnTools || engine?.marketIntroStage === 'collecting';
+      setTab(firstForge ? 'tools' : 'refine');
+      setShowGift(!!firstForge);
       setMessage('Dório: "Escolha o trabalho. A bigorna não gosta de indecisão."');
     }
   }, [open]);
@@ -156,6 +160,16 @@ export const ForgeScreen: React.FC<Props> = ({ open, onClose, engine, inventory 
           {/* — FERRAMENTAS — */}
           {tab === 'tools' && (
             <div>
+              {showGift && (
+                <div className="mb-3 flex items-start gap-3 rounded-xl border border-amber-500/50 bg-amber-950/40 p-3">
+                  <span className="text-2xl shrink-0">🎁</span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-black text-amber-200">Presente de Dório recebido!</p>
+                    <p className="text-[10px] text-amber-300/80 mt-0.5">Madeira ×10 · Pedra ×10 · Ouro refinado ×2 — suficiente para forjar machado e picareta dourados.</p>
+                  </div>
+                  <button type="button" onClick={() => setShowGift(false)} className="shrink-0 text-amber-400/60 hover:text-amber-200 text-lg leading-none">×</button>
+                </div>
+              )}
               <p className="text-[11px] text-slate-400 mb-3">Cada tier exige o anterior. A ferramenta recém-forjada fica equipada.</p>
               <div className="grid grid-cols-1 gap-3">
                 {(['axe', 'pick'] as const).map((kind) => (

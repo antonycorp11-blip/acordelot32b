@@ -39,6 +39,7 @@ import { DayCycleIndicator } from './DayCycleIndicator';
 import { SynthesisScreen } from './SynthesisScreen';
 import { PartituraScreen } from './PartituraScreen';
 import { WeaponScreen } from './WeaponScreen';
+import { ForgeScreen } from './ForgeScreen';
 import { CatalogScreen } from './CatalogScreen';
 import { QuestScreen } from './QuestScreen';
 import { HudIcon } from './HudIcon';
@@ -138,6 +139,7 @@ const NPC_PORTRAIT_SOURCES: Record<string, { src: string; sheet?: 'npc' | 'guard
   merchant: { src: '/assets/ancient-ruins/Characters/NPC Merchant-idle.png', sheet: 'npc' },
   antony: { src: '/assets/characters/npcs/sr_antony.png', sheet: 'npc' },
   lucian: { src: '/assets/characters/npcs/lucian_portrait.png', sheet: 'portrait' },
+  blacksmith: { src: '/assets/characters/npcs/blacksmith_portrait.png', sheet: 'portrait' },
 };
 
 interface PropPaletteItem {
@@ -596,6 +598,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
   const [showSynth, setShowSynth] = useState(false);
   const [showPartitura, setShowPartitura] = useState(false);
   const [showWeapon, setShowWeapon] = useState(false);
+  const [showForge, setShowForge] = useState(false);
   const [showCatalog, setShowCatalog] = useState(false);
   const [showQuests, setShowQuests] = useState(false);
   const [showWorldMap, setShowWorldMap] = useState(false);
@@ -1193,11 +1196,13 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
   };
 
   const handleCloseDialogue = () => {
+    const enterForge = interaction.npc?.isBlacksmith === true;
     engineRef.current?.clearInputState();
     engineRef.current?.closeDialogue();
     setShowShop(false);
     setShopMessage(null);
     setDialogueIdx(0);
+    if (enterForge) setShowForge(true);
   };
 
   const handleShopPurchase = (id: string) => {
@@ -2122,6 +2127,13 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
         inventory={inventory}
       />
 
+      <ForgeScreen
+        open={showForge && !isEditMode}
+        onClose={() => setShowForge(false)}
+        engine={engineRef.current}
+        inventory={inventory}
+      />
+
       <CatalogScreen
         open={showCatalog && !isEditMode}
         onClose={() => setShowCatalog(false)}
@@ -2402,6 +2414,8 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
                         ? 'Continuar'
                         : interaction.npc?.isMerchant
                           ? 'Ver loja'
+                          : interaction.npc?.isBlacksmith
+                            ? 'Entrar na ferraria'
                           : 'Encerrar'}
                     </span>
                     <ChevronRight className="w-4 h-4" />
@@ -2458,7 +2472,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
                   })}
                 </div>
                 {shopMessage && <p className="text-[10px] text-center text-amber-200 mb-2">{shopMessage}</p>}
-                <p className="text-[9px] text-slate-500 mb-3">◆ Ouro sintetizado é produzido a partir do ouro bruto na tela de Síntese.</p>
+                <p className="text-[9px] text-slate-500 mb-3">◆ Ouro e cristais brutos são sintetizados somente na Ferraria Harmônica.</p>
                 <div className="flex justify-end">
                   <button
                     type="button"

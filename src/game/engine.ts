@@ -274,7 +274,6 @@ export interface ShopItemDef {
 }
 
 export const SHOP_ITEMS: ShopItemDef[] = [
-  { id: 'refine_gold', item: 'gold_refined', name: 'Síntese de Ouro', description: 'Converte 5 ouros brutos em 1 barra.', quantity: 1, dailyLimit: 10, currency: 'gold_raw', price: 5, img: '/assets/items/props/gold_refined.png', icon: '◆' },
   { id: 'bag_expansion', item: 'bag_expansion', name: 'Expansão da Mochila', description: '+10 kg permanentes (máximo de 5).', quantity: 1, dailyLimit: 1, currency: 'gold_refined', price: 4, icon: '🎒' },
   { id: 'heal', item: 'potion_heal', name: 'Poção de Cura', description: 'Recupera 45 de vida.', quantity: 1, dailyLimit: 5, currency: 'gold_raw', price: 3, img: ITEM_META.potion_heal.img, icon: '🧪' },
   { id: 'basic', item: 'potion_basic', name: 'Tônico de Combate', description: '+20% no ataque básico por 5 min.', quantity: 1, dailyLimit: 2, currency: 'gold_refined', price: 1, img: ITEM_META.potion_basic.img, icon: '⚔️' },
@@ -539,6 +538,7 @@ export interface InteractionNpc {
   accent: string;
   dialogue: string[];
   isMerchant: boolean;
+  isBlacksmith?: boolean;
   spriteType?: NPC['spriteType'];
 }
 export interface InteractionState {
@@ -623,13 +623,13 @@ export const EDITABLE_PROP_METAS: Record<
   blacksmithFront: {
     category: 'building',
     name: 'Ferraria & Forja da Vila (Frente)',
-    baseW: 120,
-    baseH: 120,
+    baseW: 125,
+    baseH: 152,
     colOffXRatio: 0.1,
     colOffYRatio: 0.72,
     colWRatio: 0.8,
     colHRatio: 0.22,
-    sortYOffset: 116,
+    sortYOffset: 148,
     canDelete: true,
     canDuplicate: true,
   },
@@ -1158,7 +1158,7 @@ export class GameEngine {
   private openingMissionComplete = true;
   private antonyMissionComplete = false;
   voicesMissionAccepted = false;
-  marketIntroStage: 'not_started' | 'intro' | 'collecting' | 'completed' = 'not_started';
+  marketIntroStage: 'not_started' | 'intro' | 'smith_intro' | 'collecting' | 'completed' = 'not_started';
   lucianMeetingRewarded = false;
   private storyMoveOrigin: Point | null = null;
   private storyMovementTaught = false;
@@ -1387,10 +1387,10 @@ export class GameEngine {
   // Ferramentas de coleta (Akles NÃO segura na mão — a ferramenta aparece ao
   // lado dele e bate no alvo durante a coleta; ele fica parado).
   static readonly TOOL_TIERS: ToolTier[] = ['wood', 'gold', 'crystal'];
-  ownedAxes: ToolTier[] = ['wood', 'gold', 'crystal'];
-  ownedPicks: ToolTier[] = ['wood', 'gold', 'crystal'];
-  equippedAxe: ToolTier = 'crystal';
-  equippedPick: ToolTier = 'crystal';
+  ownedAxes: ToolTier[] = ['wood'];
+  ownedPicks: ToolTier[] = ['wood'];
+  equippedAxe: ToolTier = 'wood';
+  equippedPick: ToolTier = 'wood';
   onToolsChange?: (t: { axe: ToolTier; pick: ToolTier }) => void;
   // alvo da coleta atual (para a ferramenta apontar/bater no lugar certo)
   private harvestFxNode: WorldProp | null = null;
@@ -1421,7 +1421,7 @@ export class GameEngine {
     const cost = d.upgradeCost(this.weaponLevel);
     return Object.entries(cost).every(([k, n]) => (this.inventory[k] || 0) >= n);
   }
-  upgradeWeapon(): boolean {
+  upgradeWeaponAtForge(): boolean {
     if (!this.canUpgradeWeapon()) return false;
     const cost = this.weaponDef.upgradeCost(this.weaponLevel);
     for (const [k, n] of Object.entries(cost)) {
@@ -1436,6 +1436,53 @@ export class GameEngine {
       this.player.x,
       this.player.y - 20,
     );
+    return true;
+  }
+  /** Compatibilidade: o aprimoramento físico não pode mais ocorrer fora da ferraria. */
+  upgradeWeapon(): boolean { return false; }
+
+  forgeMaterial(kind: 'gold' | 'crystal_blue' | 'crystal_red'): { ok: boolean; message: string } {
+    const raw = `${kind}_raw`;
+    const refined = `${kind}_refined`;
+    const need = kind === 'gold' ? 5 : 3;
+    if ((this.inventory[raw] || 0) < need) {
+      return { ok: false, message: `Faltam materiais: são necessárias ${need} unidades brutas.` };
+    }
+    this.inventory[raw] -= need;
+    if (this.inventory[raw] <= 0) delete this.inventory[raw];
+    this.addToInventory(refined, 1);
+    this.onInventoryChange?.({ ...this.inventory });
+    return { ok: true, message: `Síntese concluída: 1 ${ITEM_META[refined]?.name ?? 'material refinado'}!` };
+  }
+
+  toolForgeCost(tier: ToolTier): Record<string, number> | null {
+    if (tier === 'wood') return null;
+    return tier === 'gold'
+      ? { wood: 5, stone: 5, gold_refined: 1 }
+      : { wood: 8, stone: 8, gold_refined: 2, crystal_blue_refined: 2 };
+  }
+
+  canForgeTool(kind: 'axe' | 'pick', tier: ToolTier): boolean {
+    const owned = kind === 'axe' ? this.ownedAxes : this.ownedPicks;
+    if (owned.includes(tier)) return false;
+    const prior: ToolTier = tier === 'crystal' ? 'gold' : 'wood';
+    if (!owned.includes(prior)) return false;
+    const cost = this.toolForgeCost(tier);
+    return !!cost && Object.entries(cost).every(([key, amount]) => (this.inventory[key] || 0) >= amount);
+  }
+
+  forgeTool(kind: 'axe' | 'pick', tier: ToolTier): boolean {
+    if (!this.canForgeTool(kind, tier)) return false;
+    const cost = this.toolForgeCost(tier)!;
+    for (const [key, amount] of Object.entries(cost)) {
+      this.inventory[key] -= amount;
+      if (this.inventory[key] <= 0) delete this.inventory[key];
+    }
+    const owned = kind === 'axe' ? this.ownedAxes : this.ownedPicks;
+    owned.push(tier);
+    this.equipTool(kind, tier);
+    this.saveTools();
+    this.onInventoryChange?.({ ...this.inventory });
     return true;
   }
   // Troca a arma equipada (catálogo — sem gate de posse por enquanto).
@@ -1878,6 +1925,8 @@ export class GameEngine {
     const ids: string[] = ['MQ_C1_001_DESPERTAR_SEM_NOME'];
     if (this.antonyMissionComplete) ids.push('MQ_C1_002_ESTRADA_PARA_ACORDELOT');
     if (this.voicesMissionAccepted) ids.push('MQ_C1_003_AS_VOZES_DE_ACORDELOT_ACCEPTED');
+    if (this.marketIntroStage === 'smith_intro') ids.push('SQ_FERRARIA_APRESENTADA');
+    if (this.marketIntroStage === 'collecting') ids.push('SQ_COLETA_EM_ANDAMENTO');
     if (this.marketIntroStage === 'completed') ids.push('SQ_MERCADO_PRIMEIRA_COLETA');
     if (this.lucianMeetingRewarded) ids.push('MQ_C1_003_AS_VOZES_DE_ACORDELOT');
     return ids;
@@ -1891,6 +1940,10 @@ export class GameEngine {
       || ids.includes('MQ_C1_003_AS_VOZES_DE_ACORDELOT');
     if (ids.includes('SQ_MERCADO_PRIMEIRA_COLETA') || ids.includes('MQ_C1_003_AS_VOZES_DE_ACORDELOT')) {
       this.marketIntroStage = 'completed';
+    } else if (ids.includes('SQ_COLETA_EM_ANDAMENTO')) {
+      this.marketIntroStage = 'collecting';
+    } else if (ids.includes('SQ_FERRARIA_APRESENTADA')) {
+      this.marketIntroStage = 'smith_intro';
     } else if (this.voicesMissionAccepted) {
       this.marketIntroStage = 'intro';
     }
@@ -1964,6 +2017,8 @@ export class GameEngine {
           ? 'Aceite a missão para registrar seu objetivo.'
           : this.marketIntroStage === 'intro'
             ? 'Apresente-se a Miro no Mercado de Acordelot.'
+            : this.marketIntroStage === 'smith_intro'
+              ? 'Conheça Dório na Ferraria Harmônica, a oeste da praça.'
             : this.marketIntroStage === 'collecting'
               ? hasMaterials
                 ? 'Materiais reunidos! Fale com Miro no Mercado para entregar.'
@@ -1972,7 +2027,7 @@ export class GameEngine {
                 ? 'Miro visitado! Conheça Lucian na oficina ao oeste da praça.'
                 : 'Você conheceu os cidadãos influentes de Acordelot!',
       },
-      ...(this.marketIntroStage === 'collecting' || this.marketIntroStage === 'completed' ? [{
+      ...(this.marketIntroStage === 'smith_intro' || this.marketIntroStage === 'collecting' || this.marketIntroStage === 'completed' ? [{
         id: 'SQ_MERCADO_PRIMEIRA_COLETA',
         chapter: 'Secundária',
         title: 'A Primeira Coleta do Mercado',
@@ -1980,6 +2035,8 @@ export class GameEngine {
         status: this.marketIntroStage === 'completed' ? ('completed' as const) : ('active' as const),
         objective: this.marketIntroStage === 'completed'
           ? 'Materiais entregues a Miro! Recompensa recebida.'
+          : this.marketIntroStage === 'smith_intro'
+            ? 'Antes da coleta, aprenda sobre ferramentas e síntese com Dório na ferraria.'
           : hasMaterials
             ? 'Materiais prontos! Fale com Miro no Mercado.'
             : `Madeira: ${woodCount}/3 | Pedra: ${stoneCount}/3 (use machado e picareta)`,
@@ -2811,9 +2868,9 @@ export class GameEngine {
   }
 
   ensureLucian() {
-    const lodge = this.props.find((prop) => prop.id === 'b_lodge_west') ?? this.props.find((prop) => prop.type === 'lodgeWest');
-    const x = lodge ? lodge.x + 36 : 26 * TILE_SIZE;
-    const y = lodge ? lodge.y + lodge.h + 8 : 16 * TILE_SIZE;
+    const lodge = this.props.find((prop) => prop.id === 'b_blacksmith') ?? this.props.find((prop) => prop.type === 'blacksmithFront');
+    const x = lodge ? lodge.x + lodge.w + 12 : 24 * TILE_SIZE;
+    const y = lodge ? lodge.y + lodge.h + 6 : 23 * TILE_SIZE;
     const lucian = this.ensureStoryNpc('story_lucian', 'Lucian', 'lucian', x, y, '#eab308');
     lucian.title = 'Mestre Luthier';
     lucian.direction = 'down';
@@ -2824,6 +2881,7 @@ export class GameEngine {
     lucian.barks = [
       'Ouça essa ressonância...',
       'Uma madeira bem curada canta por gerações.',
+      'Estou ao lado da ferraria — Pippo diz que assim ninguém consegue me perder.',
     ];
     return lucian;
   }
@@ -3148,10 +3206,11 @@ export class GameEngine {
       let dialogue = n.dialogue ?? ['...'];
       if (this.voicesMissionAccepted && this.marketIntroStage === 'intro') {
         dialogue = [
-          'Olá, viajante! O Sr. Antony me avisou que você viria.',
-          'Sou Miro, responsável pelo abastecimento do Mercado de Acordelot.',
-          'Para aprender como nossa economia funciona, faça uma primeira coleta ao redor da praça.',
-          'Use seu machado e picareta para me trazer 3 Madeiras e 3 Pedras. Estarei esperando!',
+          'Você deve ser o rapaz sem memória. O Sr. Antony descreveu o cabelo; Pippo descreveu o apetite.',
+          'Sou Miro. Vendo poções, compro histórias e finjo não ouvir boatos depois do terceiro sino.',
+          'Preciso de 3 Madeiras e 3 Pedras. Parece pouco até uma árvore decidir cair para o lado errado.',
+          'Antes de coletar, procure Dório na Ferraria Harmônica, a oeste da praça. Ele ensinará ferramentas, síntese e forja.',
+          'E não peça desconto dizendo que foi enviado por mim. Ele aumenta o preço só para me irritar.',
         ];
       } else if (this.voicesMissionAccepted && this.marketIntroStage === 'collecting') {
         if (hasMaterials) {
@@ -3218,6 +3277,31 @@ export class GameEngine {
       };
     }
 
+    if (n.id === 'npc_ferreiro') {
+      const firstVisit = this.voicesMissionAccepted && this.marketIntroStage === 'smith_intro';
+      const dialogue = firstVisit ? [
+        'Então você é Akles. Miro disse que viria alguém sem memória. Eu esperava alguém menos... inteiro.',
+        'Sou Dório. Esta é a Ferraria Harmônica: o único lugar seguro para sintetizar metais e cristais.',
+        'Madeira inicia uma ferramenta. Ouro dá ritmo ao impacto. Cristal faz a matéria lembrar onde deve quebrar.',
+        'Armas também sobem de +1, +2 e além somente na minha bigorna. Skills e passivas continuam sendo treinadas nos seus próprios painéis.',
+        'Escolha com cuidado lá dentro: refinar materiais, forjar ferramentas ou aprimorar a arma equipada.',
+        'E uma regra importante: se ouvir a bigorna responder ao seu nome, não responda de volta.',
+      ] : [
+        'A forja está acesa. Hoje ela parece bem-humorada — só queimou duas luvas.',
+        'Entre e escolha: síntese, ferramentas ou aprimoramento de arma.',
+      ];
+      return {
+        id: n.id,
+        name: n.name,
+        title: n.title,
+        accent: n.accent ?? '#f59e0b',
+        dialogue,
+        isMerchant: false,
+        isBlacksmith: true,
+        spriteType: n.spriteType,
+      };
+    }
+
     return {
       id: n.id,
       name: n.name,
@@ -3262,12 +3346,10 @@ export class GameEngine {
     const talking = this.npcs.find((n) => n.id === this.talkingNpcId);
     if (talking?.id === 'npc_mercador_cidade') {
       if (this.voicesMissionAccepted && this.marketIntroStage === 'intro') {
-        this.marketIntroStage = 'collecting';
-        const woodCount = Math.min(3, this.inventory['wood'] || 0);
-        const stoneCount = Math.min(3, this.inventory['stone'] || 0);
+        this.marketIntroStage = 'smith_intro';
         this.storyObjective = {
           title: 'As Vozes de Acordelot',
-          text: `Colete Madeira (${woodCount}/3) e Pedra (${stoneCount}/3) para Miro`,
+          text: 'Conheça Dório na Ferraria Harmônica, a oeste da praça',
           progress: 0,
           target: 2,
           ready: false,
@@ -3293,6 +3375,20 @@ export class GameEngine {
           this.onInventoryChange?.({ ...this.inventory });
           this.onQuestsChange?.();
         }
+      }
+    } else if (talking?.id === 'npc_ferreiro') {
+      if (this.voicesMissionAccepted && this.marketIntroStage === 'smith_intro') {
+        this.marketIntroStage = 'collecting';
+        const woodCount = Math.min(3, this.inventory['wood'] || 0);
+        const stoneCount = Math.min(3, this.inventory['stone'] || 0);
+        this.storyObjective = {
+          title: 'A Primeira Coleta do Mercado',
+          text: `Colete Madeira (${woodCount}/3) e Pedra (${stoneCount}/3) para Miro`,
+          progress: 0,
+          target: 2,
+          ready: false,
+        };
+        this.onQuestsChange?.();
       }
     } else if (talking?.id === 'story_lucian') {
       if (this.marketIntroStage === 'completed' && !this.lucianMeetingRewarded) {
@@ -3926,6 +4022,21 @@ export class GameEngine {
       merchant.y = market.y + market.h + 4;
       merchant.homeX = merchant.x; merchant.homeY = merchant.y;
       merchant.route = [{ x: merchant.x, y: merchant.y }]; merchant.routeIdx = 0;
+    }
+    const forge = this.props.find((p) => p.id === 'b_blacksmith') ?? this.props.find((p) => p.type === 'blacksmithFront');
+    const smith = this.npcs.find((n) => n.id === 'npc_ferreiro');
+    if (forge && smith) {
+      smith.x = forge.x + forge.w * .47 - smith.width / 2;
+      smith.y = forge.y + forge.h + 5;
+      smith.homeX = smith.x; smith.homeY = smith.y;
+      smith.route = [{ x: smith.x, y: smith.y }]; smith.routeIdx = 0;
+    }
+    const lucian = this.npcs.find((n) => n.id === 'story_lucian');
+    if (forge && lucian) {
+      lucian.x = forge.x + forge.w + 12;
+      lucian.y = forge.y + forge.h + 6;
+      lucian.homeX = lucian.x; lucian.homeY = lucian.y;
+      lucian.route = [{ x: lucian.x, y: lucian.y }]; lucian.routeIdx = 0;
     }
     const gate = this.props.find((p) => p.type === 'wallGate');
     const guard = this.npcs.find((n) => n.id === 'guard_muralha');
@@ -5395,7 +5506,7 @@ export class GameEngine {
     try {
       localStorage.setItem(
         'acordelot_tools_v1',
-        JSON.stringify({ axe: this.equippedAxe, pick: this.equippedPick }),
+        JSON.stringify({ axe: this.equippedAxe, pick: this.equippedPick, ownedAxes: this.ownedAxes, ownedPicks: this.ownedPicks }),
       );
     } catch {}
   }
@@ -5406,8 +5517,16 @@ export class GameEngine {
       if (!raw) return;
       const t = JSON.parse(raw);
       const tiers = GameEngine.TOOL_TIERS;
-      if (tiers.includes(t.axe)) this.equippedAxe = t.axe;
-      if (tiers.includes(t.pick)) this.equippedPick = t.pick;
+      if (Array.isArray(t.ownedAxes)) this.ownedAxes = t.ownedAxes.filter((tier: ToolTier) => tiers.includes(tier));
+      if (Array.isArray(t.ownedPicks)) this.ownedPicks = t.ownedPicks.filter((tier: ToolTier) => tiers.includes(tier));
+      if (tiers.includes(t.axe)) {
+        this.equippedAxe = t.axe;
+        if (!this.ownedAxes.includes(t.axe)) this.ownedAxes.push(t.axe);
+      }
+      if (tiers.includes(t.pick)) {
+        this.equippedPick = t.pick;
+        if (!this.ownedPicks.includes(t.pick)) this.ownedPicks.push(t.pick);
+      }
     } catch {}
   }
 
@@ -7615,6 +7734,32 @@ export class GameEngine {
           ctx.fillStyle = '#0f172a';
           ctx.font = 'bold 8px monospace';
           ctx.textAlign = 'center';
+          ctx.fillText('E', cx + npc.width / 2, my + 3);
+        }
+        return;
+      }
+    }
+
+    if (npc.spriteType === 'blacksmith') {
+      const sheet = npc.isMoving ? this.assets?.npcBlacksmithWalk : this.assets?.npcBlacksmithIdle;
+      if (sheet?.complete && sheet.naturalWidth > 0) {
+        const fw = 180, fh = 220, cols = 4, disp = 0.28;
+        const row = npc.direction === 'down' ? 0 : npc.direction === 'right' ? 1 : npc.direction === 'left' ? 2 : 3;
+        const col = npc.isMoving ? Math.floor(npc.stepTimer * .5) % cols : Math.floor(this.timeElapsed * 1.5) % cols;
+        const dispW = fw * disp, dispH = fh * disp;
+        const dx = Math.round(cx + npc.width / 2 - dispW / 2);
+        const dy = Math.round(cy + npc.height - dispH + 2);
+        ctx.fillStyle = 'rgba(0,0,0,.3)';
+        ctx.beginPath(); ctx.ellipse(cx + npc.width / 2, cy + npc.height - 2, 13, 5, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.save();
+        ctx.imageSmoothingEnabled = true;
+        ctx.drawImage(sheet, col * fw, row * fh, fw, fh, dx, dy, Math.round(dispW), Math.round(dispH));
+        ctx.restore();
+        if (this.nearestNpcId === npc.id && !this.talkingNpcId) {
+          const my = cy - 10 + Math.sin(this.timeElapsed * 5) * 2;
+          ctx.fillStyle = npc.accent ?? '#f59e0b';
+          ctx.beginPath(); ctx.arc(cx + npc.width / 2, my, 3, 0, Math.PI * 2); ctx.fill();
+          ctx.fillStyle = '#0f172a'; ctx.font = 'bold 8px monospace'; ctx.textAlign = 'center';
           ctx.fillText('E', cx + npc.width / 2, my + 3);
         }
         return;

@@ -108,6 +108,8 @@ export interface LoadedAssets {
   npcSrAntony: HTMLImageElement;
   npcLucianWalk: HTMLImageElement;
   npcLucianIdle: HTMLImageElement;
+  npcBlacksmithWalk: HTMLImageElement;
+  npcBlacksmithIdle: HTMLImageElement;
 
   // Akles - Herói Cavaleiro (sprite sheets 32-bit processadas)
   aklesIdle: HTMLImageElement;
@@ -275,6 +277,8 @@ const ASSET_PATHS: Record<keyof LoadedAssets, string> = {
   npcSrAntony: '/assets/characters/npcs/sr_antony.png',
   npcLucianWalk: '/assets/characters/npcs/lucian_walk.png',
   npcLucianIdle: '/assets/characters/npcs/lucian_idle.png',
+  npcBlacksmithWalk: '/assets/characters/npcs/blacksmith_walk.png',
+  npcBlacksmithIdle: '/assets/characters/npcs/blacksmith_idle.png',
 
   // Wins - Classe da Voz (personagem temporária) — 3 folhas separadas
   // (idle/walk/run são animações DIFERENTES, não a mesma reaproveitada).
@@ -311,7 +315,7 @@ const ASSET_PATHS: Record<keyof LoadedAssets, string> = {
   lodgeWest: '/assets/buildings/lodge_west.png',
   herbalistWest: '/assets/buildings/herbalist_west.png',
   herbalistEast: '/assets/buildings/herbalist_east.png',
-  blacksmithFront: '/assets/buildings/blacksmith_front.png',
+  blacksmithFront: '/assets/buildings/blacksmith_harmonic.png',
   residentialFront: '/assets/buildings/residential_front.png',
   apothecaryFront: '/assets/buildings/apothecary_front.png',
 

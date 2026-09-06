@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, Sword, ArrowUpCircle, CheckCircle2 } from 'lucide-react';
+import { X, Sword, Hammer, CheckCircle2 } from 'lucide-react';
 import type { GameEngine, StatKey } from '../game/engine';
 import { ITEM_META, WEAPON_DEFS, STAT_LABELS } from '../game/engine';
 import { weaponClass } from '../game/weapons';
@@ -36,11 +36,6 @@ export const WeaponScreen: React.FC<Props> = ({ open, onClose, engine, inventory
   const atk = def.baseAtk + def.atkPerLevel * (level - 1);
   const maxed = level >= def.maxLevel;
   const cost = !maxed ? def.upgradeCost(level) : null;
-  const canUpgrade = viewingEquipped && engine.canUpgradeWeapon();
-
-  const doUpgrade = () => {
-    if (engine.upgradeWeapon()) force();
-  };
   const doEquip = () => {
     if (engine.equipWeapon(safeSelected)) force();
   };
@@ -187,19 +182,10 @@ export const WeaponScreen: React.FC<Props> = ({ open, onClose, engine, inventory
                         );
                       })}
                   </div>
-                  <button
-                    type="button"
-                    onClick={doUpgrade}
-                    disabled={!canUpgrade}
-                    className={`w-full flex items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-xs font-bold transition-all ${
-                      canUpgrade
-                        ? 'bg-blue-600 text-white hover:bg-blue-500 active:scale-95 shadow-lg shadow-blue-600/25'
-                        : 'bg-slate-800 text-slate-600 cursor-not-allowed'
-                    }`}
-                  >
-                    <ArrowUpCircle className="w-4 h-4" />
-                    Upar arma
-                  </button>
+                  <div className="flex items-center justify-center gap-1.5 rounded-lg border border-amber-600/35 bg-amber-950/25 px-3 py-2 text-xs font-bold text-amber-200">
+                    <Hammer className="w-4 h-4" />
+                    Aprimore esta arma com Dório na ferraria
+                  </div>
                 </div>
               ))}
 

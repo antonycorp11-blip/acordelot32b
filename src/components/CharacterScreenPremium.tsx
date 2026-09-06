@@ -145,7 +145,7 @@ const CharacterTab: React.FC<{ engine: GameEngine; power: number; canLevelUp: bo
       <img src={PORTRAIT[key]} alt={s.name} className="absolute bottom-[2%] left-1/2 h-[89%] -translate-x-1/2 object-contain drop-shadow-[0_15px_16px_rgba(0,0,0,.8)] [image-rendering:auto]" />
       <p className="absolute bottom-[8%] left-[6%] max-w-[150px] -rotate-6 font-serif text-[clamp(13px,1.4vw,22px)] italic leading-snug text-[#f5c961] drop-shadow">A música move<br />novas histórias.</p>
     </section>
-    <section className="ac-character-detail min-w-0 flex-1 overflow-hidden p-[clamp(12px,1.4vw,24px)]">
+    <section className="ac-scroll-region ac-character-detail min-w-0 flex-1 overflow-y-auto overflow-x-hidden p-[clamp(12px,1.4vw,24px)]">
       <div className="grid grid-cols-[1fr_250px] gap-3">
         <div>
           <h2 className="font-serif text-[clamp(26px,2.4vw,42px)] font-bold leading-none text-white">{s.name}</h2>
@@ -196,7 +196,7 @@ const SkillsTab: React.FC<{ engine: GameEngine; inventory: Record<string, number
       <h3 className="mb-3 flex items-center gap-2 text-base font-black text-[#9fb1d0]"><Swords className="h-5 w-5 text-white" /> Skills Ativas</h3>
       <div className="space-y-2">{skills.map((item) => <button key={item.key} type="button" onClick={() => setSelectedKey(item.key)} className={`flex w-full items-center gap-3 rounded-xl border p-2 text-left transition ${item.key === skill.key ? 'border-[#f5cc54] bg-[#172641] shadow-[0_0_14px_rgba(245,204,84,.18)]' : 'border-[#263854] bg-[#08162a] hover:border-[#526783]'}`}><SkillOrb skill={item} /><div className="min-w-0 flex-1"><p className="truncate text-sm font-black text-white">{item.name}</p><p className="text-xs text-[#9fb1d0]">{item.kind}</p></div><b className="text-xs text-[#c5d1e7]">Nv. {item.key.startsWith('skill') ? engine.getSkillLevel(Number(item.key.slice(-1)) - 1) : engine.getAnyPassiveLevel(item.passiveIds[0])}</b></button>)}</div>
     </aside>
-    <section className="ac-skills-detail min-w-0 overflow-hidden p-5">
+    <section className="ac-scroll-region ac-skills-detail min-w-0 overflow-y-auto overflow-x-hidden p-5">
       <div className="ac-skills-hero grid grid-cols-[220px_minmax(0,1fr)_220px] gap-5">
         <div className="grid place-items-center rounded-2xl bg-[radial-gradient(circle,rgba(191,143,33,.18),transparent_68%)]"><SkillOrb skill={skill} large /></div>
         <div className="min-w-0"><h2 className="font-serif text-[clamp(25px,2.5vw,42px)] font-bold leading-tight text-white">{skill.name}</h2><span className="mt-2 inline-block rounded-lg border border-rose-500/70 bg-rose-950/50 px-3 py-1 text-xs font-black text-rose-300">{skill.kind}</span><div className="mt-4 flex items-center justify-between"><p className="font-serif text-2xl font-black text-white">Nv. {level} <span className="text-[#526783]">/ 5</span></p><span className="text-xs text-[#8194b5]">{level >= 5 ? 'Máximo' : 'Progresso da habilidade'}</span></div><div className="mt-2 h-3 rounded-full bg-[#263854]"><div className="h-full rounded-full bg-gradient-to-r from-sky-500 to-cyan-300" style={{ width: `${level * 20}%` }} /></div><p className="mt-5 text-[15px] leading-relaxed text-[#c1cbe0]">{skill.explanation}</p></div>
@@ -239,7 +239,7 @@ const EquipmentTab: React.FC<{ engine: GameEngine; inventory: Record<string, num
       {pieceArt ? <img src={pieceArt} alt={piece.name} className="absolute left-1/2 top-[43%] h-[42%] w-[82%] -translate-x-1/2 -translate-y-1/2 object-contain drop-shadow-[0_0_30px_rgba(245,194,64,.48)]" /> : <CircleDot className="absolute left-1/2 top-[43%] h-32 w-32 -translate-x-1/2 -translate-y-1/2 text-[#f0c34b] drop-shadow-[0_0_30px_rgba(245,194,64,.48)]" />}
       <Panel className="absolute inset-x-4 bottom-4 p-3 font-serif text-xs italic leading-relaxed text-[#b8c5dc]">“{piece.passive?.desc ?? `Uma peça de ${set.name}, afinada para acompanhar seu portador.`}”</Panel>
     </section>
-    <section className="ac-equipment-detail min-w-0 overflow-hidden p-5"><h2 className="font-serif text-[clamp(22px,2.2vw,38px)] font-bold leading-tight text-white">{piece.name}</h2><p className="mt-1 text-sm font-bold text-[#94a9ce]">{EQUIP_SLOT_LABEL[slot]} · Tier {set.tier} · {set.name}</p>
+    <section className="ac-scroll-region ac-equipment-detail min-w-0 overflow-y-auto overflow-x-hidden p-5"><h2 className="font-serif text-[clamp(22px,2.2vw,38px)] font-bold leading-tight text-white">{piece.name}</h2><p className="mt-1 text-sm font-bold text-[#94a9ce]">{EQUIP_SLOT_LABEL[slot]} · Tier {set.tier} · {set.name}</p>
       <div className="mt-3 grid grid-cols-[1fr_1fr] gap-3"><Panel className="border-[#d0a436]/70 px-4 py-3"><p className="font-serif text-3xl font-black text-[#ffe06b]">+{level} <span className="text-[#536987]">/ +15</span></p></Panel><Panel className="px-4 py-3"><p className="text-xs font-bold text-white">Nv. {engine.stats.level} <span className="text-[#5e7392]">/ 50</span></p><div className="mt-2 h-2 rounded bg-[#263854]"><div className="h-full w-1/4 rounded bg-sky-400" /></div></Panel></div>
       <div className="mt-3 grid grid-cols-2 gap-3"><Panel className="p-3"><h3 className="mb-2 text-sm font-black text-[#a9bae0]">Atributos Base</h3>{stats.map(([stat, value]) => { const Icon = STAT_ICON[stat] ?? Sparkles; return <div key={stat} className="flex items-center gap-2 border-b border-[#1d2d45] py-1.5 text-xs"><Icon className="h-4 w-4 text-sky-400" /><span className="flex-1 text-[#b1bfd6]">{STAT_LABELS[stat]}</span><b className="text-white">+{value}%</b></div>; })}</Panel><Panel className="p-3"><h3 className="mb-2 text-sm font-black text-[#a9bae0]">Aprimoramento (+{level})</h3>{stats.map(([stat, value]) => <div key={stat} className="flex justify-between border-b border-[#1d2d45] py-1.5 text-xs"><span className="text-[#b1bfd6]">{STAT_LABELS[stat]}</span><b className="text-white">+{Math.round(value * (1 + level * .08) * 10) / 10}%</b></div>)}</Panel></div>
       <div className="mt-3 grid grid-cols-2 gap-3"><Panel className="p-3"><h3 className="text-sm font-black text-[#a9bae0]">Habilidade Passiva</h3><p className="mt-2 text-sm font-black text-white">{piece.passive?.name ?? 'Afinação do Conjunto'}</p><p className="mt-1 text-[11px] leading-relaxed text-[#9fb0ca]">{piece.passive?.desc ?? 'Fortalece os atributos da peça a cada aprimoramento.'}</p></Panel><Panel className="p-3"><h3 className="text-sm font-black text-[#a9bae0]">{set.name}</h3><p className={`mt-3 text-xs ${setCount >= 2 ? 'text-[#ffe06b]' : 'text-[#7184a2]'}`}><b>2 peças</b> · {Object.entries(set.bonus2).map(([k,v]) => `+${v}% ${STAT_LABELS[k as StatKey]}`).join(', ')}</p><p className={`mt-2 text-xs ${setCount >= 4 ? 'text-[#ffe06b]' : 'text-[#7184a2]'}`}><b>4 peças</b> · {Object.entries(set.bonus4).map(([k,v]) => `+${v}% ${STAT_LABELS[k as StatKey]}`).join(', ')}</p></Panel></div>
@@ -283,10 +283,12 @@ export const CharacterScreen: React.FC<Props> = ({ open, onClose, stats, power, 
         .ac-skill-total > span:nth-child(2) { display: none !important; }
         .ac-roster { min-width: 58px !important; width: 7.5% !important; }
         .ac-character-stage { min-width: 0 !important; width: 40% !important; }
-        .ac-character-detail, .ac-skills-detail, .ac-equipment-detail { overflow: hidden !important; padding: 12px !important; }
+        .ac-character-detail, .ac-skills-detail, .ac-equipment-detail { overflow-x: hidden !important; overflow-y: auto !important; padding: 12px !important; overscroll-behavior: contain; }
         .ac-skills-hero { grid-template-columns: 170px minmax(0,1fr) 185px !important; gap: 12px !important; }
         .ac-equipment-actions { grid-template-columns: minmax(0,1fr) 130px !important; }
       }
+      .ac-scroll-region { scrollbar-width: none; -ms-overflow-style: none; }
+      .ac-scroll-region::-webkit-scrollbar { display: none; width: 0; height: 0; }
       @media (max-height: 330px) and (orientation: landscape) {
         .ac-sheet-main { zoom: .68; }
         .ac-sheet-head { height: 44px !important; }

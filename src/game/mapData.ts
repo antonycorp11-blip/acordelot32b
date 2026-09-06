@@ -63,7 +63,7 @@ const BUILDING_DIMS: Record<string, [number, number, number]> = {
   // tipo: [largura, altura, sortYOffset]
   bldgTownHall: [122, 128, 124],
   bldgBakeryFront: [110, 116, 112],
-  blacksmithFront: [120, 120, 116],
+  blacksmithFront: [125, 152, 148],
   residentialFront: [118, 118, 114],
   apothecaryFront: [120, 118, 114],
   townHallDiag: [124, 132, 128],
@@ -754,6 +754,21 @@ export function buildMap(): MapGrid {
       'O estoque é limitado por viajante e volta a ser abastecido todos os dias.',
     ],
     barks: ['Ouro bruto ou em barra: aqui os dois têm valor.', 'Estoque novo a cada dia!'],
+  });
+
+  addNpc({
+    id: 'npc_ferreiro',
+    name: 'Dório',
+    title: 'Mestre Ferreiro Harmônico',
+    sprite: 'blacksmith',
+    accent: '#f59e0b',
+    speed: 0,
+    route: [[17, 24]],
+    dialogue: [
+      'Se veio atrás de uma espada milagrosa, chegou cedo. Se veio atrás de trabalho, chegou na hora certa.',
+      'Nesta forja, metal, cristal e música precisam entrar no mesmo compasso.',
+    ],
+    barks: ['Martelo no tempo forte!', 'O metal também canta — às vezes desafinado.'],
   });
 
   // Guarda fixo das muralhas e patrulheiros urbanos. Usa a arte de cavaleiro

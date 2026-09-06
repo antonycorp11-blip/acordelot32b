@@ -106,6 +106,8 @@ export interface LoadedAssets {
   npcSeminima: HTMLImageElement;
   npcDiapasao: HTMLImageElement;
   npcSrAntony: HTMLImageElement;
+  npcLucianWalk: HTMLImageElement;
+  npcLucianIdle: HTMLImageElement;
 
   // Akles - Herói Cavaleiro (sprite sheets 32-bit processadas)
   aklesIdle: HTMLImageElement;
@@ -271,6 +273,8 @@ const ASSET_PATHS: Record<keyof LoadedAssets, string> = {
   npcSeminima: '/assets/characters/npcs/seminima.png',
   npcDiapasao: '/assets/characters/npcs/diapasao.png',
   npcSrAntony: '/assets/characters/npcs/sr_antony.png',
+  npcLucianWalk: '/assets/characters/npcs/lucian_walk.png',
+  npcLucianIdle: '/assets/characters/npcs/lucian_idle.png',
 
   // Wins - Classe da Voz (personagem temporária) — 3 folhas separadas
   // (idle/walk/run são animações DIFERENTES, não a mesma reaproveitada).

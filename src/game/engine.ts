@@ -1157,6 +1157,9 @@ export class GameEngine {
   private storyStage: 'idle' | 'follow_vibration' | 'sol_bemol_scene' | 'find_origin' | 'encounter_scene' | 'fight' | 'aftermath' | 'find_echoes' | 'echo_scene' | 'follow_echoes' | 'gate_scene' | 'follow_pippo' | 'mirella_scene' | 'entering_house' | 'rest_scene' | 'morning_scene' | 'follow_pippo_antony' | 'antony_scene' | 'complete' = 'idle';
   private openingMissionComplete = true;
   private antonyMissionComplete = false;
+  voicesMissionAccepted = false;
+  marketIntroStage: 'not_started' | 'intro' | 'collecting' | 'completed' = 'not_started';
+  lucianMeetingRewarded = false;
   private storyMoveOrigin: Point | null = null;
   private storyMovementTaught = false;
   private storyAttackTaught = false;
@@ -1874,6 +1877,9 @@ export class GameEngine {
   get completedMainQuestIds() {
     const ids: string[] = ['MQ_C1_001_DESPERTAR_SEM_NOME'];
     if (this.antonyMissionComplete) ids.push('MQ_C1_002_ESTRADA_PARA_ACORDELOT');
+    if (this.voicesMissionAccepted) ids.push('MQ_C1_003_AS_VOZES_DE_ACORDELOT_ACCEPTED');
+    if (this.marketIntroStage === 'completed') ids.push('SQ_MERCADO_PRIMEIRA_COLETA');
+    if (this.lucianMeetingRewarded) ids.push('MQ_C1_003_AS_VOZES_DE_ACORDELOT');
     return ids;
   }
 
@@ -1881,6 +1887,16 @@ export class GameEngine {
     this.openingMissionComplete = true;
     this.antonyMissionComplete = ids.includes('MQ_C1_002_ESTRADA_PARA_ACORDELOT')
       || ids.includes('MQ_C1_002_ESTRADA_ACORDELOT');
+    this.voicesMissionAccepted = ids.includes('MQ_C1_003_AS_VOZES_DE_ACORDELOT_ACCEPTED')
+      || ids.includes('MQ_C1_003_AS_VOZES_DE_ACORDELOT');
+    if (ids.includes('SQ_MERCADO_PRIMEIRA_COLETA') || ids.includes('MQ_C1_003_AS_VOZES_DE_ACORDELOT')) {
+      this.marketIntroStage = 'completed';
+    } else if (this.voicesMissionAccepted) {
+      this.marketIntroStage = 'intro';
+    }
+    if (ids.includes('MQ_C1_003_AS_VOZES_DE_ACORDELOT')) {
+      this.lucianMeetingRewarded = true;
+    }
     if (this.openingMissionComplete) {
       const antony = this.ensureSrAntony();
       if (this.antonyMissionComplete) {
@@ -1889,12 +1905,32 @@ export class GameEngine {
         const pippo = this.npcs.find((npc) => npc.id === 'story_pippo')
           ?? this.ensureStoryNpc('story_pippo', 'Pippo', 'seminima', antony.x - 38, antony.y + 4, '#fbbf24');
         pippo.direction = 'right';
+        this.ensureLucian();
       }
     }
     this.onQuestsChange?.();
   }
 
+  acceptVoicesMission(): boolean {
+    if (this.voicesMissionAccepted) return false;
+    this.voicesMissionAccepted = true;
+    this.marketIntroStage = 'intro';
+    this.storyObjective = {
+      title: 'As Vozes de Acordelot',
+      text: 'Apresente-se a Miro no Mercado de Acordelot',
+      progress: 0,
+      target: 2,
+      ready: false,
+    };
+    this.onQuestsChange?.();
+    return true;
+  }
+
   get mainQuestLog() {
+    const woodCount = Math.min(3, this.inventory['wood'] || 0);
+    const stoneCount = Math.min(3, this.inventory['stone'] || 0);
+    const hasMaterials = woodCount >= 3 && stoneCount >= 3;
+
     return [
       {
         id: 'MQ_C1_001_DESPERTAR_SEM_NOME',
@@ -1909,9 +1945,45 @@ export class GameEngine {
         chapter: 'Capítulo I',
         title: 'A Estrada para Acordelot',
         description: 'Viaje até o centro da cidade e procure o Sr. Antony, líder de Acordelot.',
-        status: this.antonyMissionComplete ? 'completed' as const : 'active' as const,
+        status: this.antonyMissionComplete ? ('completed' as const) : ('active' as const),
         objective: this.antonyMissionComplete ? 'Você conheceu o líder de Acordelot.' : (this.storyObjective?.text ?? 'Procure o Sr. Antony no centro da cidade.'),
       },
+      {
+        id: 'MQ_C1_003_AS_VOZES_DE_ACORDELOT',
+        chapter: 'Capítulo I',
+        title: 'As Vozes de Acordelot',
+        description: 'O Sr. Antony recomendou que você conheça os cidadãos influentes da cidade. Apresente-se a Miro no Mercado e a Lucian, pai de Pippo.',
+        status: !this.antonyMissionComplete
+          ? ('locked' as const)
+          : !this.voicesMissionAccepted
+            ? ('available' as const)
+            : this.lucianMeetingRewarded
+              ? ('completed' as const)
+              : ('active' as const),
+        objective: !this.voicesMissionAccepted
+          ? 'Aceite a missão para registrar seu objetivo.'
+          : this.marketIntroStage === 'intro'
+            ? 'Apresente-se a Miro no Mercado de Acordelot.'
+            : this.marketIntroStage === 'collecting'
+              ? hasMaterials
+                ? 'Materiais reunidos! Fale com Miro no Mercado para entregar.'
+                : `Colete Madeira (${woodCount}/3) e Pedra (${stoneCount}/3) para Miro.`
+              : !this.lucianMeetingRewarded
+                ? 'Miro visitado! Conheça Lucian na oficina ao oeste da praça.'
+                : 'Você conheceu os cidadãos influentes de Acordelot!',
+      },
+      ...(this.marketIntroStage === 'collecting' || this.marketIntroStage === 'completed' ? [{
+        id: 'SQ_MERCADO_PRIMEIRA_COLETA',
+        chapter: 'Secundária',
+        title: 'A Primeira Coleta do Mercado',
+        description: 'Colete 3 Madeiras de árvores e 3 Pedras de rochas nas redondezas da cidade para abastecer os artesãos.',
+        status: this.marketIntroStage === 'completed' ? ('completed' as const) : ('active' as const),
+        objective: this.marketIntroStage === 'completed'
+          ? 'Materiais entregues a Miro! Recompensa recebida.'
+          : hasMaterials
+            ? 'Materiais prontos! Fale com Miro no Mercado.'
+            : `Madeira: ${woodCount}/3 | Pedra: ${stoneCount}/3 (use machado e picareta)`,
+      }] : []),
     ];
   }
 
@@ -2407,9 +2479,22 @@ export class GameEngine {
   setTouchVector(x: number, y: number) {
     if (this.storyControlLocked) {
       this.touchVector = { x: 0, y: 0 };
+      this.player.vx = 0;
+      this.player.vy = 0;
+      this.player.isMoving = false;
       return;
     }
     this.touchVector = { x, y };
+  }
+
+  clearInputState() {
+    this.keys = {};
+    this.touchVector = { x: 0, y: 0 };
+    this.player.vx = 0;
+    this.player.vy = 0;
+    this.player.isMoving = false;
+    this.heroRunning = false;
+    this.player.actionState = 'idle';
   }
 
   beginOpeningScene() {
@@ -2725,10 +2810,30 @@ export class GameEngine {
     return antony;
   }
 
+  ensureLucian() {
+    const lodge = this.props.find((prop) => prop.id === 'b_lodge_west') ?? this.props.find((prop) => prop.type === 'lodgeWest');
+    const x = lodge ? lodge.x + 36 : 26 * TILE_SIZE;
+    const y = lodge ? lodge.y + lodge.h + 8 : 16 * TILE_SIZE;
+    const lucian = this.ensureStoryNpc('story_lucian', 'Lucian', 'lucian', x, y, '#eab308');
+    lucian.title = 'Mestre Luthier';
+    lucian.direction = 'down';
+    lucian.dialogue = [
+      'As cordas de Acordelot vibram com a energia da própria terra.',
+      'Cada instrumento carrega uma parte da alma de quem o toca.',
+    ];
+    lucian.barks = [
+      'Ouça essa ressonância...',
+      'Uma madeira bem curada canta por gerações.',
+    ];
+    return lucian;
+  }
+
   finishAntonyMeeting() {
+    this.clearInputState();
     this.storyStage = 'complete';
     this.storyControlLocked = false;
     this.antonyMissionComplete = true;
+    this.ensureLucian();
     this.gainXp(25);
     const antony = this.npcs.find((npc) => npc.id === 'story_sr_antony');
     if (antony) antony.direction = 'down';
@@ -2747,7 +2852,13 @@ export class GameEngine {
         'Qualquer coisa, pergunte ao Sr. Antony.',
       ];
     }
-    this.storyObjective = { title: 'A Estrada para Acordelot', text: 'Missão concluída! Explore Acordelot', progress: 1, target: 1, ready: true };
+    this.storyObjective = {
+      title: 'As Vozes de Acordelot',
+      text: 'Abra o Diário de Missões para aceitar a nova tarefa',
+      progress: 0,
+      target: 2,
+      ready: false,
+    };
     this.onQuestsChange?.();
     this.onStoryBeat?.('second_mission_complete');
   }
@@ -3029,6 +3140,84 @@ export class GameEngine {
   }
 
   private npcToInteraction(n: NPC): InteractionNpc {
+    if (n.id === 'npc_mercador_cidade') {
+      const woodCount = Math.min(3, this.inventory['wood'] || 0);
+      const stoneCount = Math.min(3, this.inventory['stone'] || 0);
+      const hasMaterials = woodCount >= 3 && stoneCount >= 3;
+
+      let dialogue = n.dialogue ?? ['...'];
+      if (this.voicesMissionAccepted && this.marketIntroStage === 'intro') {
+        dialogue = [
+          'Olá, viajante! O Sr. Antony me avisou que você viria.',
+          'Sou Miro, responsável pelo abastecimento do Mercado de Acordelot.',
+          'Para aprender como nossa economia funciona, faça uma primeira coleta ao redor da praça.',
+          'Use seu machado e picareta para me trazer 3 Madeiras e 3 Pedras. Estarei esperando!',
+        ];
+      } else if (this.voicesMissionAccepted && this.marketIntroStage === 'collecting') {
+        if (hasMaterials) {
+          dialogue = [
+            'Excelente trabalho, Akles! Você reuniu a madeira e a pedra com destreza.',
+            'Aqui está sua recompensa: 50 moedas de ouro e uma Poção de Cura artesanal!',
+            'Lembre-se: você sempre pode comprar suprimentos diários comigo quando precisar.',
+            'Agora, procure por Lucian, o luthier e pai de Pippo. A oficina dele fica a oeste da praça!',
+          ];
+        } else {
+          dialogue = [
+            `Ainda aguardo os materiais, Akles. Você tem ${woodCount}/3 Madeiras e ${stoneCount}/3 Pedras.`,
+            'Golpeie os troncos de árvores com o machado e as rochas com a picareta nas redondezas!',
+          ];
+        }
+      } else if (this.marketIntroStage === 'completed') {
+        dialogue = [
+          'Suas coletas ajudaram muito nossos artesãos, Akles!',
+          'Lucian deve estar dedilhando seu alaúde na oficina a oeste. Não deixe de falar com ele.',
+          'Se precisar de poções ou ferramentas novas, confira meu estoque diário!',
+        ];
+      }
+      return {
+        id: n.id,
+        name: n.name,
+        title: n.title,
+        accent: n.accent ?? '#f59e0b',
+        dialogue,
+        isMerchant: n.isMerchant === true || n.spriteType === 'merchant',
+        spriteType: n.spriteType,
+      };
+    }
+
+    if (n.id === 'story_lucian') {
+      let dialogue = n.dialogue ?? ['...'];
+      if (this.marketIntroStage === 'completed') {
+        if (this.lucianMeetingRewarded) {
+          dialogue = [
+            'A música da cidade soa mais viva com você aqui, Akles.',
+            'Continue explorando Acordelot e aperfeiçoando suas habilidades!',
+          ];
+        } else {
+          dialogue = [
+            'Saudações, Akles! Pippo me contou tudo sobre como você o salvou na floresta.',
+            'Como pai e mestre luthier desta cidade, minha gratidão a você é eterna.',
+            'Tome estas 60 moedas e este elixir de experiência para fortalecer sua jornada.',
+            'Sempre que o som do mundo parecer desafinado, lembre-se: a verdadeira harmonia começa em nós mesmos!',
+          ];
+        }
+      } else {
+        dialogue = [
+          'Olá! Ouço os tons da floresta ecoando em você.',
+          'Se você está conhecendo a cidade, passe no Mercado e converse com Miro primeiro.',
+        ];
+      }
+      return {
+        id: n.id,
+        name: n.name,
+        title: n.title,
+        accent: n.accent ?? '#eab308',
+        dialogue,
+        isMerchant: false,
+        spriteType: n.spriteType,
+      };
+    }
+
     return {
       id: n.id,
       name: n.name,
@@ -3059,9 +3248,7 @@ export class GameEngine {
 
   handleInteract() {
     if (this.talkingNpcId) {
-      this.talkingNpcId = null;
-      this.isTalkingToMerchant = false;
-      this.emitInteraction();
+      this.closeDialogue();
       return;
     }
     if (this.nearestNpcId) {
@@ -3072,8 +3259,60 @@ export class GameEngine {
   }
 
   closeDialogue() {
+    const talking = this.npcs.find((n) => n.id === this.talkingNpcId);
+    if (talking?.id === 'npc_mercador_cidade') {
+      if (this.voicesMissionAccepted && this.marketIntroStage === 'intro') {
+        this.marketIntroStage = 'collecting';
+        const woodCount = Math.min(3, this.inventory['wood'] || 0);
+        const stoneCount = Math.min(3, this.inventory['stone'] || 0);
+        this.storyObjective = {
+          title: 'As Vozes de Acordelot',
+          text: `Colete Madeira (${woodCount}/3) e Pedra (${stoneCount}/3) para Miro`,
+          progress: 0,
+          target: 2,
+          ready: false,
+        };
+        this.onQuestsChange?.();
+      } else if (this.voicesMissionAccepted && this.marketIntroStage === 'collecting') {
+        const woodCount = this.inventory['wood'] || 0;
+        const stoneCount = this.inventory['stone'] || 0;
+        if (woodCount >= 3 && stoneCount >= 3) {
+          this.inventory['wood'] = Math.max(0, woodCount - 3);
+          this.inventory['stone'] = Math.max(0, stoneCount - 3);
+          this.addCoins(50);
+          this.addToInventory('potion_heal', 1);
+          this.gainXp(35);
+          this.marketIntroStage = 'completed';
+          this.storyObjective = {
+            title: 'As Vozes de Acordelot',
+            text: 'Conheça Lucian, pai de Pippo, na oficina a oeste da praça',
+            progress: 1,
+            target: 2,
+            ready: false,
+          };
+          this.onInventoryChange?.();
+          this.onQuestsChange?.();
+        }
+      }
+    } else if (talking?.id === 'story_lucian') {
+      if (this.marketIntroStage === 'completed' && !this.lucianMeetingRewarded) {
+        this.lucianMeetingRewarded = true;
+        this.addCoins(60);
+        this.gainXp(40);
+        this.storyObjective = {
+          title: 'As Vozes de Acordelot',
+          text: 'Missão concluída! Você conheceu os artesãos de Acordelot',
+          progress: 2,
+          target: 2,
+          ready: true,
+        };
+        this.onQuestsChange?.();
+      }
+    }
+
     this.talkingNpcId = null;
     this.isTalkingToMerchant = false;
+    this.clearInputState();
     this.emitInteraction();
   }
 
@@ -5232,6 +5471,30 @@ export class GameEngine {
     else if (item === 'stone') this.bumpQuestProgress('harvest_stone', qty);
     else if (item === 'gold_raw') this.bumpQuestProgress('collect_gold', qty);
     else if (item === 'crystal_blue_raw') this.bumpQuestProgress('collect_crystal', qty);
+
+    if (this.marketIntroStage === 'collecting' && (item === 'wood' || item === 'stone')) {
+      const woodCount = Math.min(3, this.inventory['wood'] || 0);
+      const stoneCount = Math.min(3, this.inventory['stone'] || 0);
+      if (woodCount >= 3 && stoneCount >= 3) {
+        this.storyObjective = {
+          title: 'As Vozes de Acordelot',
+          text: 'Materiais reunidos! Fale com Miro no Mercado para entregar',
+          progress: 1,
+          target: 2,
+          ready: true,
+        };
+      } else {
+        this.storyObjective = {
+          title: 'As Vozes de Acordelot',
+          text: `Colete Madeira (${woodCount}/3) e Pedra (${stoneCount}/3) para Miro`,
+          progress: 0,
+          target: 2,
+          ready: false,
+        };
+      }
+      this.onQuestsChange?.();
+    }
+
     for (let i = 0; i < 4; i++) this.addMiningSpark(x, y - 4);
   }
 
@@ -7296,6 +7559,66 @@ export class GameEngine {
         ctx.fillText('E', cx + npc.width / 2, my + 3);
       }
       return;
+    }
+
+    if (npc.spriteType === 'lucian') {
+      const walkSheet = this.assets?.npcLucianWalk;
+      const idleSheet = this.assets?.npcLucianIdle;
+      const sheet = npc.isMoving ? walkSheet : idleSheet;
+      if (sheet && sheet.complete && sheet.naturalWidth > 0) {
+        const fw = 128;
+        const fh = 192;
+        const cols = 8;
+        const disp = 0.28;
+        const dispW = fw * disp;
+        const dispH = fh * disp;
+
+        let row = 0;
+        let flipH = false;
+        if (npc.direction === 'down') row = 0;
+        else if (npc.direction === 'up') row = 3;
+        else if (npc.direction === 'right') row = 1;
+        else if (npc.direction === 'left') {
+          row = 1;
+          flipH = true;
+        }
+
+        const col = npc.isMoving
+          ? Math.floor(npc.stepTimer * (9 / 8)) % cols
+          : Math.floor(this.timeElapsed * 4) % cols;
+
+        const dx = Math.round(cx + npc.width / 2 - dispW / 2);
+        const dy = Math.round(cy + npc.height - dispH * ((186 - 4) / fh));
+
+        ctx.fillStyle = 'rgba(0,0,0,0.28)';
+        ctx.beginPath();
+        ctx.ellipse(cx + npc.width / 2, cy + npc.height - 2, 11, 4.5, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.save();
+        ctx.imageSmoothingEnabled = true;
+        if (flipH) {
+          ctx.translate(dx + dispW, dy);
+          ctx.scale(-1, 1);
+          ctx.drawImage(sheet, col * fw, row * fh, fw, fh, 0, 0, Math.round(dispW), Math.round(dispH));
+        } else {
+          ctx.drawImage(sheet, col * fw, row * fh, fw, fh, dx, dy, Math.round(dispW), Math.round(dispH));
+        }
+        ctx.restore();
+
+        if (this.nearestNpcId === npc.id && !this.talkingNpcId) {
+          const my = cy - 6 + Math.sin(this.timeElapsed * 5) * 2;
+          ctx.fillStyle = npc.accent ?? '#eab308';
+          ctx.beginPath();
+          ctx.arc(cx + npc.width / 2, my, 3, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.fillStyle = '#0f172a';
+          ctx.font = 'bold 8px monospace';
+          ctx.textAlign = 'center';
+          ctx.fillText('E', cx + npc.width / 2, my + 3);
+        }
+        return;
+      }
     }
 
     const sheetKey = NPC_SHEET[npc.spriteType];

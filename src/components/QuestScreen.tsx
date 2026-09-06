@@ -45,16 +45,53 @@ export const QuestScreen: React.FC<Props> = ({ open, onClose, engine }) => {
 
         <div className="flex-1 min-h-0 overflow-y-auto p-3 flex flex-col gap-2.5">
           {tab === 'main' && engine.mainQuestLog.map((quest) => (
-            <div key={quest.id} className={`rounded-xl border p-3 ${quest.status === 'completed' ? 'border-emerald-500/35 bg-emerald-950/20' : quest.status === 'active' ? 'border-violet-400/55 bg-violet-950/25' : 'border-slate-800 bg-slate-950/35 opacity-60'}`}>
+            <div
+              key={quest.id}
+              className={`rounded-xl border p-3 ${
+                quest.status === 'completed'
+                  ? 'border-emerald-500/35 bg-emerald-950/20'
+                  : quest.status === 'active'
+                    ? 'border-violet-400/55 bg-violet-950/25'
+                    : quest.status === 'available'
+                      ? 'border-amber-400/80 bg-amber-950/30 ring-2 ring-amber-400/50 shadow-lg shadow-amber-500/10'
+                      : 'border-slate-800 bg-slate-950/35 opacity-60'
+              }`}
+            >
               <div className="flex items-start gap-3">
-                <div className={`h-11 w-11 shrink-0 rounded-xl border flex items-center justify-center ${quest.status === 'completed' ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-300' : quest.status === 'active' ? 'border-violet-400/40 bg-violet-500/10 text-violet-200' : 'border-slate-700 text-slate-500'}`}>
-                  {quest.status === 'completed' ? <CheckCircle2 className="h-5 w-5" /> : quest.status === 'locked' ? <Lock className="h-5 w-5" /> : <BookOpen className="h-5 w-5" />}
+                <div
+                  className={`h-11 w-11 shrink-0 rounded-xl border flex items-center justify-center ${
+                    quest.status === 'completed'
+                      ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-300'
+                      : quest.status === 'active'
+                        ? 'border-violet-400/40 bg-violet-500/10 text-violet-200'
+                        : quest.status === 'available'
+                          ? 'border-amber-400/70 bg-amber-500/20 text-amber-300 animate-pulse'
+                          : 'border-slate-700 text-slate-500'
+                  }`}
+                >
+                  {quest.status === 'completed' ? (
+                    <CheckCircle2 className="h-5 w-5" />
+                  ) : quest.status === 'locked' ? (
+                    <Lock className="h-5 w-5" />
+                  ) : (
+                    <BookOpen className="h-5 w-5" />
+                  )}
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center justify-between gap-2">
                     <p className="text-[9px] font-black uppercase tracking-widest text-violet-300/75">{quest.chapter}</p>
-                    <span className={`rounded-md px-2 py-0.5 text-[9px] font-black uppercase ${quest.status === 'completed' ? 'bg-emerald-900/60 text-emerald-300' : quest.status === 'active' ? 'bg-violet-900/70 text-violet-200' : 'bg-slate-800 text-slate-500'}`}>
-                      {quest.status === 'completed' ? 'Concluída' : quest.status === 'active' ? 'Em andamento' : 'Bloqueada'}
+                    <span
+                      className={`rounded-md px-2 py-0.5 text-[9px] font-black uppercase ${
+                        quest.status === 'completed'
+                          ? 'bg-emerald-900/60 text-emerald-300'
+                          : quest.status === 'active'
+                            ? 'bg-violet-900/70 text-violet-200'
+                            : quest.status === 'available'
+                              ? 'bg-amber-900/80 text-amber-300 border border-amber-400/60'
+                              : 'bg-slate-800 text-slate-500'
+                      }`}
+                    >
+                      {quest.status === 'completed' ? 'Concluída' : quest.status === 'active' ? 'Em andamento' : quest.status === 'available' ? 'Disponível' : 'Bloqueada'}
                     </span>
                   </div>
                   <p className="mt-0.5 text-sm font-black text-slate-100">{quest.title}</p>
@@ -62,6 +99,23 @@ export const QuestScreen: React.FC<Props> = ({ open, onClose, engine }) => {
                   <div className="mt-2 rounded-lg border border-slate-800 bg-slate-950/55 px-2.5 py-1.5 text-[10px] font-semibold text-slate-200">
                     Objetivo: {quest.objective}
                   </div>
+                  {quest.status === 'available' && (
+                    <div className="mt-3 flex items-center justify-between border-t border-amber-500/20 pt-2.5">
+                      <div className="flex items-center gap-1.5 text-[11px] font-bold text-amber-300">
+                        <span className="inline-block animate-bounce text-base">👉</span> Aceite para desbloquear a tarefa!
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          engine.acceptVoicesMission();
+                          force();
+                        }}
+                        className="cursor-pointer relative px-4 py-1.5 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-400 hover:from-amber-400 hover:to-yellow-300 text-slate-950 font-black text-xs shadow-lg shadow-amber-500/30 active:scale-95 transition-all flex items-center gap-1.5"
+                      >
+                        Aceitar Missão ✨
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>

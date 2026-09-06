@@ -18,6 +18,7 @@ interface TouchControlsProps {
   forceEditMode?: boolean;
   onLayoutChange?: (layout: Record<Orientation, Layout>) => void;
   tutorialStage?: 'cinematic' | 'movement' | 'explore' | 'combat' | 'follow' | 'full';
+  showQuestTutorial?: boolean;
 }
 
 const JOYSTICK_SIZE = 132;
@@ -77,6 +78,7 @@ export const TouchControls: React.FC<TouchControlsProps> = ({
   forceEditMode = false,
   onLayoutChange,
   tutorialStage = 'full',
+  showQuestTutorial = false,
 }) => {
   const baseRef = useRef<HTMLDivElement | null>(null);
   const originRef = useRef<{ x: number; y: number } | null>(null);
@@ -194,6 +196,13 @@ export const TouchControls: React.FC<TouchControlsProps> = ({
     setActive(false);
     engineRef.current?.setTouchVector(0, 0);
   }, [engineRef]);
+
+  useEffect(() => {
+    return () => {
+      reset();
+    };
+  }, [reset]);
+
   const onPointerDown = (e: React.PointerEvent) => {
     if (hudEdit) return;
     if (pointerIdRef.current !== null) return;
@@ -430,8 +439,24 @@ export const TouchControls: React.FC<TouchControlsProps> = ({
       <D id="btn_catalog" className={`${actionBtn} absolute border-amber-400/50 bg-slate-950/80 text-amber-300`} title="Catálogo" onAction={onToggleCatalog} style={{ width: sideMenuIcon, height: sideMenuIcon, right: sideMenuRight(3), top: sideMenuTop }}>
         <HudIcon name="catalog" className="w-[82%] h-[82%]" />
       </D>
-      <D id="btn_quests" className={`${actionBtn} absolute border-emerald-400/50 bg-slate-950/80 text-emerald-300`} title="Missões" onAction={onToggleQuests} style={{ width: sideMenuIcon, height: sideMenuIcon, right: sideMenuRight(2), top: sideMenuTop }}>
+      <D
+        id="btn_quests"
+        className={`${actionBtn} absolute border-emerald-400/50 bg-slate-950/80 text-emerald-300 ${
+          showQuestTutorial ? 'ring-4 ring-amber-400 animate-pulse' : ''
+        }`}
+        title="Missões"
+        onAction={onToggleQuests}
+        style={{ width: sideMenuIcon, height: sideMenuIcon, right: sideMenuRight(2), top: sideMenuTop }}
+      >
         <HudIcon name="quests" className="w-[82%] h-[82%]" />
+        {showQuestTutorial && (
+          <div className="pointer-events-none absolute -bottom-9 left-1/2 -translate-x-1/2 flex flex-col items-center animate-bounce z-50">
+            <span className="text-amber-300 text-[10px] font-black tracking-wider uppercase bg-amber-950/95 px-2 py-0.5 rounded-full border border-amber-400 shadow-xl whitespace-nowrap">
+              Missão! ✨
+            </span>
+            <div className="w-0 h-0 border-l-4 border-l-transparent border-r-4 border-r-transparent border-b-6 border-b-amber-400 rotate-180" />
+          </div>
+        )}
       </D>
       <D id="btn_sheet" className={`${actionBtn} absolute border-sky-400/50 bg-slate-950/80 text-sky-300`} title="Ficha do personagem" onAction={onToggleSheet} style={{ width: sideMenuIcon, height: sideMenuIcon, right: sideMenuRight(1), top: sideMenuTop }}>
         <HudIcon name="party" className="w-[82%] h-[82%]" />

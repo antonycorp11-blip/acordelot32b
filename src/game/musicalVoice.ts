@@ -19,6 +19,8 @@ const PRESETS: Record<string, VoicePreset> = {
   narrator: { root: 110, scale: [0, 5, 7, 10], waveform: 'sawtooth', speed: .095, sustain: .13, brightness: .25, formant: 560, roughness: .15 },
   mirella: { root: 220, scale: [0, 4, 7, 11, 14], waveform: 'triangle', speed: .065, sustain: .09, brightness: .75, formant: 1080, roughness: .03 },
   sr_antony: { root: 123.47, scale: [0, 2, 5, 7, 10], waveform: 'sawtooth', speed: .082, sustain: .11, brightness: .38, formant: 610, roughness: .1 },
+  lucian: { root: 146.83, scale: [0, 2, 4, 7, 9, 12], waveform: 'triangle', speed: .07, sustain: .12, brightness: .65, formant: 740, roughness: .05 },
+  miro: { root: 196, scale: [0, 2, 4, 7, 9], waveform: 'triangle', speed: .062, sustain: .08, brightness: .7, formant: 920, roughness: .04 },
 };
 
 let audioContext: AudioContext | null = null;

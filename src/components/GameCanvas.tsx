@@ -113,6 +113,7 @@ const OPENING_LINES: Record<OpeningPhase, Array<{ speaker: string; voice: string
     { speaker: 'Sr. Antony', voice: 'sr_antony', text: 'Akles... Entendo. Diga-me: como reconheceu as notas sem recordar que as conhecia?' },
     { speaker: 'Akles', voice: 'akles', text: 'Meu corpo sabia. Como se já tivesse vivido aquilo antes.' },
     { speaker: 'Sr. Antony', voice: 'sr_antony', text: 'Fique em Acordelot por enquanto. Aqui aprenderemos o que sua memória decidiu esconder.' },
+    { speaker: 'Sr. Antony', voice: 'sr_antony', text: 'Abra seu Diário de Missões e aceite sua nova tarefa. Primeiro, apresente-se aos nossos cidadãos.' },
     { speaker: 'Narração', voice: 'narrator', text: 'Por um instante, o líder parece reconhecer Akles. Então esconde a reação atrás de um sorriso cauteloso.' },
   ],
 };
@@ -123,9 +124,11 @@ const DIALOGUE_PORTRAITS: Record<string, { src: string; sheet?: 'npc' | 'guard' 
   mirella: { src: '/assets/characters/npcs/cadencia.png', sheet: 'npc' },
   guard_muralha: { src: '/assets/characters/knight_idle.png', sheet: 'guard' },
   sr_antony: { src: '/assets/characters/npcs/sr_antony.png', sheet: 'npc' },
+  lucian: { src: '/assets/characters/npcs/lucian_portrait.png' },
+  miro: { src: '/assets/characters/npcs/tonico.png', sheet: 'npc' },
 };
 
-const NPC_PORTRAIT_SOURCES: Record<string, { src: string; sheet: 'npc' | 'guard' }> = {
+const NPC_PORTRAIT_SOURCES: Record<string, { src: string; sheet?: 'npc' | 'guard' | 'portrait' }> = {
   cadencia: { src: '/assets/characters/npcs/cadencia.png', sheet: 'npc' },
   tonico: { src: '/assets/characters/npcs/tonico.png', sheet: 'npc' },
   setimo: { src: '/assets/characters/npcs/setimo.png', sheet: 'npc' },
@@ -134,6 +137,7 @@ const NPC_PORTRAIT_SOURCES: Record<string, { src: string; sheet: 'npc' | 'guard'
   guard: { src: '/assets/characters/knight_idle.png', sheet: 'guard' },
   merchant: { src: '/assets/ancient-ruins/Characters/NPC Merchant-idle.png', sheet: 'npc' },
   antony: { src: '/assets/characters/npcs/sr_antony.png', sheet: 'npc' },
+  lucian: { src: '/assets/characters/npcs/lucian_portrait.png', sheet: 'portrait' },
 };
 
 interface PropPaletteItem {
@@ -1030,6 +1034,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
     if (openingPhase === 'antony') {
       setOpeningPhase(null);
       setTutorialStage('full');
+      engineRef.current?.clearInputState();
       engineRef.current?.finishAntonyMeeting();
       return;
     }
@@ -1188,6 +1193,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
   };
 
   const handleCloseDialogue = () => {
+    engineRef.current?.clearInputState();
     engineRef.current?.closeDialogue();
     setShowShop(false);
     setShopMessage(null);
@@ -1899,6 +1905,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
           }}
           forceEditMode={showMobileHudEditor}
           tutorialStage={showMobileHudEditor ? 'full' : tutorialStage}
+          showQuestTutorial={Boolean(engineRef.current?.antonyMissionComplete && !engineRef.current?.voicesMissionAccepted)}
           onLayoutChange={(layout) => {
             setCurrentHudLayout(layout);
           }}
@@ -1955,14 +1962,28 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
           >
             <HudIcon name="catalog" className="w-9 h-9" />
           </button>
-          <button
-            type="button"
-            onClick={() => setShowQuests((v) => !v)}
-            className="cursor-pointer w-12 h-12 rounded-full bg-slate-950/85 hover:bg-slate-800 text-emerald-300 border border-emerald-500/40 hover:border-emerald-400/80 shadow-xl flex items-center justify-center backdrop-blur-md transition-all active:scale-95"
-            title="Missões (M)"
-          >
-            <HudIcon name="quests" className="w-9 h-9" />
-          </button>
+          <div className="relative">
+            {Boolean(engineRef.current?.antonyMissionComplete && !engineRef.current?.voicesMissionAccepted) && (
+              <div className="pointer-events-none absolute -top-10 left-1/2 -translate-x-1/2 flex flex-col items-center animate-bounce z-50">
+                <span className="text-amber-300 text-[10px] font-black tracking-wider uppercase bg-amber-950/95 px-2.5 py-0.5 rounded-full border border-amber-400 shadow-xl whitespace-nowrap">
+                  Missão! ✨
+                </span>
+                <div className="w-0 h-0 border-l-4 border-l-transparent border-r-4 border-r-transparent border-t-6 border-t-amber-400" />
+              </div>
+            )}
+            <button
+              type="button"
+              onClick={() => setShowQuests((v) => !v)}
+              className={`cursor-pointer w-12 h-12 rounded-full bg-slate-950/85 hover:bg-slate-800 text-emerald-300 border border-emerald-500/40 hover:border-emerald-400/80 shadow-xl flex items-center justify-center backdrop-blur-md transition-all active:scale-95 ${
+                Boolean(engineRef.current?.antonyMissionComplete && !engineRef.current?.voicesMissionAccepted)
+                  ? 'ring-4 ring-amber-400 animate-pulse'
+                  : ''
+              }`}
+              title="Missões (M)"
+            >
+              <HudIcon name="quests" className="w-9 h-9" />
+            </button>
+          </div>
           {/* Troca de personagem estilo Genshin — desktop */}
           <div className="flex items-center gap-1 bg-slate-950/60 rounded-full p-1 backdrop-blur-md border border-slate-700/60">
             {(engineRef.current?.availableCharacters ?? ['akles']).map((ck) => {
@@ -2334,7 +2355,12 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
                   className="absolute inset-0 bg-no-repeat"
                   style={{
                     backgroundImage: `url(${regularDialoguePortrait.src})`,
-                    backgroundSize: regularDialoguePortrait.sheet === 'npc' ? '1500% auto' : '600% auto',
+                    backgroundSize:
+                      regularDialoguePortrait.sheet === 'npc'
+                        ? '1500% auto'
+                        : regularDialoguePortrait.sheet === 'guard'
+                          ? '600% auto'
+                          : 'cover',
                     backgroundPosition: '0% 0%',
                   }}
                 />

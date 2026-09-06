@@ -45,7 +45,8 @@ export type NpcSprite =
   | 'setimo'
   | 'seminima'
   | 'diapasao'
-  | 'antony';
+  | 'antony'
+  | 'lucian';
 
 export interface NPC extends CharacterState {
   id: string;

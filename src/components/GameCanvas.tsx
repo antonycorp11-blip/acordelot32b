@@ -30,7 +30,7 @@ import {
   Map as MapIcon,
 } from 'lucide-react';
 import type { PlayerStats } from '../game/engine';
-import { GameEngine, InteractionState, SelectedPropInfo, TimeOfDay, CHARACTER_ROSTER, CHARACTER_PORTRAITS, SHOP_ITEMS } from '../game/engine';
+import { GameEngine, InteractionState, SelectedPropInfo, TimeOfDay, CHARACTER_PORTRAITS, SHOP_ITEMS } from '../game/engine';
 import { TouchControls } from './TouchControls';
 import { Inventory } from './Inventory';
 import { PlayerHud } from './PlayerHud';
@@ -50,6 +50,39 @@ import { saveWorldMapToCloud, syncWorldMapFromCloud } from '../game/worldMapSync
 import { loadCloudSave, applySaveToEngine, setupAutoSave, saveToCloud } from '../game/saveManager';
 import { saveGlobalHudLayout } from '../game/hudSync';
 import { networkManager, ChatMessage } from '../game/networkManager';
+import { playMusicalTone, speakMusically, stopMusicalVoice } from '../game/musicalVoice';
+
+type OpeningPhase = 'awakening' | 'discovery' | 'encounter' | 'aftermath' | 'echoes';
+
+const OPENING_LINES: Record<OpeningPhase, Array<{ speaker: string; voice: string; text: string }>> = {
+  awakening: [
+    { speaker: 'Narração', voice: 'narrator', text: 'Antes de abrir os olhos, ele ouviu a floresta respirar.' },
+    { speaker: 'Akles', voice: 'akles', text: '...' },
+    { speaker: 'Akles', voice: 'akles', text: 'Onde eu estou?' },
+    { speaker: 'Narração', voice: 'narrator', text: 'Nenhum nome. Nenhuma lembrança. Apenas um corpo que parecia conhecer aquele perigo.' },
+  ],
+  discovery: [
+    { speaker: 'Narração', voice: 'narrator', text: 'Um galho se parte entre as árvores.' },
+    { speaker: 'Akles', voice: 'akles', text: 'Sol bemol.' },
+    { speaker: 'Akles', voice: 'akles', text: 'Como... como eu sei disso?' },
+  ],
+  encounter: [
+    { speaker: 'Narração', voice: 'narrator', text: 'A vibração se repete. Desta vez, acompanhada por passos.' },
+    { speaker: 'Akles', voice: 'akles', text: 'Não estou sozinho.' },
+    { speaker: 'Narração', voice: 'narrator', text: 'Duas criaturas dissonantes deixam a escuridão. Akles não se lembra de lutar — mas seu corpo, sim.' },
+  ],
+  aftermath: [
+    { speaker: 'Akles', voice: 'akles', text: 'Eu sabia exatamente onde golpear...' },
+    { speaker: 'Akles', voice: 'akles', text: 'Quem me ensinou isso?' },
+    { speaker: 'Narração', voice: 'narrator', text: 'Três pequenas luzes respondem ao combate com uma harmonia impossível.' },
+  ],
+  echoes: [
+    { speaker: 'Akles', voice: 'akles', text: 'Dó... Mi... Sol.' },
+    { speaker: 'Narração', voice: 'narrator', text: 'Separadas, eram três vozes. Juntas, formavam um acorde maior.' },
+    { speaker: 'Akles', voice: 'akles', text: 'Vocês também me reconhecem, não é?' },
+    { speaker: 'Narração', voice: 'narrator', text: 'Os três Ecos seguem pela floresta. Pela primeira vez, Akles possui uma direção.' },
+  ],
+};
 
 interface PropPaletteItem {
   type: string;
@@ -537,6 +570,10 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
 
   // Estados de carregamento de assets e editor de HUD Mobile no PC
   const [assetsLoaded, setAssetsLoaded] = useState(false);
+  const [saveReady, setSaveReady] = useState(false);
+  const [openingPhase, setOpeningPhase] = useState<OpeningPhase | null>(null);
+  const [openingLine, setOpeningLine] = useState(0);
+  const openingStarted = useRef(false);
   const [showMobileHudEditor, setShowMobileHudEditor] = useState(false);
   const [currentHudLayout, setCurrentHudLayout] = useState<any>(null);
   const [hudSaveStatus, setHudSaveStatus] = useState<string | null>(null);
@@ -665,10 +702,10 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
         if (save) {
           applySaveToEngine(engine, save);
         }
-      });
+      }).finally(() => setSaveReady(true));
       // Auto-save a cada 5 segundos e ao minimizar/fechar
       autoSaveCleanup = setupAutoSave(engine, userId, 5000);
-    }
+    } else setSaveReady(true);
     if ((import.meta as { env?: { DEV?: boolean } }).env?.DEV) {
       (window as unknown as { __game?: GameEngine }).__game = engine;
     }
@@ -734,6 +771,27 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
 
     engine.onQuestsChange = () => setQuestTick((t) => t + 1);
     engine.onCharacterChange = () => setCharacterTick((t) => t + 1);
+    engine.onStoryBeat = (beat) => {
+      if (beat === 'opening_sound_found') {
+        playMusicalTone(369.99, .72, isBgmMuted ? 0 : .13); // Sol♭4 / F♯4
+        setOpeningLine(0);
+        setOpeningPhase('discovery');
+      } else if (beat === 'shinkers_appear') {
+        setOpeningLine(0);
+        setOpeningPhase('encounter');
+      } else if (beat === 'shinkers_defeated') {
+        setOpeningLine(0);
+        setOpeningPhase('aftermath');
+      } else if (beat === 'three_echoes_found') {
+        setOpeningLine(0);
+        setOpeningPhase('echoes');
+        if (!isBgmMuted) {
+          playMusicalTone(261.63, .2, .1);
+          window.setTimeout(() => playMusicalTone(329.63, .2, .1), 230);
+          window.setTimeout(() => playMusicalTone(392, .35, .11), 460);
+        }
+      }
+    };
 
     const updateSize = () => {
       if (!containerRef.current || !engineRef.current) return;
@@ -775,8 +833,9 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
       if (e.code === 'KeyV') {
         const eng = engineRef.current;
         if (eng) {
-          const idx = CHARACTER_ROSTER.indexOf(eng.activeCharacter);
-          eng.switchCharacter(CHARACTER_ROSTER[(idx + 1) % CHARACTER_ROSTER.length]);
+          const roster = eng.availableCharacters;
+          const idx = roster.indexOf(eng.activeCharacter);
+          eng.switchCharacter(roster[(idx + 1) % roster.length]);
         }
       }
     };
@@ -793,6 +852,66 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
       engineRef.current = null;
     };
   }, []);
+
+  useEffect(() => {
+    if (!assetsLoaded || !saveReady || openingStarted.current || !engineRef.current) return;
+    openingStarted.current = true;
+    engineRef.current.beginOpeningScene();
+    setOpeningLine(0);
+    setOpeningPhase('awakening');
+  }, [assetsLoaded, saveReady, user?.id]);
+
+  const currentOpeningLine = openingPhase ? OPENING_LINES[openingPhase][openingLine] : null;
+
+  useEffect(() => {
+    if (!currentOpeningLine || currentOpeningLine.text === '...') return;
+    speakMusically(
+      currentOpeningLine.text,
+      currentOpeningLine.voice,
+      isBgmMuted ? 0 : Math.max(.035, bgmVolume * .2),
+    );
+  }, [currentOpeningLine, bgmVolume, isBgmMuted]);
+
+  useEffect(() => {
+    if (!interaction.isTalking || !dlgLines[dialogueIdx]) return;
+    speakMusically(
+      dlgLines[dialogueIdx],
+      interaction.npc?.id ?? interaction.npc?.name ?? 'npc',
+      isBgmMuted ? 0 : Math.max(.035, bgmVolume * .2),
+    );
+  }, [interaction.isTalking, interaction.npc?.id, dialogueIdx]);
+
+  const advanceOpening = () => {
+    if (!openingPhase) return;
+    const lines = OPENING_LINES[openingPhase];
+    if (openingLine < lines.length - 1) {
+      setOpeningLine((line) => line + 1);
+      return;
+    }
+    stopMusicalVoice();
+    if (openingPhase === 'awakening') {
+      setOpeningPhase(null);
+      engineRef.current?.releaseOpeningControl();
+      return;
+    }
+    if (openingPhase === 'discovery') {
+      setOpeningPhase(null);
+      engineRef.current?.finishOpeningDiscovery();
+      return;
+    }
+    if (openingPhase === 'encounter') {
+      setOpeningPhase(null);
+      engineRef.current?.beginShinkerEncounter();
+      return;
+    }
+    if (openingPhase === 'aftermath') {
+      setOpeningPhase(null);
+      engineRef.current?.revealThreeEchoes();
+      return;
+    }
+    setOpeningPhase(null);
+    engineRef.current?.finishThreeEchoes();
+  };
 
   // Conexão e sincronização Multiplayer da Sala Online (Supabase Realtime Broadcast & Presence)
   useEffect(() => {
@@ -1528,6 +1647,64 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
             Carregando Texturas &amp; Sons de Acordelot…
           </span>
         </div>
+
+        {openingPhase && currentOpeningLine && (
+          <div className="fixed inset-0 z-[60] pointer-events-auto select-none flex flex-col justify-end bg-gradient-to-b from-black/55 via-transparent to-black/80">
+            <div className="absolute inset-x-0 top-0 h-[9vh] bg-black/85 border-b border-violet-300/10" />
+            <div className="absolute top-[3vh] left-1/2 -translate-x-1/2 text-center">
+              <p className="text-[9px] sm:text-[11px] font-black uppercase tracking-[.38em] text-violet-200/70">Capítulo I</p>
+              <p className="mt-1 text-sm sm:text-lg font-black tracking-[.14em] text-white/90 drop-shadow-lg">
+                {openingPhase === 'awakening' ? 'O SOM NA ESCURIDÃO' :
+                  openingPhase === 'discovery' ? 'SOL BEMOL' :
+                    openingPhase === 'encounter' ? 'CRIATURAS DISSONANTES' :
+                      openingPhase === 'aftermath' ? 'MEMÓRIA DO CORPO' : 'TRÊS ECOS'}
+              </p>
+            </div>
+
+            <div className="w-full px-4 pb-[max(22px,env(safe-area-inset-bottom))]">
+              <div className="mx-auto max-w-3xl rounded-2xl border border-violet-300/25 bg-slate-950/94 backdrop-blur-lg shadow-[0_16px_70px_rgba(0,0,0,.75)] overflow-hidden">
+                <div className="h-0.5 bg-gradient-to-r from-transparent via-violet-300/80 to-transparent" />
+                <div className="p-4 sm:p-5">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="text-violet-300 text-sm">♪</span>
+                    <p className={`text-[10px] font-black uppercase tracking-[.2em] ${currentOpeningLine.speaker === 'Narração' ? 'text-slate-400' : 'text-amber-300'}`}>
+                      {currentOpeningLine.speaker}
+                    </p>
+                  </div>
+                  <p className={`min-h-[52px] text-sm sm:text-base leading-relaxed ${currentOpeningLine.speaker === 'Narração' ? 'italic text-slate-200' : 'font-semibold text-white'}`}>
+                    {currentOpeningLine.text}
+                  </p>
+                  <div className="mt-3 flex items-center justify-between gap-3">
+                    <div className="flex gap-1.5">
+                      {OPENING_LINES[openingPhase].map((_, index) => (
+                        <span key={index} className={`h-1 rounded-full transition-all ${index === openingLine ? 'w-6 bg-violet-300' : 'w-2 bg-slate-700'}`} />
+                      ))}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={advanceOpening}
+                      className="cursor-pointer shrink-0 rounded-xl bg-violet-300 hover:bg-violet-200 text-slate-950 px-4 py-2 text-xs font-black flex items-center gap-1.5 active:scale-95 transition"
+                    >
+                      {openingLine < OPENING_LINES[openingPhase].length - 1
+                        ? 'Continuar'
+                        : openingPhase === 'awakening'
+                          ? 'Levantar'
+                          : openingPhase === 'discovery'
+                            ? 'Seguir o som'
+                            : openingPhase === 'encounter'
+                              ? 'Preparar-se'
+                              : openingPhase === 'aftermath'
+                                ? 'Seguir as luzes'
+                                : 'Seguir os Ecos'}
+                      <ChevronRight className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className="absolute inset-x-0 bottom-0 h-2 bg-black" />
+          </div>
+        )}
       </div>
 
       {/* Barra de vida + retrato + XP */}
@@ -1626,7 +1803,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
           </button>
           {/* Troca de personagem estilo Genshin — desktop */}
           <div className="flex items-center gap-1 bg-slate-950/60 rounded-full p-1 backdrop-blur-md border border-slate-700/60">
-            {CHARACTER_ROSTER.map((ck) => {
+            {(engineRef.current?.availableCharacters ?? ['akles']).map((ck) => {
               const active = engineRef.current?.activeCharacter === ck;
               return (
                 <button

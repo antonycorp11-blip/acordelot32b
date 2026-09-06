@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import type { GameEngine, PlayerCharacterKey } from '../game/engine';
-import { CHARACTER_ROSTER, CHARACTER_PORTRAITS } from '../game/engine';
+import { CHARACTER_PORTRAITS } from '../game/engine';
 import { HudIcon } from './HudIcon';
 import { fetchGlobalHudLayout } from '../game/hudSync';
 import { Map as MapIcon } from 'lucide-react';
@@ -225,6 +225,7 @@ export const TouchControls: React.FC<TouchControlsProps> = ({
   // luta) e volta a ser "Atacar" sozinho assim que entra em combate.
   const [collectMode, setCollectMode] = useState(false);
   const [activeChar, setActiveChar] = useState<PlayerCharacterKey>('akles');
+  const [unlockedChars, setUnlockedChars] = useState<PlayerCharacterKey[]>(['akles']);
   useEffect(() => {
     const iv = setInterval(() => {
       const eng = engineRef.current;
@@ -232,6 +233,10 @@ export const TouchControls: React.FC<TouchControlsProps> = ({
       const busy = ['chop', 'mine', 'attack', 'spin', 'cast'].includes(eng.player.actionState as string);
       setCollectMode(!busy && !!eng.findNearestHarvestable('any'));
       setActiveChar(eng.activeCharacter);
+      setUnlockedChars((current) => {
+        const next = eng.availableCharacters;
+        return current.join('|') === next.join('|') ? current : next;
+      });
     }, 180);
     return () => clearInterval(iv);
   }, [engineRef]);
@@ -445,7 +450,7 @@ export const TouchControls: React.FC<TouchControlsProps> = ({
 
       {/* Troca de personagem estilo Genshin — colada bem em cima do anel de
           skills (nunca em coluna que pode passar da altura da tela). */}
-      {CHARACTER_ROSTER.map((ck, i) => {
+      {unlockedChars.map((ck, i) => {
         const active = activeChar === ck;
         return (
           <D

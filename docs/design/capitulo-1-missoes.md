@@ -7,6 +7,10 @@ Objetivo: ensinar o jogo inteiro sem interromper a narrativa
 
 O Capítulo 1 não deve abrir todos os menus de uma vez. Cada sistema aparece porque Akles e Pippo precisam dele para resolver um problema imediato. Depois da demonstração guiada, o jogador recebe uma situação curta em que usa o sistema sozinho.
 
+Nem todo sistema precisa de uma missão própria. Telas como inventário, ficha, Skills, passivas, arma e equipamentos podem ser apresentadas por **microcenas tutoriais** dentro de uma missão narrativa: a ação pausa, um personagem contextualiza a necessidade, a tela correta abre, dois ou três elementos são destacados e o jogador realiza uma única ação. A história então continua imediatamente.
+
+Uma missão só deve existir separadamente quando possui conflito, descoberta, escolha, vínculo ou consequência. “Clique aqui e depois aqui” é etapa de tutorial, não premissa de missão.
+
 Cada missão principal deve cumprir pelo menos duas funções:
 
 - avançar o vínculo entre Akles e Pippo;

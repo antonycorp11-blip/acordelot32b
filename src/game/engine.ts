@@ -27,6 +27,7 @@ import {
   Enemy,
   LightBeam,
   ToolTier,
+  Point,
 } from './types';
 import {
   buildMap,
@@ -1144,6 +1145,24 @@ export class GameEngine {
   player: CharacterState;
   companion: CompanionState;
 
+  // Campanha narrativa. O jogo começa somente com Akles; o companheiro de
+  // combate é liberado mais tarde pela escolha entre Wins e Huans.
+  companionVisible = false;
+  storyControlLocked = false;
+  storyObjective: { title: string; text: string; progress: number; target: number; ready: boolean } | null = null;
+  onStoryBeat?: (beat: 'opening_sound_found' | 'shinkers_appear' | 'shinkers_defeated' | 'three_echoes_found') => void;
+  private openingSoundTarget: Point | null = null;
+  private storyStage: 'idle' | 'follow_vibration' | 'sol_bemol_scene' | 'find_origin' | 'encounter_scene' | 'fight' | 'aftermath' | 'find_echoes' | 'echo_scene' | 'complete' = 'idle';
+  private storyEnemyIds = new Set<string>();
+  private storyEchoIds = new Set<string>();
+  private storyActorMoves: Array<{
+    kind: 'player' | 'npc' | 'enemy';
+    id?: string;
+    x: number;
+    y: number;
+    speed: number;
+  }> = [];
+
   shrineTimer: number = 0;
   shrineFrame: number = 0;
   chaliceTimer: number = 0;
@@ -1415,6 +1434,7 @@ export class GameEngine {
 
   // ---- Personagem ativo (Akles / Wins / Huans — personagens temporários) ----
   activeCharacter: PlayerCharacterKey = 'akles';
+  private unlockedCharacters = new Set<PlayerCharacterKey>(['akles']);
   onCharacterChange?: () => void;
   private static readonly CHARACTER_DEFAULT_WEAPON: Record<PlayerCharacterKey, string> = {
     akles: 'acordelamina_t2',
@@ -1429,11 +1449,14 @@ export class GameEngine {
   get activeCharacterPortrait(): string {
     return CHARACTER_PORTRAITS[this.activeCharacter];
   }
+  get availableCharacters(): PlayerCharacterKey[] {
+    return CHARACTER_ROSTER.filter((character) => this.unlockedCharacters.has(character));
+  }
   get characterClassKey(): CharacterClassKey {
     return this.activeCharacter === 'akles' ? 'teclas' : this.activeCharacter === 'wins' ? 'vocal' : 'cordas';
   }
   switchCharacter(key: PlayerCharacterKey): boolean {
-    if (key === this.activeCharacter) return false;
+    if (key === this.activeCharacter || !this.unlockedCharacters.has(key)) return false;
     if (this.appliedEquipHpBonus) {
       this.stats.maxHp -= this.appliedEquipHpBonus;
       this.stats.hp = Math.min(this.stats.hp, this.stats.maxHp);
@@ -1812,6 +1835,7 @@ export class GameEngine {
   }
   // missão ativa mais relevante pra mostrar embaixo da barra de vida
   get activeQuestObjective(): { title: string; text: string; progress: number; target: number; ready: boolean } | null {
+    if (this.storyObjective) return this.storyObjective;
     const q = this.dailyQuests.find((x) => x.accepted && !x.claimed);
     if (!q) return null;
     const ready = q.progress >= q.def.target;
@@ -2211,6 +2235,8 @@ export class GameEngine {
       return;
     }
 
+    if (this.storyControlLocked) return;
+
     // Action Key: F or Space (Contextual Woodcut or Mining)
     if (!this.isEditMode && (e.code === 'KeyF' || e.code === 'Space')) {
       const nearTree = this.findNearbyProp(['oak', 'pine', 'blossomTree', 'bush'], 55);
@@ -2312,7 +2338,185 @@ export class GameEngine {
   };
 
   setTouchVector(x: number, y: number) {
+    if (this.storyControlLocked) {
+      this.touchVector = { x: 0, y: 0 };
+      return;
+    }
     this.touchVector = { x, y };
+  }
+
+  beginOpeningScene() {
+    if (this.activeCharacter !== 'akles') this.switchCharacter('akles');
+    this.companionVisible = false;
+    this.storyControlLocked = true;
+    this.storyObjective = null;
+    this.storyStage = 'idle';
+    this.storyEnemyIds.clear();
+    this.storyEchoIds.clear();
+    this.storyActorMoves = [];
+    this.enemies = this.enemies.filter((enemy) => !enemy.id.startsWith('enemy_90') && !enemy.id.startsWith('enemy_91'));
+    this.openingSoundTarget = { x: 36 * TILE_SIZE, y: 122 * TILE_SIZE };
+    this.player.x = 36 * TILE_SIZE;
+    this.player.y = 126 * TILE_SIZE;
+    this.player.vx = 0;
+    this.player.vy = 0;
+    this.player.direction = 'down';
+    this.player.actionState = 'idle';
+    this.player.frame = 0;
+    this.playerInvuln = 30;
+    // Evita que os monstros de nível alto da floresta invadam o tutorial.
+    this.enemies = this.enemies.filter((enemy) => Math.hypot(enemy.x - this.player.x, enemy.y - this.player.y) > 560);
+    this.autoDayCycle = false;
+    this.setTimeOfDay('night');
+    this.camX = this.player.x + 12 - this.viewportW / 2;
+    this.camY = this.player.y + 16 - this.viewportH / 2;
+    this.clampCamera();
+    this.keys = {};
+    this.touchVector = { x: 0, y: 0 };
+  }
+
+  releaseOpeningControl() {
+    this.storyStage = 'follow_vibration';
+    this.storyControlLocked = false;
+    this.playerInvuln = Math.max(this.playerInvuln, 12);
+    this.storyObjective = {
+      title: 'Despertar sem Nome',
+      text: 'Siga a vibração entre as árvores',
+      progress: 0,
+      target: 1,
+      ready: false,
+    };
+    this.onQuestsChange?.();
+  }
+
+  finishOpeningDiscovery() {
+    this.storyControlLocked = false;
+    this.storyStage = 'find_origin';
+    this.openingSoundTarget = { x: 36 * TILE_SIZE, y: 116 * TILE_SIZE };
+    this.playerInvuln = Math.max(this.playerInvuln, 10);
+    this.storyObjective = {
+      title: 'Sol Bemol',
+      text: 'Encontre a origem do som',
+      progress: 0,
+      target: 1,
+      ready: false,
+    };
+    this.onQuestsChange?.();
+  }
+
+  beginShinkerEncounter() {
+    this.storyControlLocked = false;
+    this.storyStage = 'fight';
+    this.openingSoundTarget = null;
+    this.playerInvuln = 1.2;
+    const spawns: Array<[number, number, number]> = [[34, 117, 900001], [38, 117, 900002]];
+    for (const [col, row, id] of spawns) {
+      if (this.spawnEnemy('nocturno', col, row, id, 1)) {
+        const enemyId = `enemy_${id}`;
+        this.storyEnemyIds.add(enemyId);
+        const enemy = this.enemies.find((candidate) => candidate.id === enemyId);
+        if (enemy) {
+          enemy.homeX = this.player.x;
+          enemy.homeY = this.player.y;
+        }
+      }
+    }
+    this.storyObjective = {
+      title: 'Criaturas Dissonantes',
+      text: 'Derrote as criaturas que despertaram',
+      progress: 0,
+      target: Math.max(1, this.storyEnemyIds.size),
+      ready: false,
+    };
+    this.onQuestsChange?.();
+  }
+
+  revealThreeEchoes() {
+    this.storyControlLocked = false;
+    this.storyStage = 'find_echoes';
+    const spawns: Array<[string, number, number, number]> = [
+      ['eco_c', 35, 114, 910001],
+      ['eco_e', 37, 114, 910002],
+      ['eco_g', 36, 113, 910003],
+    ];
+    for (const [kind, col, row, id] of spawns) {
+      if (!this.spawnEnemy(kind, col, row, id, 1)) continue;
+      const enemyId = `enemy_${id}`;
+      this.storyEchoIds.add(enemyId);
+      this.moveStoryActor('enemy', enemyId, col * TILE_SIZE + 8, (row - 1) * TILE_SIZE + 8, 24);
+    }
+    this.storyObjective = {
+      title: 'Três Ecos',
+      text: 'Aproxime-se das três criaturas luminosas',
+      progress: 0,
+      target: 1,
+      ready: false,
+    };
+    this.onQuestsChange?.();
+  }
+
+  finishThreeEchoes() {
+    this.storyControlLocked = false;
+    this.storyStage = 'complete';
+    this.autoDayCycle = true;
+    this.playerInvuln = Math.max(this.playerInvuln, 5);
+    this.storyObjective = {
+      title: 'Três Ecos',
+      text: 'Siga Dó, Mi e Sol pela floresta',
+      progress: 0,
+      target: 1,
+      ready: false,
+    };
+    this.onQuestsChange?.();
+  }
+
+  unlockCompanion() {
+    this.companionVisible = true;
+    this.companion.x = this.player.x - 28;
+    this.companion.y = this.player.y + 4;
+  }
+
+  unlockCharacter(key: PlayerCharacterKey) {
+    if (this.unlockedCharacters.has(key)) return;
+    this.unlockedCharacters.add(key);
+    this.onCharacterChange?.();
+  }
+
+  /** Base para cenas futuras moverem personagens e inimigos sem simular teclado. */
+  moveStoryActor(kind: 'player' | 'npc' | 'enemy', id: string | undefined, x: number, y: number, speed = 70) {
+    this.storyActorMoves = this.storyActorMoves.filter((move) => !(move.kind === kind && move.id === id));
+    this.storyActorMoves.push({ kind, id, x, y, speed });
+  }
+
+  private updateStoryActorMoves(dt: number) {
+    this.storyActorMoves = this.storyActorMoves.filter((move) => {
+      const actor = move.kind === 'player'
+        ? this.player
+        : move.kind === 'npc'
+          ? this.npcs.find((npc) => npc.id === move.id)
+          : this.enemies.find((enemy) => enemy.id === move.id);
+      if (!actor) return false;
+      const dx = move.x - actor.x;
+      const dy = move.y - actor.y;
+      const distance = Math.hypot(dx, dy);
+      if (distance < 2) {
+        actor.x = move.x;
+        actor.y = move.y;
+        if ('isMoving' in actor) actor.isMoving = false;
+        return false;
+      }
+      const step = Math.min(distance, move.speed * dt);
+      actor.x += dx / distance * step;
+      actor.y += dy / distance * step;
+      if ('isMoving' in actor) actor.isMoving = true;
+      if ('direction' in actor) {
+        actor.direction = Math.abs(dx) > Math.abs(dy)
+          ? (dx < 0 ? 'left' : 'right')
+          : (dy < 0 ? 'up' : 'down');
+      }
+      if ('facingLeft' in actor) actor.facingLeft = dx < 0;
+      return true;
+    });
   }
 
   setSkillAimPreview(slot: number, dx: number, dy: number, power = 1) {
@@ -3599,6 +3803,20 @@ export class GameEngine {
       e.frame = 0;
       e.stateTimer = 0;
       this.bumpQuestProgress('kill');
+      if (this.storyStage === 'fight' && this.storyEnemyIds.has(e.id)) {
+        const defeated = [...this.storyEnemyIds].filter((id) => this.enemies.find((enemy) => enemy.id === id)?.state === 'dead').length;
+        if (this.storyObjective) {
+          this.storyObjective = { ...this.storyObjective, progress: defeated, ready: defeated >= this.storyEnemyIds.size };
+          this.onQuestsChange?.();
+        }
+        if (defeated >= this.storyEnemyIds.size) {
+          this.storyStage = 'aftermath';
+          this.storyControlLocked = true;
+          this.player.vx = 0;
+          this.player.vy = 0;
+          window.setTimeout(() => this.onStoryBeat?.('shinkers_defeated'), 650);
+        }
+      }
       const def = ENEMY_DEFS[e.kind];
       const lvlBonus = Math.floor((e.level - 1) / 2);
       const claves = def.claveMin + lvlBonus + Math.floor(Math.random() * (def.claveMax - def.claveMin + 1));
@@ -4872,6 +5090,8 @@ export class GameEngine {
       this.merchantFrame = (this.merchantFrame + 1) % 8;
     }
 
+    this.updateStoryActorMoves(dt);
+
     // Personagem em ação ativa (coleta, ataque, giro, magia)
     const act = this.player.actionState;
     const isBusy =
@@ -4945,7 +5165,7 @@ export class GameEngine {
       let moveX = 0;
       let moveY = 0;
 
-      if (!this.isTalkingToMerchant) {
+      if (!this.isTalkingToMerchant && !this.storyControlLocked) {
         if (this.keys['KeyW'] || this.keys['ArrowUp'] || this.keys['w']) moveY -= 1;
         if (this.keys['KeyS'] || this.keys['ArrowDown'] || this.keys['s']) moveY += 1;
         if (this.keys['KeyA'] || this.keys['ArrowLeft'] || this.keys['a']) moveX -= 1;
@@ -5000,11 +5220,11 @@ export class GameEngine {
     }
 
     this.moveCharacterWithCollision(this.player, dt);
-    this.updateCompanion(dt);
+    if (this.companionVisible) this.updateCompanion(dt);
     this.updateRemotePlayers(dt);
     this.updateNpcs(dt);
     this.updateFragments(dt);
-    this.updateEnemies(dt);
+    if (!this.storyControlLocked) this.updateEnemies(dt);
     this.updateLightBeams(dt);
     this.updateCombatZones(dt);
 
@@ -5053,6 +5273,41 @@ export class GameEngine {
     this.updateDamageTexts(dt);
     this.updateGroundDrops(dt);
     this.updateSkillTimers(dt);
+
+    if (!this.storyControlLocked && this.openingSoundTarget && (this.storyStage === 'follow_vibration' || this.storyStage === 'find_origin')) {
+      const distance = Math.hypot(
+        this.player.x + this.player.width / 2 - this.openingSoundTarget.x,
+        this.player.y + this.player.height / 2 - this.openingSoundTarget.y,
+      );
+      if (distance < 44) {
+        this.storyControlLocked = true;
+        this.player.vx = 0;
+        this.player.vy = 0;
+        const foundFirstSound = this.storyStage === 'follow_vibration';
+        this.storyStage = foundFirstSound ? 'sol_bemol_scene' : 'encounter_scene';
+        this.storyObjective = foundFirstSound
+          ? { title: 'Despertar sem Nome', text: 'Vibração encontrada', progress: 1, target: 1, ready: true }
+          : { title: 'Sol Bemol', text: 'A origem está logo adiante', progress: 1, target: 1, ready: true };
+        this.onQuestsChange?.();
+        this.onStoryBeat?.(foundFirstSound ? 'opening_sound_found' : 'shinkers_appear');
+      }
+    }
+
+    if (!this.storyControlLocked && this.storyStage === 'find_echoes' && this.storyEchoIds.size) {
+      const nearEcho = [...this.storyEchoIds].some((id) => {
+        const echo = this.enemies.find((enemy) => enemy.id === id && enemy.state !== 'dead');
+        return !!echo && Math.hypot(echo.x - this.player.x, echo.y - this.player.y) < 74;
+      });
+      if (nearEcho) {
+        this.storyStage = 'echo_scene';
+        this.storyControlLocked = true;
+        this.player.vx = 0;
+        this.player.vy = 0;
+        this.storyObjective = { title: 'Três Ecos', text: 'Dó, Mi e Sol', progress: 1, target: 1, ready: true };
+        this.onQuestsChange?.();
+        this.onStoryBeat?.('three_echoes_found');
+      }
+    }
 
     if (Math.random() < 0.18) {
       this.addBlossomPetal(
@@ -5404,10 +5659,12 @@ export class GameEngine {
       }
     }
 
-    renderables.push({
-      sortY: this.companion.y + 36,
-      draw: () => this.drawCompanion(camX, camY),
-    });
+    if (this.companionVisible) {
+      renderables.push({
+        sortY: this.companion.y + 36,
+        draw: () => this.drawCompanion(camX, camY),
+      });
+    }
 
     if (this.equippedPieces.aura) {
       renderables.push({
@@ -5525,6 +5782,24 @@ export class GameEngine {
       ctx.fillRect(-4, -4, 8, 8);
       ctx.fillStyle = 'rgba(255,255,255,0.7)';
       ctx.fillRect(-4, -4, 3, 3);
+      ctx.restore();
+    }
+
+    if (this.openingSoundTarget && !this.storyControlLocked) {
+      const sx = Math.round(this.openingSoundTarget.x - camX);
+      const sy = Math.round(this.openingSoundTarget.y - camY);
+      const pulse = .65 + Math.sin(this.timeElapsed * 4) * .2;
+      ctx.save();
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.strokeStyle = `rgba(167,139,250,${pulse})`;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(sx, sy, 11 + pulse * 8, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.fillStyle = `rgba(221,214,254,${pulse})`;
+      ctx.font = 'bold 17px serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('♪', sx, sy + 5);
       ctx.restore();
     }
 

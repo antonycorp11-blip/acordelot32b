@@ -394,6 +394,7 @@ const NPC_SHEET: Record<string, keyof LoadedAssets> = {
   setimo: 'npcSetimo',
   seminima: 'npcSeminima',
   diapasao: 'npcDiapasao',
+  antony: 'npcSrAntony',
 };
 
 export const HARVEST_DEFS: Record<string, HarvestDef> = {
@@ -1151,9 +1152,11 @@ export class GameEngine {
   companionVisible = false;
   storyControlLocked = false;
   storyObjective: { title: string; text: string; progress: number; target: number; ready: boolean } | null = null;
-  onStoryBeat?: (beat: 'movement_learned' | 'attack_learned' | 'opening_sound_found' | 'shinkers_appear' | 'shinkers_defeated' | 'three_echoes_found' | 'gate_arrival' | 'mirella_arrival' | 'house_entered' | 'morning_arrival' | 'opening_mission_complete') => void;
+  onStoryBeat?: (beat: 'movement_learned' | 'attack_learned' | 'opening_sound_found' | 'shinkers_appear' | 'shinkers_defeated' | 'three_echoes_found' | 'gate_arrival' | 'mirella_arrival' | 'house_entered' | 'morning_arrival' | 'opening_mission_complete' | 'antony_arrival' | 'second_mission_complete') => void;
   private openingSoundTarget: Point | null = null;
-  private storyStage: 'idle' | 'follow_vibration' | 'sol_bemol_scene' | 'find_origin' | 'encounter_scene' | 'fight' | 'aftermath' | 'find_echoes' | 'echo_scene' | 'follow_echoes' | 'gate_scene' | 'follow_pippo' | 'mirella_scene' | 'entering_house' | 'rest_scene' | 'morning_scene' | 'complete' = 'idle';
+  private storyStage: 'idle' | 'follow_vibration' | 'sol_bemol_scene' | 'find_origin' | 'encounter_scene' | 'fight' | 'aftermath' | 'find_echoes' | 'echo_scene' | 'follow_echoes' | 'gate_scene' | 'follow_pippo' | 'mirella_scene' | 'entering_house' | 'rest_scene' | 'morning_scene' | 'follow_pippo_antony' | 'antony_scene' | 'complete' = 'idle';
+  private openingMissionComplete = false;
+  private antonyMissionComplete = false;
   private storyMoveOrigin: Point | null = null;
   private storyMovementTaught = false;
   private storyAttackTaught = false;
@@ -1170,6 +1173,7 @@ export class GameEngine {
     x: number;
     y: number;
     speed: number;
+    path?: Point[];
   }> = [];
 
   shrineTimer: number = 0;
@@ -1864,8 +1868,37 @@ export class GameEngine {
   /** Registro da campanha. As diárias só serão abertas por uma missão futura. */
   get dailyQuestsUnlocked() { return false; }
 
+  get isOpeningComplete() { return this.openingMissionComplete; }
+  get isAntonyMissionComplete() { return this.antonyMissionComplete; }
+
+  get completedMainQuestIds() {
+    const ids: string[] = [];
+    if (this.openingMissionComplete) ids.push('MQ_C1_001_DESPERTAR_SEM_NOME');
+    if (this.antonyMissionComplete) ids.push('MQ_C1_002_ESTRADA_PARA_ACORDELOT');
+    return ids;
+  }
+
+  restoreMainQuestProgress(ids: string[]) {
+    this.openingMissionComplete = ids.includes('MQ_C1_001_DESPERTAR_SEM_NOME')
+      || ids.includes('MQ_C1_002_ESTRADA_PARA_ACORDELOT')
+      || ids.includes('MQ_C1_002_ESTRADA_ACORDELOT');
+    this.antonyMissionComplete = ids.includes('MQ_C1_002_ESTRADA_PARA_ACORDELOT')
+      || ids.includes('MQ_C1_002_ESTRADA_ACORDELOT');
+    if (this.openingMissionComplete) {
+      const antony = this.ensureSrAntony();
+      if (this.antonyMissionComplete) {
+        this.storyStage = 'complete';
+        this.storyControlLocked = false;
+        const pippo = this.npcs.find((npc) => npc.id === 'story_pippo')
+          ?? this.ensureStoryNpc('story_pippo', 'Pippo', 'seminima', antony.x - 38, antony.y + 4, '#fbbf24');
+        pippo.direction = 'right';
+      }
+    }
+    this.onQuestsChange?.();
+  }
+
   get mainQuestLog() {
-    const openingComplete = this.storyStage === 'complete';
+    const openingComplete = this.openingMissionComplete;
     return [
       {
         id: 'MQ_C1_001_DESPERTAR_SEM_NOME',
@@ -1880,8 +1913,8 @@ export class GameEngine {
         chapter: 'Capítulo I',
         title: 'A Estrada para Acordelot',
         description: 'Viaje até o centro da cidade e procure o Sr. Antony, líder de Acordelot.',
-        status: openingComplete ? 'active' as const : 'locked' as const,
-        objective: openingComplete ? 'Procure o Sr. Antony no centro da cidade.' : 'Conclua Despertar sem Nome.',
+        status: this.antonyMissionComplete ? 'completed' as const : openingComplete ? 'active' as const : 'locked' as const,
+        objective: this.antonyMissionComplete ? 'Você conheceu o líder de Acordelot.' : openingComplete ? (this.storyObjective?.text ?? 'Procure o Sr. Antony no centro da cidade.') : 'Conclua Despertar sem Nome.',
       },
     ];
   }
@@ -2600,7 +2633,8 @@ export class GameEngine {
   }
 
   finishMorningBriefing() {
-    this.storyStage = 'complete';
+    this.storyStage = 'follow_pippo_antony';
+    this.openingMissionComplete = true;
     this.storyControlLocked = false;
     this.autoDayCycle = true;
     this.playerInvuln = 4;
@@ -2609,9 +2643,64 @@ export class GameEngine {
       ...this.suspendedStoryEnemies,
     ];
     this.suspendedStoryEnemies = [];
-    this.storyObjective = { title: 'A Estrada para Acordelot', text: 'Vá ao centro da cidade e procure o Sr. Antony', progress: 0, target: 1, ready: false };
+    const antony = this.ensureSrAntony();
+    const pippo = this.npcs.find((npc) => npc.id === 'story_pippo');
+    if (pippo) {
+      this.moveStoryActor('npc', pippo.id, 35 * TILE_SIZE, 30 * TILE_SIZE, 115, [
+        { x: antony.x - 46, y: antony.y + 8 },
+      ]);
+    }
+    this.storyDialogueIndex = 0;
+    this.storyDialogueAt = this.timeElapsed + 2;
+    this.storyObjective = { title: 'A Estrada para Acordelot', text: 'Siga Pippo e procure o Sr. Antony no centro', progress: 0, target: 1, ready: false };
     this.onQuestsChange?.();
     this.onStoryBeat?.('opening_mission_complete');
+  }
+
+  private ensureSrAntony() {
+    const hall = this.props.find((prop) => prop.id === 'b_town_hall') ?? this.props.find((prop) => prop.type === 'bldgTownHall');
+    const x = hall ? hall.x + hall.w / 2 - 14 : 36 * TILE_SIZE;
+    const y = hall ? hall.y + hall.h + 8 : 24 * TILE_SIZE;
+    const antony = this.ensureStoryNpc('story_sr_antony', 'Sr. Antony', 'antony', x, y, '#60a5fa');
+    antony.title = 'Líder de Acordelot';
+    antony.direction = 'down';
+    antony.dialogue = [
+      'Bem-vindo ao centro de Acordelot, Akles.',
+      'Sua memória ainda repousa nas sombras, mas seu instinto musical é límpido.',
+      'Fique em nossa cidade e prepare-se. Logo aprenderemos o que o seu passado esconde.',
+    ];
+    antony.barks = [
+      'A harmonia não perdoa desafinações.',
+      'Ouça o tom das coisas antes de agir.',
+    ];
+    return antony;
+  }
+
+  finishAntonyMeeting() {
+    this.storyStage = 'complete';
+    this.storyControlLocked = false;
+    this.antonyMissionComplete = true;
+    this.gainXp(25);
+    const antony = this.npcs.find((npc) => npc.id === 'story_sr_antony');
+    if (antony) antony.direction = 'down';
+    const pippo = this.npcs.find((npc) => npc.id === 'story_pippo');
+    if (pippo && antony) {
+      pippo.x = antony.x - 38;
+      pippo.y = antony.y + 4;
+      pippo.direction = 'right';
+      pippo.isMoving = false;
+      pippo.dialogue = [
+        'Eu disse que o Sr. Antony ia ajudar!',
+        'Agora você pode explorar a cidade. Mas tome cuidado fora dos muros, hein!',
+      ];
+      pippo.barks = [
+        'Acho que você vai se acostumar com Acordelot!',
+        'Qualquer coisa, pergunte ao Sr. Antony.',
+      ];
+    }
+    this.storyObjective = { title: 'A Estrada para Acordelot', text: 'Missão concluída! Explore Acordelot', progress: 1, target: 1, ready: true };
+    this.onQuestsChange?.();
+    this.onStoryBeat?.('second_mission_complete');
   }
 
   unlockCompanion() {
@@ -2627,9 +2716,9 @@ export class GameEngine {
   }
 
   /** Base para cenas futuras moverem personagens e inimigos sem simular teclado. */
-  moveStoryActor(kind: 'player' | 'npc' | 'enemy', id: string | undefined, x: number, y: number, speed = 70) {
+  moveStoryActor(kind: 'player' | 'npc' | 'enemy', id: string | undefined, x: number, y: number, speed = 70, path?: Point[]) {
     this.storyActorMoves = this.storyActorMoves.filter((move) => !(move.kind === kind && move.id === id));
-    this.storyActorMoves.push({ kind, id, x, y, speed });
+    this.storyActorMoves.push({ kind, id, x, y, speed, path: path ? [...path] : undefined });
   }
 
   private updateStoryActorMoves(dt: number) {
@@ -2641,7 +2730,7 @@ export class GameEngine {
           : this.enemies.find((enemy) => enemy.id === move.id);
       if (!actor) return false;
       const guidedActor = (this.storyStage === 'follow_echoes' && move.kind === 'enemy' && !!move.id && this.storyEchoIds.has(move.id))
-        || (this.storyStage === 'follow_pippo' && move.kind === 'npc' && move.id === 'story_pippo');
+        || ((this.storyStage === 'follow_pippo' || this.storyStage === 'follow_pippo_antony') && move.kind === 'npc' && move.id === 'story_pippo');
       if (guidedActor && Math.hypot(actor.x - this.player.x, actor.y - this.player.y) > 145) {
         if ('isMoving' in actor) actor.isMoving = false;
         return true;
@@ -2649,7 +2738,13 @@ export class GameEngine {
       const dx = move.x - actor.x;
       const dy = move.y - actor.y;
       const distance = Math.hypot(dx, dy);
-      if (distance < 2) {
+      if (distance < 4) {
+        if (move.path && move.path.length > 0) {
+          const next = move.path.shift()!;
+          move.x = next.x;
+          move.y = next.y;
+          return true;
+        }
         actor.x = move.x;
         actor.y = move.y;
         if ('isMoving' in actor) actor.isMoving = false;
@@ -4655,7 +4750,7 @@ export class GameEngine {
 
     // Conversa de percurso: guia o ritmo da caminhada sem abrir outra caixa
     // de diálogo e dá personalidade aos acompanhantes.
-    if ((this.storyStage === 'follow_echoes' || this.storyStage === 'follow_pippo') && now >= this.storyDialogueAt) {
+    if ((this.storyStage === 'follow_echoes' || this.storyStage === 'follow_pippo' || this.storyStage === 'follow_pippo_antony') && now >= this.storyDialogueAt) {
       const echoIds = [...this.storyEchoIds];
       const echoLines = [
         { who: 'enemy' as const, enemyId: echoIds[0], text: '♪ Dó... dó...', voice: 'pippo' },
@@ -4669,7 +4764,13 @@ export class GameEngine {
         { who: 'npc' as const, npcId: 'story_pippo', text: 'Só com os que chegam escoltados por um acorde.', voice: 'pippo' },
         { who: 'npc' as const, npcId: 'story_pippo', text: 'A estrada para Acordelot é longa. Hoje você precisa dormir.', voice: 'pippo' },
       ];
-      const lines = this.storyStage === 'follow_echoes' ? echoLines : pippoLines;
+      const antonyLines = [
+        { who: 'npc' as const, npcId: 'story_pippo', text: 'O Sr. Antony sabe tudo o que acontece em Acordelot.', voice: 'pippo' },
+        { who: 'akles' as const, text: 'Talvez ele saiba quem eu sou.', voice: 'akles' },
+        { who: 'npc' as const, npcId: 'story_pippo', text: 'Talvez. Mas ele responde perguntas com outras perguntas.', voice: 'pippo' },
+        { who: 'akles' as const, text: 'Então já sei o que esperar.', voice: 'akles' },
+      ];
+      const lines = this.storyStage === 'follow_echoes' ? echoLines : this.storyStage === 'follow_pippo_antony' ? antonyLines : pippoLines;
       const line = lines[this.storyDialogueIndex % lines.length];
       this.bubbles.push({ ...line, born: now, ttl: 4.4 });
       this.onStoryVoice?.(line.text, line.voice);
@@ -5376,7 +5477,7 @@ export class GameEngine {
         !!(this.keys['ShiftLeft'] || this.keys['ShiftRight'] || this.keys['shift']);
       const touchMag = Math.hypot(this.touchVector.x, this.touchVector.y);
       const sprintTouch = touchMag > 0.82;
-      const escortedWalk = this.storyStage === 'follow_echoes' || this.storyStage === 'follow_pippo';
+      const escortedWalk = this.storyStage === 'follow_echoes' || this.storyStage === 'follow_pippo' || this.storyStage === 'follow_pippo_antony';
       this.heroRunning = len > 0.05 && (sprintKey || sprintTouch) && !escortedWalk;
       // base mais rápida + escala com Agilidade (pontos de habilidade)
       const unrestrictedSpeed =
@@ -5527,6 +5628,29 @@ export class GameEngine {
         this.storyObjective = { title: 'Despertar sem Nome', text: 'Abrigo de Mirella', progress: 1, target: 1, ready: true };
         this.onQuestsChange?.();
         this.onStoryBeat?.('mirella_arrival');
+      }
+    }
+
+    if (!this.storyControlLocked && this.storyStage === 'follow_pippo_antony') {
+      const pippo = this.npcs.find((npc) => npc.id === 'story_pippo');
+      const antony = this.npcs.find((npc) => npc.id === 'story_sr_antony');
+      const playerDist = antony ? Math.hypot(this.player.x - antony.x, this.player.y - antony.y) : 999;
+      const pippoDist = pippo && antony ? Math.hypot(pippo.x - antony.x, pippo.y - antony.y) : 999;
+      if (antony && (playerDist < 90 || (pippoDist < 95 && playerDist < 160))) {
+        if (pippo) {
+          pippo.x = antony.x - 38;
+          pippo.y = antony.y + 4;
+          pippo.direction = 'right';
+          pippo.isMoving = false;
+          this.storyActorMoves = this.storyActorMoves.filter((m) => m.id !== 'story_pippo');
+        }
+        this.storyStage = 'antony_scene';
+        this.storyControlLocked = true;
+        this.player.vx = 0;
+        this.player.vy = 0;
+        this.storyObjective = { title: 'A Estrada para Acordelot', text: 'Diante do Sr. Antony', progress: 1, target: 1, ready: true };
+        this.onQuestsChange?.();
+        this.onStoryBeat?.('antony_arrival');
       }
     }
 
@@ -7129,8 +7253,10 @@ export class GameEngine {
     const sheetKey = NPC_SHEET[npc.spriteType];
     const sheet = sheetKey ? (this.assets?.[sheetKey] as HTMLImageElement | undefined) : undefined;
     if (sheet && sheet.complete && sheet.naturalWidth > 0) {
-      const m = NPC_ANIM;
-      const disp = 0.44;
+      const m = npc.spriteType === 'antony'
+        ? { cw: sheet.naturalWidth / 10, ch: sheet.naturalHeight / 4, cols: 10, fps: 9 }
+        : NPC_ANIM;
+      const disp = npc.spriteType === 'antony' ? 0.3 : 0.44;
       const dispW = m.cw * disp;
       const dispH = m.ch * disp;
       const row = AKLES_DIR_ROW[npc.direction];

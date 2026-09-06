@@ -52,7 +52,7 @@ import { saveGlobalHudLayout } from '../game/hudSync';
 import { networkManager, ChatMessage } from '../game/networkManager';
 import { playMusicalTone, speakMusically, stopMusicalVoice, unlockMusicalVoice } from '../game/musicalVoice';
 
-type OpeningPhase = 'awakening' | 'discovery' | 'encounter' | 'aftermath' | 'echoes' | 'gate' | 'mirella' | 'rest' | 'morning';
+type OpeningPhase = 'awakening' | 'discovery' | 'encounter' | 'aftermath' | 'echoes' | 'gate' | 'mirella' | 'rest' | 'morning' | 'antony';
 type TutorialStage = 'cinematic' | 'movement' | 'explore' | 'combat' | 'follow' | 'full';
 
 const OPENING_LINES: Record<OpeningPhase, Array<{ speaker: string; voice: string; text: string }>> = {
@@ -105,6 +105,16 @@ const OPENING_LINES: Record<OpeningPhase, Array<{ speaker: string; voice: string
     { speaker: 'Mirella', voice: 'mirella', text: 'Vá ao centro da cidade e procure o Sr. Antony. Ele é o líder de Acordelot.' },
     { speaker: 'Pippo', voice: 'pippo', text: 'Eu mostro o começo do caminho. E prometo não correr... muito.' },
   ],
+  antony: [
+    { speaker: 'Pippo', voice: 'pippo', text: 'Sr. Antony! Mirella pediu que eu trouxesse ele. Os Ecos encontraram ele na floresta.' },
+    { speaker: 'Sr. Antony', voice: 'sr_antony', text: 'Então foram os Ecos... e você chegou justamente nesta noite.' },
+    { speaker: 'Akles', voice: 'akles', text: 'Eu não lembro de nada. Nem mesmo do meu nome.' },
+    { speaker: 'Pippo', voice: 'pippo', text: 'Eu chamei ele de Akles. Não sei por quê. Só parece certo.' },
+    { speaker: 'Sr. Antony', voice: 'sr_antony', text: 'Akles... Entendo. Diga-me: como reconheceu as notas sem recordar que as conhecia?' },
+    { speaker: 'Akles', voice: 'akles', text: 'Meu corpo sabia. Como se já tivesse vivido aquilo antes.' },
+    { speaker: 'Sr. Antony', voice: 'sr_antony', text: 'Fique em Acordelot por enquanto. Aqui aprenderemos o que sua memória decidiu esconder.' },
+    { speaker: 'Narração', voice: 'narrator', text: 'Por um instante, o líder parece reconhecer Akles. Então esconde a reação atrás de um sorriso cauteloso.' },
+  ],
 };
 
 const DIALOGUE_PORTRAITS: Record<string, { src: string; sheet?: 'npc' | 'guard' }> = {
@@ -112,6 +122,7 @@ const DIALOGUE_PORTRAITS: Record<string, { src: string; sheet?: 'npc' | 'guard' 
   pippo: { src: '/assets/characters/npcs/seminima.png', sheet: 'npc' },
   mirella: { src: '/assets/characters/npcs/cadencia.png', sheet: 'npc' },
   guard_muralha: { src: '/assets/characters/knight_idle.png', sheet: 'guard' },
+  sr_antony: { src: '/assets/characters/npcs/sr_antony.png', sheet: 'npc' },
 };
 
 const NPC_PORTRAIT_SOURCES: Record<string, { src: string; sheet: 'npc' | 'guard' }> = {
@@ -122,6 +133,7 @@ const NPC_PORTRAIT_SOURCES: Record<string, { src: string; sheet: 'npc' | 'guard'
   diapasao: { src: '/assets/characters/npcs/diapasao.png', sheet: 'npc' },
   guard: { src: '/assets/characters/knight_idle.png', sheet: 'guard' },
   merchant: { src: '/assets/ancient-ruins/Characters/NPC Merchant-idle.png', sheet: 'npc' },
+  antony: { src: '/assets/characters/npcs/sr_antony.png', sheet: 'npc' },
 };
 
 interface PropPaletteItem {
@@ -856,6 +868,12 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
         setTutorialStage('cinematic');
         setOpeningLine(0);
         setOpeningPhase('morning');
+      } else if (beat === 'antony_arrival') {
+        setTutorialStage('cinematic');
+        setOpeningLine(0);
+        setOpeningPhase('antony');
+      } else if (beat === 'second_mission_complete') {
+        setTutorialStage('full');
       }
     };
 
@@ -922,6 +940,16 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
   useEffect(() => {
     if (!assetsLoaded || !saveReady || openingStarted.current || !engineRef.current) return;
     openingStarted.current = true;
+    if (engineRef.current.isAntonyMissionComplete) {
+      setTutorialStage('full');
+      setOpeningPhase(null);
+      return;
+    }
+    if (engineRef.current.isOpeningComplete) {
+      setTutorialStage('follow');
+      setOpeningPhase(null);
+      return;
+    }
     engineRef.current.beginOpeningScene();
     setTutorialStage('cinematic');
     setOpeningLine(0);
@@ -1001,6 +1029,12 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
       setOpeningPhase(null);
       setTutorialStage('follow');
       engineRef.current?.finishMorningBriefing();
+      return;
+    }
+    if (openingPhase === 'antony') {
+      setOpeningPhase(null);
+      setTutorialStage('full');
+      engineRef.current?.finishAntonyMeeting();
       return;
     }
     setOpeningPhase(null);
@@ -1758,7 +1792,8 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
                         openingPhase === 'echoes' ? 'TRÊS ECOS' :
                           openingPhase === 'gate' ? 'O MENINO DA LANTERNA' :
                             openingPhase === 'mirella' ? 'ABRIGO' :
-                              openingPhase === 'rest' ? 'ANTES DO AMANHECER' : 'UMA LONGA ESTRADA'}
+                              openingPhase === 'rest' ? 'ANTES DO AMANHECER' :
+                                openingPhase === 'morning' ? 'UMA LONGA ESTRADA' : 'O LÍDER DE ACORDELOT'}
               </p>
             </div>
 
@@ -1821,7 +1856,11 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
                                       ? 'Entrar na casa'
                                       : openingPhase === 'rest'
                                         ? 'Amanhecer'
-                                        : 'Procurar o Sr. Antony'}
+                                        : openingPhase === 'morning'
+                                          ? 'Procurar o Sr. Antony'
+                                          : openingPhase === 'antony'
+                                            ? 'Entrar em Acordelot'
+                                            : 'Continuar'}
                       <ChevronRight className="w-4 h-4" />
                     </button>
                   </div>

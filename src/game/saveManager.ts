@@ -34,6 +34,7 @@ export interface AcordelotSaveData {
   quests: {
     date: string;
     daily: Array<{ id: string; accepted: boolean; progress: number; claimed: boolean }>;
+    mainCompleted?: string[];
   };
   settings: Record<string, unknown>;
   play_time_seconds: number;
@@ -113,6 +114,7 @@ export function serializeEngineSave(engine: GameEngine, userId: string): Omit<Ac
     quests: {
       date: new Date().toISOString().slice(0, 10),
       daily: dailyQuests,
+      mainCompleted: engine.completedMainQuestIds,
     },
     settings: {
       fragments: [...(engine.fragments || [])],
@@ -300,7 +302,10 @@ export function applySaveToEngine(engine: GameEngine, save: Partial<AcordelotSav
     if (save.passives.__skillLevels && anyEngine.skillLevels) anyEngine.skillLevels = { ...anyEngine.skillLevels, ...(save.passives.__skillLevels as object) };
   }
 
-  // 9. Missões diárias
+  // 9. Missões principais e diárias
+  if (save.quests && Array.isArray(save.quests.mainCompleted)) {
+    engine.restoreMainQuestProgress(save.quests.mainCompleted);
+  }
   if (save.quests && Array.isArray(save.quests.daily) && anyEngine.dailyQuests) {
     const today = new Date().toISOString().slice(0, 10);
     if (save.quests.date === today) {

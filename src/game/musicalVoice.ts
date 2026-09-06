@@ -17,6 +17,8 @@ const PRESETS: Record<string, VoicePreset> = {
   wins: { root: 220, scale: [0, 3, 5, 7, 10], waveform: 'triangle', speed: .068, sustain: .11, brightness: .9, formant: 1050, roughness: .03 },
   huans: { root: 164.81, scale: [0, 2, 5, 7, 9], waveform: 'square', speed: .052, sustain: .06, brightness: .6, formant: 820, roughness: .08 },
   narrator: { root: 110, scale: [0, 5, 7, 10], waveform: 'sawtooth', speed: .095, sustain: .13, brightness: .25, formant: 560, roughness: .15 },
+  mirella: { root: 220, scale: [0, 4, 7, 11, 14], waveform: 'triangle', speed: .065, sustain: .09, brightness: .75, formant: 1080, roughness: .03 },
+  sr_antony: { root: 123.47, scale: [0, 2, 5, 7, 10], waveform: 'sawtooth', speed: .082, sustain: .11, brightness: .38, formant: 610, roughness: .1 },
 };
 
 let audioContext: AudioContext | null = null;
@@ -32,6 +34,8 @@ function hash(value: string) {
 }
 
 function presetFor(voice: MusicalVoiceId): VoicePreset {
+  const normalized = voice.toLowerCase().replace(/^story_/, '');
+  if (PRESETS[normalized]) return PRESETS[normalized];
   if (PRESETS[voice]) return PRESETS[voice];
   const h = hash(voice);
   return {

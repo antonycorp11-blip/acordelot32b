@@ -169,7 +169,7 @@ const DIR_ROW_BY_CHAR: Record<PlayerCharacterKey, Record<Direction, number>> = {
 
 export type PlayerCharacterKey = 'akles' | 'wins' | 'huans';
 export const CHARACTER_PORTRAITS: Record<PlayerCharacterKey, string> = {
-  akles: '/icons/icon-192.png',
+  akles: '/assets/characters/portraits/akles.webp',
   wins: '/assets/characters/wins/wins_icon.png',
   huans: '/assets/characters/huans/huans_icon.png',
 };
@@ -1810,6 +1810,7 @@ export class GameEngine {
     }
   }
   acceptQuest(id: string): boolean {
+    if (!this.dailyQuestsUnlocked) return false;
     const q = this.dailyQuests.find((x) => x.def.id === id);
     if (!q || q.accepted) return false;
     q.accepted = true;
@@ -1818,6 +1819,7 @@ export class GameEngine {
     return true;
   }
   claimQuestReward(id: string): boolean {
+    if (!this.dailyQuestsUnlocked) return false;
     const q = this.dailyQuests.find((x) => x.def.id === id);
     if (!q || !q.accepted || q.claimed || q.progress < q.def.target) return false;
     for (const r of q.def.rewards) {
@@ -1832,6 +1834,7 @@ export class GameEngine {
     return true;
   }
   private bumpQuestProgress(kind: QuestKind, n = 1) {
+    if (!this.dailyQuestsUnlocked) return;
     let changed = false;
     for (const q of this.dailyQuests) {
       if (!q.accepted || q.claimed || q.def.kind !== kind || q.progress >= q.def.target) continue;
@@ -1856,6 +1859,31 @@ export class GameEngine {
       target: q.def.target,
       ready,
     };
+  }
+
+  /** Registro da campanha. As diárias só serão abertas por uma missão futura. */
+  get dailyQuestsUnlocked() { return false; }
+
+  get mainQuestLog() {
+    const openingComplete = this.storyStage === 'complete';
+    return [
+      {
+        id: 'MQ_C1_001_DESPERTAR_SEM_NOME',
+        chapter: 'Capítulo I',
+        title: 'Despertar sem Nome',
+        description: 'Acorde na floresta, reconheça a vibração, enfrente as criaturas e siga os Ecos até Pippo e Mirella.',
+        status: openingComplete ? 'completed' as const : 'active' as const,
+        objective: openingComplete ? 'Você encontrou abrigo antes do amanhecer.' : (this.storyObjective?.text ?? 'Descubra onde você está.'),
+      },
+      {
+        id: 'MQ_C1_002_ESTRADA_PARA_ACORDELOT',
+        chapter: 'Capítulo I',
+        title: 'A Estrada para Acordelot',
+        description: 'Viaje até o centro da cidade e procure o Sr. Antony, líder de Acordelot.',
+        status: openingComplete ? 'active' as const : 'locked' as const,
+        objective: openingComplete ? 'Procure o Sr. Antony no centro da cidade.' : 'Conclua Despertar sem Nome.',
+      },
+    ];
   }
 
   // ---- multiplicadores derivados das passivas ----
@@ -2491,7 +2519,7 @@ export class GameEngine {
     const targets: Array<[number, number]> = [[gateCol - .8, gateRow], [gateCol + .8, gateRow], [gateCol, gateRow - .7]];
     [...this.storyEchoIds].forEach((id, index) => {
       const [col, row] = targets[index] ?? targets[0];
-      this.moveStoryActor('enemy', id, col * TILE_SIZE + 8, row * TILE_SIZE + 8, 62);
+      this.moveStoryActor('enemy', id, col * TILE_SIZE + 8, row * TILE_SIZE + 8, 150);
     });
     this.storyDialogueIndex = 0;
     this.storyDialogueAt = this.timeElapsed + 2;
@@ -2526,7 +2554,7 @@ export class GameEngine {
     const destination = this.mirellaHomeDoor();
     const mirella = this.ensureStoryNpc('story_mirella', 'Mirella', 'cadencia', destination.x + 42, destination.y - 8, '#c084fc');
     mirella.direction = 'down';
-    this.moveStoryActor('npc', pippo.id, destination.x, destination.y, 64);
+    this.moveStoryActor('npc', pippo.id, destination.x, destination.y, 150);
     this.storyDialogueIndex = 0;
     this.storyDialogueAt = this.timeElapsed + 2;
     this.storyObjective = { title: 'Despertar sem Nome', text: 'Siga Pippo até Mirella', progress: 0, target: 1, ready: false };
@@ -5348,10 +5376,12 @@ export class GameEngine {
         !!(this.keys['ShiftLeft'] || this.keys['ShiftRight'] || this.keys['shift']);
       const touchMag = Math.hypot(this.touchVector.x, this.touchVector.y);
       const sprintTouch = touchMag > 0.82;
-      this.heroRunning = len > 0.05 && (sprintKey || sprintTouch);
+      const escortedWalk = this.storyStage === 'follow_echoes' || this.storyStage === 'follow_pippo';
+      this.heroRunning = len > 0.05 && (sprintKey || sprintTouch) && !escortedWalk;
       // base mais rápida + escala com Agilidade (pontos de habilidade)
-      const speed =
+      const unrestrictedSpeed =
         (150 + this.stats.agilidade * 7) * (this.heroRunning ? 1.7 : 1) * this.moveSpeedMul;
+      const speed = escortedWalk ? Math.min(165, unrestrictedSpeed) : unrestrictedSpeed;
 
       if (len > 0.05) {
         this.player.isMoving = true;

@@ -1773,7 +1773,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
                           className="absolute inset-0 bg-no-repeat"
                           style={{
                             backgroundImage: `url(${DIALOGUE_PORTRAITS[currentOpeningLine.voice].src})`,
-                            backgroundSize: DIALOGUE_PORTRAITS[currentOpeningLine.voice].sheet === 'npc' ? '1000% 400%' : '400% 400%',
+                            backgroundSize: DIALOGUE_PORTRAITS[currentOpeningLine.voice].sheet === 'npc' ? '1500% auto' : '600% auto',
                             backgroundPosition: '0% 0%',
                           }}
                         />
@@ -2299,7 +2299,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
                   className="absolute inset-0 bg-no-repeat"
                   style={{
                     backgroundImage: `url(${regularDialoguePortrait.src})`,
-                    backgroundSize: regularDialoguePortrait.sheet === 'npc' ? '1000% 400%' : '400% 400%',
+                    backgroundSize: regularDialoguePortrait.sheet === 'npc' ? '1500% auto' : '600% auto',
                     backgroundPosition: '0% 0%',
                   }}
                 />

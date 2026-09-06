@@ -15,6 +15,7 @@ interface PlayerHudProps {
 
 /** Canto superior esquerdo: retrato + barra de vida + barra de XP + objetivo da missão ativa. */
 export const PlayerHud: React.FC<PlayerHudProps> = ({ stats, onOpenSheet, questObjective, onOpenQuests, portraitSrc, coins = 0, goldRaw = 0, goldRefined = 0 }) => {
+  const [objectiveExpanded, setObjectiveExpanded] = React.useState(false);
   const hpPct = Math.max(0, Math.min(100, (stats.hp / stats.maxHp) * 100));
   const xpPct = Math.max(0, Math.min(100, (stats.xp / stats.xpNext) * 100));
   const energyPct = Math.max(0, Math.min(100, (stats.energy / stats.maxEnergy) * 100));
@@ -82,20 +83,25 @@ export const PlayerHud: React.FC<PlayerHudProps> = ({ stats, onOpenSheet, questO
           </span>
         </div>
 
-        {/* Objetivo da missão diária ativa */}
+        {/* Objetivo ativo: primeiro expande; o segundo toque abre o diário. */}
         {questObjective && (
-          <button
-            type="button"
-            onClick={onOpenQuests}
-            className={`mt-1 w-full flex items-center gap-1 rounded-md px-1.5 py-0.5 text-left bg-slate-950/80 border ${
+          <div className={`mt-1 w-full rounded-md bg-slate-950/88 border transition-all ${
               questObjective.ready ? 'border-emerald-500/60' : 'border-slate-700/70'
-            }`}
-          >
-            <Target className={`w-3 h-3 shrink-0 ${questObjective.ready ? 'text-emerald-400' : 'text-emerald-300/80'}`} />
-            <span className="text-[9px] font-semibold text-slate-200 leading-tight truncate drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">
-              {questObjective.text}
-            </span>
-          </button>
+            }`}>
+            <button type="button" onClick={() => setObjectiveExpanded((value) => !value)} className="flex w-full items-center gap-1 px-1.5 py-1 text-left">
+              <Target className={`w-3 h-3 shrink-0 ${questObjective.ready ? 'text-emerald-400' : 'text-emerald-300/80'}`} />
+              <span className={`text-[9px] font-semibold text-slate-200 leading-tight drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)] ${objectiveExpanded ? '' : 'truncate'}`}>
+                {objectiveExpanded ? questObjective.title : questObjective.text}
+              </span>
+              <span className="ml-auto text-[8px] text-slate-500">{objectiveExpanded ? '▲' : '▼'}</span>
+            </button>
+            {objectiveExpanded && (
+              <div className="border-t border-slate-800 px-2 py-1.5">
+                <p className="text-[9px] leading-snug text-slate-300">{questObjective.text}</p>
+                <button type="button" onClick={onOpenQuests} className="mt-1 w-full rounded bg-violet-600/80 py-1 text-[9px] font-black text-white active:scale-95">Abrir Missões</button>
+              </div>
+            )}
+          </div>
         )}
       </div>
     </div>

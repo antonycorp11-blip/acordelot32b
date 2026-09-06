@@ -2469,30 +2469,23 @@ export class GameEngine {
 
     if (this.storyControlLocked) return;
 
-    // Action Key: F or Space (Contextual Woodcut or Mining)
-    if (!this.isEditMode && (e.code === 'KeyF' || e.code === 'Space')) {
-      const nearTree = this.findNearbyProp(['oak', 'pine', 'blossomTree', 'bush'], 55);
-      const nearRock = this.findNearbyProp(['stoneQuarry', 'limestoneBoulders', 'rockCluster', 'rockPair', 'rockMonolith'], 55);
-
-      if (nearTree) {
-        this.triggerAction('chop');
-        return;
-      } else if (nearRock) {
-        this.triggerAction('mine');
-        return;
-      } else {
-        this.triggerAction('chop');
-        return;
-      }
+    // Ações separadas também no teclado: F coleta, Espaço ataca.
+    if (!this.isEditMode && e.code === 'KeyF') {
+      this.harvestAction();
+      return;
+    }
+    if (!this.isEditMode && e.code === 'Space') {
+      this.triggerAction('attack');
+      return;
     }
 
-    // Direct Action Hotkeys: 1 (Chop), 2 (Mine)
+    // Atalhos antigos preservados sem contornar requisitos de ferramenta.
     if (!this.isEditMode && e.code === 'Digit1') {
-      this.triggerAction('chop');
+      this.harvestAction();
       return;
     }
     if (!this.isEditMode && e.code === 'Digit2') {
-      this.triggerAction('mine');
+      this.harvestAction();
       return;
     }
 
@@ -2752,6 +2745,7 @@ export class GameEngine {
   }
 
   beginPippoEscort() {
+    this.clearInputState();
     this.storyStage = 'follow_pippo';
     this.storyControlLocked = false;
     const gate = this.props.find((prop) => prop.type === 'wallGate');
@@ -2761,7 +2755,11 @@ export class GameEngine {
     const destination = this.mirellaHomeDoor();
     const mirella = this.ensureStoryNpc('story_mirella', 'Mirella', 'cadencia', destination.x + 42, destination.y - 8, '#c084fc');
     mirella.direction = 'down';
-    this.moveStoryActor('npc', pippo.id, destination.x, destination.y, 150);
+    const avenueX = 36 * TILE_SIZE;
+    this.moveStoryActor('npc', pippo.id, avenueX, startY, 72, [
+      { x: avenueX, y: destination.y },
+      { x: destination.x, y: destination.y },
+    ]);
     this.storyDialogueIndex = 0;
     this.storyDialogueAt = this.timeElapsed + 2;
     this.storyObjective = { title: 'Despertar sem Nome', text: 'Siga Pippo até Mirella', progress: 0, target: 1, ready: false };
@@ -2860,6 +2858,7 @@ export class GameEngine {
   }
 
   finishMorningBriefing() {
+    this.clearInputState();
     this.storyStage = 'follow_pippo_antony';
     this.openingMissionComplete = true;
     this.storyControlLocked = false;
@@ -2873,7 +2872,11 @@ export class GameEngine {
     const antony = this.ensureSrAntony();
     const pippo = this.npcs.find((npc) => npc.id === 'story_pippo');
     if (pippo) {
-      this.moveStoryActor('npc', pippo.id, 35 * TILE_SIZE, 30 * TILE_SIZE, 105, [
+      const avenueX = 36 * TILE_SIZE;
+      const crossroadY = 27 * TILE_SIZE;
+      this.moveStoryActor('npc', pippo.id, avenueX, pippo.y, 72, [
+        { x: avenueX, y: crossroadY },
+        { x: antony.x - 46, y: crossroadY },
         { x: antony.x - 46, y: antony.y + 8 },
       ]);
     }
@@ -2983,7 +2986,7 @@ export class GameEngine {
       if (!actor) return false;
       const guidedActor = (this.storyStage === 'follow_echoes' && move.kind === 'enemy' && this.storyEchoIds.has(move.id))
         || ((this.storyStage === 'follow_pippo' || this.storyStage === 'follow_pippo_antony') && move.kind === 'npc' && move.id === 'story_pippo');
-      if (guidedActor && Math.hypot(actor.x - this.player.x, actor.y - this.player.y) > 130) {
+      if (guidedActor && Math.hypot(actor.x - this.player.x, actor.y - this.player.y) > 105) {
         if ('isMoving' in actor) actor.isMoving = false;
         return true;
       }
@@ -3005,7 +3008,10 @@ export class GameEngine {
       const step = Math.min(distance, move.speed * dt);
       actor.x += dx / distance * step;
       actor.y += dy / distance * step;
-      if ('isMoving' in actor) actor.isMoving = true;
+      if ('isMoving' in actor) {
+        actor.isMoving = true;
+        actor.stepTimer += dt * 8;
+      }
       if ('direction' in actor) {
         actor.direction = Math.abs(dx) > Math.abs(dy)
           ? (dx < 0 ? 'left' : 'right')
@@ -5203,6 +5209,9 @@ export class GameEngine {
         { who: 'npc' as const, npcId: 'story_pippo', text: 'Mirella mora logo depois da muralha.', voice: 'pippo' },
         { who: 'akles' as const, text: 'Você sempre conversa com desconhecidos na floresta?', voice: 'akles' },
         { who: 'npc' as const, npcId: 'story_pippo', text: 'Só com os que chegam escoltados por um acorde.', voice: 'pippo' },
+        { who: 'akles' as const, text: 'Aquelas luzes cantavam. Eu entendia sem saber como.', voice: 'akles' },
+        { who: 'npc' as const, npcId: 'story_pippo', text: 'Então não diga isso a qualquer um. Certas pessoas escutam perguntas demais.', voice: 'pippo' },
+        { who: 'npc' as const, npcId: 'story_pippo', text: 'Eu sigo pela rua. Você comanda seus passos — se ficar para trás, eu espero.', voice: 'pippo' },
         { who: 'npc' as const, npcId: 'story_pippo', text: 'A estrada para Acordelot é longa. Hoje você precisa dormir.', voice: 'pippo' },
       ];
       const antonyLines = [
@@ -5210,13 +5219,16 @@ export class GameEngine {
         { who: 'akles' as const, text: 'Talvez ele saiba quem eu sou.', voice: 'akles' },
         { who: 'npc' as const, npcId: 'story_pippo', text: 'Talvez. Mas ele responde perguntas com outras perguntas.', voice: 'pippo' },
         { who: 'akles' as const, text: 'Então já sei o que esperar.', voice: 'akles' },
+        { who: 'npc' as const, npcId: 'story_pippo', text: 'Fique na avenida. A praça acorda cedo, mas os becos guardam a noite.', voice: 'pippo' },
+        { who: 'akles' as const, text: 'Essa cidade sempre fala por enigmas?', voice: 'akles' },
+        { who: 'npc' as const, npcId: 'story_pippo', text: 'Não. Às vezes ela canta. Isso costuma ser pior.', voice: 'pippo' },
       ];
       const lines = this.storyStage === 'follow_echoes' ? echoLines : this.storyStage === 'follow_pippo_antony' ? antonyLines : pippoLines;
       const line = lines[this.storyDialogueIndex % lines.length];
-      this.bubbles.push({ ...line, born: now, ttl: 4.4 });
+      this.bubbles.push({ ...line, born: now, ttl: 5.2 });
       this.onStoryVoice?.(line.text, line.voice);
       this.storyDialogueIndex++;
-      this.storyDialogueAt = now + 5.2;
+      this.storyDialogueAt = now + 6.2;
     }
 
     // NPC mais próximo dentro do raio de "bark" (maior que o de conversa)
@@ -5537,15 +5549,10 @@ export class GameEngine {
     this.triggerAction(def.kind === 'tree' ? 'chop' : 'mine');
   }
 
-  // Botão único (HUD): recurso próximo sempre tem prioridade. O bloqueio por
-  // combate fazia o botão permanecer em ataque e dava a impressão de que a
-  // coleta havia parado após qualquer golpe recebido.
+  // Compatibilidade com chamadas antigas: a ação principal é sempre combate.
+  // Coleta existe apenas por harvestAction(), nunca por proximidade de props.
   primaryAction() {
     if (['chop', 'mine', 'attack', 'spin', 'cast'].includes(this.player.actionState as string)) return;
-    if (this.findNearestHarvestable('any')) {
-      this.harvestAction();
-      return;
-    }
     this.triggerAction('attack');
   }
 
@@ -7847,9 +7854,21 @@ export class GameEngine {
       const dispW = m.cw * disp;
       const dispH = m.ch * disp;
       const row = AKLES_DIR_ROW[npc.direction];
-      const col = npc.isMoving
+      const rawCol = npc.isMoving
         ? Math.floor(npc.stepTimer * (m.fps / 8)) % m.cols
         : 0; // parado = frame neutro (sem "pisar no lugar")
+      // A folha original do Pippo possui uma célula quebrada nas vistas
+      // laterais/costas. Pula esses quadros para nunca exibir corpo cortado.
+      const pippoFrames: Record<Direction, number[]> = {
+        down: [0, 1, 2, 3, 4, 5, 7, 8, 9],
+        left: [0, 1, 2, 3, 4, 6, 7, 8, 9],
+        up: [0, 1, 2, 3, 4, 5, 7, 8, 9],
+        right: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
+      };
+      const safePippoFrames = pippoFrames[npc.direction];
+      const col = npc.spriteType === 'seminima' && npc.isMoving
+        ? (safePippoFrames[rawCol % safePippoFrames.length] ?? 0)
+        : rawCol;
       const dx = Math.round(cx + npc.width / 2 - dispW / 2);
       const dy = Math.round(cy + npc.height - dispH * ((m.ch - 4) / m.ch));
 

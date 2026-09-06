@@ -232,17 +232,12 @@ export const TouchControls: React.FC<TouchControlsProps> = ({
     };
   }, [applyVector, reset]);
 
-  // Botão central: vira "Coletar" quando dá (perto de um recurso, fora de
-  // luta) e volta a ser "Atacar" sozinho assim que entra em combate.
-  const [collectMode, setCollectMode] = useState(false);
   const [activeChar, setActiveChar] = useState<PlayerCharacterKey>('akles');
   const [unlockedChars, setUnlockedChars] = useState<PlayerCharacterKey[]>(['akles']);
   useEffect(() => {
     const iv = setInterval(() => {
       const eng = engineRef.current;
       if (!eng) return;
-      const busy = ['chop', 'mine', 'attack', 'spin', 'cast'].includes(eng.player.actionState as string);
-      setCollectMode(!busy && !!eng.findNearestHarvestable('any'));
       setActiveChar(eng.activeCharacter);
       setUnlockedChars((current) => {
         const next = eng.availableCharacters;
@@ -472,20 +467,21 @@ export const TouchControls: React.FC<TouchControlsProps> = ({
       <D id="btn_buff" className={`${actionBtn} absolute w-12 h-12 border-fuchsia-400/60 bg-fuchsia-950/85 text-fuchsia-200`} title="Usar item de buff" onAction={() => engineRef.current?.useBuffItem()} style={{ left: 'calc(150px + env(safe-area-inset-left))', bottom: 'calc(170px + env(safe-area-inset-bottom))' }}>
         <HudIcon name="potion-buff" className="w-10 h-10" />
       </D>
+      <D id="btn_collect" className={`${actionBtn} absolute w-12 h-12 border-emerald-400/70 bg-emerald-950/90 text-emerald-100`} title="Coletar recurso próximo" onAction={() => engineRef.current?.harvestAction()} style={{ left: 'calc(206px + env(safe-area-inset-left))', bottom: 'calc(170px + env(safe-area-inset-bottom))' }}>
+        <HudIcon name="collect" className="w-9 h-9" />
+      </D>
       </>}
 
-      {/* Ataque básico — vira "Coletar" sozinho perto de um recurso, fora de luta */}
+      {/* Ataque básico tem função única: recursos nunca tomam este botão. */}
       {showAttack && (
       <D
         id="btn_attack"
-        className={`${actionBtn} absolute w-[64px] h-[64px] ${
-          collectMode ? 'border-emerald-400/70 bg-emerald-900/90 text-emerald-100' : 'border-rose-400/70 bg-rose-900/90 text-rose-100'
-        }`}
-        title={collectMode ? 'Coletar recurso mais próximo' : 'Ataque básico (espada)'}
-        onAction={() => engineRef.current?.primaryAction()}
+        className={`${actionBtn} absolute w-[64px] h-[64px] border-rose-400/70 bg-rose-900/90 text-rose-100`}
+        title="Ataque básico"
+        onAction={() => engineRef.current?.triggerAction('attack')}
         style={{ right: 'calc(66px + env(safe-area-inset-right))', bottom: 'calc(52px + env(safe-area-inset-bottom))' }}
       >
-        <HudIcon name={collectMode ? 'collect' : 'attack'} className="w-12 h-12" />
+        <HudIcon name="attack" className="w-12 h-12" />
       </D>
       )}
 

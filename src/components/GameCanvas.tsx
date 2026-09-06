@@ -55,8 +55,9 @@ import { playMusicalTone, speakMusically, stopMusicalVoice, unlockMusicalVoice }
 
 type OpeningPhase = 'awakening' | 'discovery' | 'encounter' | 'aftermath' | 'echoes' | 'gate' | 'mirella' | 'rest' | 'morning' | 'antony';
 type TutorialStage = 'cinematic' | 'movement' | 'explore' | 'combat' | 'follow' | 'full';
+type OpeningLine = { speaker: string; voice: string; text: string; choices?: Array<{ label: string; reply: string }> };
 
-const OPENING_LINES: Record<OpeningPhase, Array<{ speaker: string; voice: string; text: string }>> = {
+const OPENING_LINES: Record<OpeningPhase, OpeningLine[]> = {
   awakening: [
     { speaker: 'Narração', voice: 'narrator', text: 'Antes de abrir os olhos, ele ouviu a floresta respirar.' },
     { speaker: 'Akles', voice: 'akles', text: '...' },
@@ -88,13 +89,21 @@ const OPENING_LINES: Record<OpeningPhase, Array<{ speaker: string; voice: string
     { speaker: 'Narração', voice: 'narrator', text: 'As luzes param diante dos portões. Uma lanterna se ergue do outro lado da muralha.' },
     { speaker: 'Pippo', voice: 'pippo', text: 'Ei! Senhor guarda, ele veio com os Ecos. Eles nunca trazem ninguém até aqui.' },
     { speaker: 'Guarda', voice: 'guard_muralha', text: 'E apareceu na floresta à meia-noite. Fique perto do menino e mantenha as mãos onde eu possa ver.' },
-    { speaker: 'Pippo', voice: 'pippo', text: 'Eu sou Pippo. Venha comigo. Mirella vai saber o que fazer.' },
+    { speaker: 'Pippo', voice: 'pippo', text: 'Eu sou Pippo. Mirella vai saber o que fazer. Você consegue caminhar?', choices: [
+      { label: 'Mostre o caminho.', reply: 'Consigo. Mas vá devagar — ainda não confio nas minhas próprias pernas.' },
+      { label: 'Por que confiar em você?', reply: 'Não sei se devo confiar em você... mas os Ecos confiaram.' },
+    ] },
+    { speaker: 'Pippo', voice: 'pippo', text: 'Justo. Você controla o passo; eu só mostro a rua. Se ficar para trás, eu espero.' },
   ],
   mirella: [
     { speaker: 'Mirella', voice: 'mirella', text: 'Pippo, você trouxe um desconhecido da floresta a esta hora?' },
     { speaker: 'Pippo', voice: 'pippo', text: 'Não foi só eu. Dó, Mi e Sol trouxeram ele até o portão.' },
     { speaker: 'Akles', voice: 'akles', text: 'Eu não lembro do meu nome... mas reconheci as notas.' },
-    { speaker: 'Mirella', voice: 'mirella', text: 'Então as perguntas podem esperar o amanhecer. Esta noite, você descansa sob nosso teto.' },
+    { speaker: 'Mirella', voice: 'mirella', text: 'Então as perguntas podem esperar o amanhecer. Esta noite, você descansa sob nosso teto.', choices: [
+      { label: 'Obrigado pela confiança.', reply: 'Obrigado. Não tenho como pagar essa gentileza.' },
+      { label: 'E se eu for perigoso?', reply: 'E se houver uma razão para eu ter acordado sozinho?' },
+    ] },
+    { speaker: 'Mirella', voice: 'mirella', text: 'Gentileza não é dívida. E perigo algum anuncia a própria chegada com um acorde perfeito.' },
   ],
   rest: [
     { speaker: 'Narração', voice: 'narrator', text: 'Pela primeira vez desde que abriu os olhos, Akles encontra silêncio sem perigo.' },
@@ -104,15 +113,21 @@ const OPENING_LINES: Record<OpeningPhase, Array<{ speaker: string; voice: string
   morning: [
     { speaker: 'Mirella', voice: 'mirella', text: 'Bom dia. A estrada até Acordelot é longa, mas você precisa falar com quem pode ajudá-lo.' },
     { speaker: 'Mirella', voice: 'mirella', text: 'Vá ao centro da cidade e procure o Sr. Antony. Ele é o líder de Acordelot.' },
-    { speaker: 'Pippo', voice: 'pippo', text: 'Eu mostro o começo do caminho. E prometo não correr... muito.' },
+    { speaker: 'Pippo', voice: 'pippo', text: 'Eu mostro o caminho pela avenida. Você anda por conta própria e eu espero sempre que precisar.', choices: [
+      { label: 'Vamos encontrar o líder.', reply: 'Certo. Talvez o Sr. Antony tenha respostas.' },
+      { label: 'O que ele sabe?', reply: 'Por que o Sr. Antony saberia alguma coisa sobre mim?' },
+    ] },
+    { speaker: 'Mirella', voice: 'mirella', text: 'Ele escuta o que a cidade cala. Observe bem a reação dele quando ouvir seu nome.' },
   ],
   antony: [
     { speaker: 'Pippo', voice: 'pippo', text: 'Sr. Antony! Mirella pediu que eu trouxesse ele. Os Ecos encontraram ele na floresta.' },
     { speaker: 'Sr. Antony', voice: 'sr_antony', text: 'Então foram os Ecos... e você chegou justamente nesta noite.' },
     { speaker: 'Akles', voice: 'akles', text: 'Eu não lembro de nada. Nem mesmo do meu nome.' },
     { speaker: 'Pippo', voice: 'pippo', text: 'Eu chamei ele de Akles. Não sei por quê. Só parece certo.' },
-    { speaker: 'Sr. Antony', voice: 'sr_antony', text: 'Akles... Entendo. Diga-me: como reconheceu as notas sem recordar que as conhecia?' },
-    { speaker: 'Akles', voice: 'akles', text: 'Meu corpo sabia. Como se já tivesse vivido aquilo antes.' },
+    { speaker: 'Sr. Antony', voice: 'sr_antony', text: 'Akles... Entendo. Diga-me: como reconheceu as notas sem recordar que as conhecia?', choices: [
+      { label: 'Meu corpo se lembrou.', reply: 'Meu corpo sabia antes de mim. Como se eu já tivesse vivido aquilo.' },
+      { label: 'Foram os Ecos.', reply: 'Talvez os Ecos tenham colocado a resposta na minha cabeça.' },
+    ] },
     { speaker: 'Sr. Antony', voice: 'sr_antony', text: 'Fique em Acordelot por enquanto. Aqui aprenderemos o que sua memória decidiu esconder.' },
     { speaker: 'Sr. Antony', voice: 'sr_antony', text: 'Abra seu Diário de Missões e aceite sua nova tarefa. Primeiro, apresente-se aos nossos cidadãos.' },
     { speaker: 'Narração', voice: 'narrator', text: 'Por um instante, o líder parece reconhecer Akles. Então esconde a reação atrás de um sorriso cauteloso.' },
@@ -632,7 +647,9 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
   const [saveReady, setSaveReady] = useState(false);
   const [openingPhase, setOpeningPhase] = useState<OpeningPhase | null>(null);
   const [openingLine, setOpeningLine] = useState(0);
+  const [openingChoiceReply, setOpeningChoiceReply] = useState<OpeningLine | null>(null);
   const [showOpeningVideo, setShowOpeningVideo] = useState(false);
+  const [openingVideoEnded, setOpeningVideoEnded] = useState(false);
   const [tutorialStage, setTutorialStage] = useState<TutorialStage>('cinematic');
   const openingStarted = useRef(false);
   const [showMobileHudEditor, setShowMobileHudEditor] = useState(false);
@@ -966,13 +983,20 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
     setOpeningPhase('morning');
   }, [assetsLoaded, saveReady, user?.id]);
 
-  const finishOpeningVideo = () => {
+  const beginOpeningDialogue = () => {
+    unlockMusicalVoice();
     setShowOpeningVideo(false);
+    setOpeningVideoEnded(false);
     setOpeningLine(0);
     setOpeningPhase('awakening');
   };
 
-  const currentOpeningLine = openingPhase ? OPENING_LINES[openingPhase][openingLine] : null;
+  // O WebAudio do iPhone só pode começar após um toque real. Ao terminar o
+  // vídeo, conservamos o último quadro e pedimos esse toque antes da primeira voz.
+  const finishOpeningVideo = () => setOpeningVideoEnded(true);
+
+  const currentOpeningBaseLine = openingPhase ? OPENING_LINES[openingPhase][openingLine] : null;
+  const currentOpeningLine = openingChoiceReply ?? currentOpeningBaseLine;
 
   useEffect(() => {
     if (!currentOpeningLine || currentOpeningLine.text === '...') return;
@@ -985,9 +1009,16 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
 
   useEffect(() => {
     if (!interaction.isTalking || !dlgLines[dialogueIdx]) return;
+    const npcVoice = interaction.npc?.spriteType === 'tonico'
+      ? 'miro'
+      : interaction.npc?.spriteType === 'seminima'
+        ? 'pippo'
+        : interaction.npc?.spriteType === 'cadencia'
+          ? 'mirella'
+          : interaction.npc?.id ?? interaction.npc?.name ?? 'npc';
     speakMusically(
       dlgLines[dialogueIdx],
-      interaction.npc?.id ?? interaction.npc?.name ?? 'npc',
+      npcVoice,
       Math.max(.12, bgmVolume * .34),
     );
   }, [interaction.isTalking, interaction.npc?.id, dialogueIdx]);
@@ -995,6 +1026,8 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
   const advanceOpening = () => {
     if (!openingPhase) return;
     unlockMusicalVoice();
+    engineRef.current?.clearInputState();
+    if (openingChoiceReply) setOpeningChoiceReply(null);
     const lines = OPENING_LINES[openingPhase];
     if (openingLine < lines.length - 1) {
       setOpeningLine((line) => line + 1);
@@ -1199,6 +1232,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
     ? NPC_PORTRAIT_SOURCES[interaction.npc.spriteType]
     : undefined;
   const handleNextDialogue = () => {
+    unlockMusicalVoice();
     if (dialogueIdx < dlgLines.length - 1) {
       setDialogueIdx((prev) => prev + 1);
     } else if (interaction.npc?.isMerchant) {
@@ -1209,6 +1243,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
   };
 
   const handleCloseDialogue = () => {
+    unlockMusicalVoice();
     const enterForge = interaction.npc?.isBlacksmith === true;
     engineRef.current?.clearInputState();
     engineRef.current?.closeDialogue();
@@ -1814,11 +1849,24 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
             />
             <button
               type="button"
-              onClick={finishOpeningVideo}
+              onClick={beginOpeningDialogue}
               className="absolute right-[max(14px,env(safe-area-inset-right))] top-[max(14px,env(safe-area-inset-top))] rounded-full border border-white/30 bg-black/55 px-4 py-2 text-[10px] font-black uppercase tracking-[.16em] text-white backdrop-blur-sm"
             >
               Pular abertura
             </button>
+            {openingVideoEnded && (
+              <div className="absolute inset-0 flex items-center justify-center bg-black/35 backdrop-blur-[1px]">
+                <button
+                  type="button"
+                  onClick={beginOpeningDialogue}
+                  className="rounded-2xl border border-amber-300/55 bg-slate-950/90 px-7 py-4 text-center text-amber-100 shadow-[0_0_48px_rgba(245,158,11,.28)] active:scale-95"
+                >
+                  <span className="block text-[9px] font-black uppercase tracking-[.28em] text-amber-300/75">Capítulo I</span>
+                  <span className="mt-1 block text-sm font-black">Toque para despertar</span>
+                  <span className="mt-1 block text-[9px] font-semibold text-slate-300">Ativar vozes e iniciar a jornada</span>
+                </button>
+              </div>
+            )}
           </div>
         )}
 
@@ -1839,12 +1887,12 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
               </p>
             </div>
 
-            <div className="w-[min(560px,72vw)]">
-              <div className="rounded-xl border border-violet-300/30 bg-slate-950/90 backdrop-blur-md shadow-[0_10px_36px_rgba(0,0,0,.65)] overflow-hidden">
+            <div className="w-[min(620px,76vw)]">
+              <div className="rounded-xl border border-violet-300/30 bg-slate-950/90 backdrop-blur-md shadow-[0_10px_36px_rgba(0,0,0,.65),0_0_42px_rgba(139,92,246,.14)] overflow-hidden">
                 <div className="h-0.5 bg-gradient-to-r from-transparent via-violet-300/80 to-transparent" />
                 <div className="px-3 py-2.5 flex items-center gap-3">
                   {DIALOGUE_PORTRAITS[currentOpeningLine.voice] && (
-                    <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-xl border border-amber-300/40 bg-slate-900 shadow-inner">
+                    <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-xl border border-amber-300/40 bg-slate-900 shadow-inner ring-2 ring-violet-300/10">
                       {DIALOGUE_PORTRAITS[currentOpeningLine.voice].sheet ? (
                         <div
                           className="absolute inset-0 bg-no-repeat"
@@ -1875,7 +1923,23 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
                         <span key={index} className={`h-1 rounded-full transition-all ${index === openingLine ? 'w-6 bg-violet-300' : 'w-2 bg-slate-700'}`} />
                       ))}
                     </div>
-                    <button
+                    {currentOpeningBaseLine?.choices && !openingChoiceReply ? (
+                      <div className="ml-auto flex flex-wrap justify-end gap-1.5">
+                        {currentOpeningBaseLine.choices.map((choice) => (
+                          <button
+                            key={choice.label}
+                            type="button"
+                            onClick={() => {
+                              unlockMusicalVoice();
+                              setOpeningChoiceReply({ speaker: 'Akles', voice: 'akles', text: choice.reply });
+                            }}
+                            className="rounded-lg border border-violet-300/40 bg-violet-950/90 px-2.5 py-1.5 text-[9px] font-black text-violet-100 active:scale-95"
+                          >
+                            {choice.label}
+                          </button>
+                        ))}
+                      </div>
+                    ) : <button
                       type="button"
                       onClick={advanceOpening}
                       className="cursor-pointer shrink-0 rounded-lg bg-violet-300 hover:bg-violet-200 text-slate-950 px-3 py-1.5 text-[10px] font-black flex items-center gap-1 active:scale-95 transition"
@@ -1904,7 +1968,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
                                             ? 'Entrar em Acordelot'
                                             : 'Continuar'}
                       <ChevronRight className="w-4 h-4" />
-                    </button>
+                    </button>}
                   </div>
                   </div>
                 </div>
@@ -2096,7 +2160,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
         </div>
       )}
       {!isEditMode && !isTouchDevice && tutorialStage === 'combat' && (
-        <button type="button" onClick={() => engineRef.current?.primaryAction()} className="fixed right-8 bottom-8 z-30 h-20 w-20 rounded-full border-2 border-rose-300 bg-rose-900/95 text-white shadow-[0_0_30px_rgba(251,113,133,.5)] animate-pulse">
+        <button type="button" onClick={() => engineRef.current?.triggerAction('attack')} className="fixed right-8 bottom-8 z-30 h-20 w-20 rounded-full border-2 border-rose-300 bg-rose-900/95 text-white shadow-[0_0_30px_rgba(251,113,133,.5)] animate-pulse">
           <HudIcon name="attack" className="mx-auto h-12 w-12" />
           <span className="sr-only">Atacar com J</span>
         </button>
@@ -2109,7 +2173,10 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
       {!isEditMode && interaction.nearNpc && !interaction.isTalking && (
         <button
           type="button"
-          onClick={() => engineRef.current?.handleInteract()}
+          onClick={() => {
+            unlockMusicalVoice();
+            engineRef.current?.handleInteract();
+          }}
           className="fixed left-1/2 -translate-x-1/2 z-30 pointer-events-auto flex items-center gap-2 px-4 py-2 rounded-full text-xs font-black shadow-xl active:scale-95 transition-transform animate-in fade-in slide-in-from-bottom-2"
           style={{
             bottom: 'calc(96px + env(safe-area-inset-bottom))',
@@ -2372,7 +2439,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
           className="absolute inset-0 z-30 flex items-end justify-center pb-6 pointer-events-none"
         >
           <div
-            className="relative bg-slate-950/92 backdrop-blur-md rounded-2xl p-4 pt-6 max-w-lg w-full mx-4 shadow-2xl pointer-events-auto animate-in fade-in slide-in-from-bottom-6 duration-200 border"
+            className="relative bg-slate-950/92 backdrop-blur-md rounded-2xl p-4 pt-6 max-w-[620px] w-[min(620px,78vw)] mx-4 shadow-2xl pointer-events-auto animate-in fade-in slide-in-from-bottom-6 duration-200 border"
             style={{
               borderColor: (interaction.npc?.accent ?? '#f59e0b') + '99',
               boxShadow: `0 0 40px -8px ${(interaction.npc?.accent ?? '#f59e0b')}55`,
@@ -2398,7 +2465,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
             </button>
 
             {regularDialoguePortrait && !showShop && (
-              <div className="absolute left-4 top-8 h-16 w-16 overflow-hidden rounded-xl border bg-slate-900" style={{ borderColor: (interaction.npc?.accent ?? '#f59e0b') + '88' }}>
+              <div className="absolute left-4 top-8 h-20 w-20 overflow-hidden rounded-xl border-2 bg-slate-900 shadow-[0_0_24px_rgba(255,255,255,.10)]" style={{ borderColor: (interaction.npc?.accent ?? '#f59e0b') + 'aa' }}>
                 <div
                   className="absolute inset-0 bg-no-repeat"
                   style={{
@@ -2415,12 +2482,12 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
               </div>
             )}
 
-            <p className={`text-[11px] mb-2 ${regularDialoguePortrait && !showShop ? 'ml-20' : ''}`} style={{ color: (interaction.npc?.accent ?? '#f59e0b') }}>
+            <p className={`text-[11px] mb-2 ${regularDialoguePortrait && !showShop ? 'ml-24' : ''}`} style={{ color: (interaction.npc?.accent ?? '#f59e0b') }}>
               {interaction.npc?.title ?? interaction.merchantTitle ?? ''}
             </p>
 
             {!showShop ? (
-              <div className={regularDialoguePortrait ? 'ml-20' : ''}>
+              <div className={regularDialoguePortrait ? 'ml-24' : ''}>
                 <p className="text-sm text-slate-100 leading-relaxed min-h-[52px]">
                   {dlgLines[dialogueIdx] ?? '...'}
                 </p>

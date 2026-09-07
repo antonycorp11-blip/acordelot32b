@@ -52,7 +52,7 @@ export const SynthesisScreen: React.FC<Props> = ({ open, onClose, fragments, bui
   const chooseChord = (id: string) => setChosen((old) => old.includes(id) ? old.filter((v) => v !== id) : old.length < 3 ? [...old, id] : old);
   const confirmChords = () => {
     if (!engine || !newScale || !engine.claimScaleChords(newScale, chosen)) return;
-    setNewScale(null); setChosen([]); setSteps([]); setTab('compose'); setMessage('A composição está ativa no personagem atual.'); refresh();
+    setNewScale(null); setChosen([]); setSteps([]); setTab('compose'); setMessage('A composição está ativa no personagem atual.'); refresh(); onClose();
   };
   const tabs = [['notes', 'Fragmentos → Notas'], ['forge', 'Forjar Escala'], ['compose', 'Composição']] as const;
 

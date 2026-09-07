@@ -476,6 +476,7 @@ export function applySaveToEngine(engine: GameEngine, save: Partial<AcordelotSav
       };
     }
     if (typeof s.bag_level === 'number') engine.bagLevel = Math.max(0, Math.min(5, Math.floor(s.bag_level)));
+    engine.repairHarmonyMissionAfterForge(false);
     try {
       if (s.hud_layout) {
         localStorage.setItem('acordelot_hud_layout_v3', JSON.stringify(s.hud_layout));

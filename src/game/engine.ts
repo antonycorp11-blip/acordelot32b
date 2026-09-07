@@ -4786,25 +4786,32 @@ export class GameEngine {
     this.scalesBuilt[key] = (this.scalesBuilt[key] || 0) + 1;
     this.inventory[key] = (this.inventory[key] || 0) + 1;
     if (!this.equippedScales.includes(key) && this.equippedScales.length < 3) this.equippedScales.push(key);
-    if (this.echoTutorialStage === 'synthesize_scale' && tonic === 0) {
-      this.echoTutorialStage = 'completed';
-      if (this.postEchoStage === 'locked') this.postEchoStage = 'antony_riddle';
-      this.storyObjective = {
-        title: 'O Sino que Esqueceu o Fá',
-        text: 'Procure o Sr. Antony: um sino da cidade perdeu uma nota',
-        progress: 0, target: 2, ready: false,
-      };
-      this.bubbles.push({ who: 'npc', npcId: 'story_lucian', text: 'Perfeito. Uma escala não é uma coleção: é um caminho entre alturas.', born: this.timeElapsed, ttl: 7 });
-      this.bubbles.push({ who: 'npc', npcId: 'story_pippo', text: 'E dessa vez o caminho não passou atrás de nenhuma casa!', born: this.timeElapsed + .5, ttl: 7 });
-      this.onStoryVoice?.('Perfeito. Uma escala não é uma coleção: é um caminho entre alturas.', 'lucian');
-      this.onQuestsChange?.();
-    }
+    if (tonic === 0) this.repairHarmonyMissionAfterForge(true);
     this.onFragmentsChange?.({ fragments: [...this.fragments], built: [...this.notesBuilt] });
     this.onInventoryChange?.({ ...this.inventory });
     this.syncEquipHpBonus();
     this.onEquipChange?.();
     this.onHarvestPopup?.(`♬ Escala de ${NOTE_NAMES[tonic]} Maior criada!`, this.player.x, this.player.y - 24);
     return { ok: true, message: 'Escala forjada. Agora escolha até 3 acordes.', scaleKey: key };
+  }
+
+  /**
+   * Recupera saves em que Dó Maior foi consumida/criada mas a etapa não
+   * avançou (por fechamento do PWA entre a forja e o autosave da missão).
+   */
+  repairHarmonyMissionAfterForge(notify = false): boolean {
+    const hasScale = (this.scalesBuilt.scale_c_major || 0) > 0 || (this.inventory.scale_c_major || 0) > 0;
+    if (!hasScale || !['collect_scale_notes', 'synthesize_scale'].includes(this.echoTutorialStage)) return false;
+    this.echoTutorialStage = 'completed';
+    if (this.postEchoStage === 'locked') this.postEchoStage = 'antony_riddle';
+    this.storyObjective = { title: 'O Sino que Esqueceu o Fá', text: 'Procure o Sr. Antony: um sino da cidade perdeu uma nota', progress: 0, target: 2, ready: false };
+    if (notify) {
+      this.bubbles.push({ who: 'npc', npcId: 'story_lucian', text: 'Perfeito. Uma escala não é uma coleção: é um caminho entre alturas.', born: this.timeElapsed, ttl: 7 });
+      this.bubbles.push({ who: 'npc', npcId: 'story_pippo', text: 'E dessa vez o caminho não passou atrás de nenhuma casa!', born: this.timeElapsed + .5, ttl: 7 });
+      this.onStoryVoice?.('Perfeito. Uma escala não é uma coleção: é um caminho entre alturas.', 'lucian');
+    }
+    this.onQuestsChange?.();
+    return true;
   }
 
   addCoins(n: number) {

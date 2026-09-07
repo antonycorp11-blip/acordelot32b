@@ -490,11 +490,11 @@ export const TouchControls: React.FC<TouchControlsProps> = ({
       <D id="btn_buff" className={`${actionBtn} absolute w-12 h-12 border-fuchsia-400/60 bg-fuchsia-950/85 text-fuchsia-200`} title="Usar item de buff" onAction={() => engineRef.current?.useBuffItem()} style={{ left: 'calc(150px + env(safe-area-inset-left))', bottom: 'calc(170px + env(safe-area-inset-bottom))' }}>
         <HudIcon name="potion-buff" className="w-10 h-10" />
       </D>
-      <D id="btn_collect" className={`${actionBtn} absolute w-12 h-12 border-emerald-400/70 bg-emerald-950/90 text-emerald-100`} title="Coletar recurso próximo" onAction={() => engineRef.current?.harvestAction()} style={{ left: 'calc(206px + env(safe-area-inset-left))', bottom: 'calc(170px + env(safe-area-inset-bottom))' }}>
+      <D id="btn_collect" className={`${actionBtn} absolute w-12 h-12 border-emerald-400/70 bg-emerald-950/90 text-emerald-100`} title="Coletar recurso próximo" onAction={() => engineRef.current?.harvestAction()} style={{ left: 'calc(164px + env(safe-area-inset-left))', bottom: 'calc(28px + env(safe-area-inset-bottom))', transform: `translate(${getPos('joystick').dx}px, ${getPos('joystick').dy}px)` }}>
         <HudIcon name="collect" className="w-9 h-9" />
       </D>
       {hasResonator && (
-        <D id="btn_resonator" className={`${actionBtn} absolute w-12 h-12 overflow-hidden border-violet-300/70 bg-violet-950/90 text-violet-100`} title="Ressoar Eco próximo" onAction={() => engineRef.current?.captureEchoAction()} style={{ left: 'calc(262px + env(safe-area-inset-left))', bottom: 'calc(170px + env(safe-area-inset-bottom))' }}>
+        <D id="btn_resonator" className={`${actionBtn} absolute w-12 h-12 overflow-hidden border-violet-300/70 bg-violet-950/90 text-violet-100`} title="Ressoar Eco próximo" onAction={() => engineRef.current?.captureEchoAction()} style={{ left: 'calc(168px + env(safe-area-inset-left))', bottom: 'calc(88px + env(safe-area-inset-bottom))', transform: `translate(${getPos('joystick').dx}px, ${getPos('joystick').dy}px)` }}>
           <img src="/assets/tools/echo_resonator.png" alt="" className="h-11 w-11 object-contain drop-shadow-[0_0_8px_rgba(167,139,250,.75)]" />
         </D>
       )}

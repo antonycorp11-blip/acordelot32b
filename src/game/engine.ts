@@ -1443,7 +1443,7 @@ export class GameEngine {
   // alvo da coleta atual (para a ferramenta apontar/bater no lugar certo)
   private harvestFxNode: WorldProp | null = null;
 
-  echoTutorialStage: 'locked' | 'forge_resonator' | 'return_to_lucian' | 'capture_echo' | 'synthesize_note' | 'synthesize_scale' | 'completed' = 'locked';
+  echoTutorialStage: 'locked' | 'forge_resonator' | 'return_to_lucian' | 'capture_echo' | 'synthesize_note' | 'collect_scale_notes' | 'synthesize_scale' | 'completed' = 'locked';
   postEchoStage: 'locked' | 'antony_riddle' | 'miro_bell' | 'gather_dust' | 'lucian_harmony' | 'equip_harmony' | 'antony_letter' | 'completed' = 'locked';
   scalesBuilt: Record<string, number> = {};
   ownedChords: Record<string, number> = {};
@@ -2161,6 +2161,10 @@ export class GameEngine {
         const echo = this.enemies.find((enemy) => enemy.id === 'enemy_91001' && enemy.state !== 'dead');
         return echo ? { x: echo.x, y: echo.y } : null;
       }
+      if (this.echoTutorialStage === 'collect_scale_notes') {
+        const echo = this.enemies.find((enemy) => enemy.id.startsWith('enemy_911') && enemy.state !== 'dead');
+        return echo ? { x: echo.x, y: echo.y } : npcPoint('story_lucian');
+      }
     }
     if (this.echoTutorialStage === 'completed') {
       if (this.postEchoStage === 'locked' || this.postEchoStage === 'antony_riddle' || this.postEchoStage === 'antony_letter') return npcPoint('story_sr_antony');
@@ -2215,7 +2219,7 @@ export class GameEngine {
     const echoStageId = ids.find((id) => id.startsWith('MQ_C1_004_ECOS_'));
     if (echoStageId) {
       const restored = echoStageId.slice('MQ_C1_004_ECOS_'.length).toLowerCase();
-      if (['forge_resonator', 'return_to_lucian', 'capture_echo', 'synthesize_note', 'synthesize_scale', 'completed'].includes(restored)) {
+      if (['forge_resonator', 'return_to_lucian', 'capture_echo', 'synthesize_note', 'collect_scale_notes', 'synthesize_scale', 'completed'].includes(restored)) {
         this.echoTutorialStage = restored as typeof this.echoTutorialStage;
       }
     }
@@ -2236,6 +2240,10 @@ export class GameEngine {
       synthesize_note: {
         title: 'O Ofício dos Ecos', text: 'Abra a Síntese e transforme 30 fragmentos em uma Nota Dó',
         progress: 2, target: 4, ready: false,
+      },
+      collect_scale_notes: {
+        title: 'A Caçada das Sete Notas', text: 'Ressoe e sintetize Ré, Mi, Fá, Sol, Lá e Si',
+        progress: 1, target: 7, ready: false,
       },
       synthesize_scale: {
         title: 'O Ofício dos Ecos', text: 'Na Síntese, reúna as sete notas e forme a Escala de Dó Maior',
@@ -2262,6 +2270,7 @@ export class GameEngine {
       this.storyControlLocked = true;
     }
     if (this.echoTutorialStage === 'capture_echo') this.beginEchoCaptureTutorial();
+    if (this.echoTutorialStage === 'collect_scale_notes') this.beginScaleNoteHunt();
     this.onQuestsChange?.();
   }
 
@@ -2370,6 +2379,8 @@ export class GameEngine {
                 ? 'Acompanhe Lucian e Pippo e ressoe o Eco de Dó.'
                 : this.echoTutorialStage === 'synthesize_note'
                   ? 'Sintetize 30 fragmentos em uma Nota Dó.'
+                  : this.echoTutorialStage === 'collect_scale_notes'
+                    ? `Sintetize as sete notas de Dó Maior (${this.majorScaleNotes(0).filter((note) => (this.notesBuilt[note] || 0) > 0).length}/7).`
                   : this.echoTutorialStage === 'synthesize_scale'
                     ? 'Monte Dó Maior pelo padrão T–T–S–T–T–T–S.'
                     : 'Fragmentos, notas e escalas dominados.',
@@ -3301,6 +3312,34 @@ export class GameEngine {
     this.onQuestsChange?.();
   }
 
+  private beginScaleNoteHunt() {
+    const lucian = this.ensureLucian();
+    const needed = [2, 4, 5, 7, 9, 11].filter((note) => (this.notesBuilt[note] || 0) < 1);
+    const baseC = Math.round(lucian.x / TILE_SIZE);
+    const baseR = Math.round(lucian.y / TILE_SIZE);
+    const offsets = [
+      [-3, 2], [-1, 3], [2, 3], [4, 1], [3, -2], [-2, -2],
+      [-5, 3], [5, 3], [-4, -3], [4, -3], [0, 5], [0, -5],
+    ];
+    needed.forEach((note, index) => {
+      const id = 91100 + note;
+      if (this.enemies.some((enemy) => enemy.id === `enemy_${id}` && enemy.state !== 'dead')) return;
+      for (let attempt = 0; attempt < offsets.length; attempt++) {
+        const offset = offsets[(index + attempt) % offsets.length];
+        if (this.spawnEnemy(`eco_${NOTE_KEY[note]}`, baseC + offset[0], baseR + offset[1], id, 1)) break;
+      }
+    });
+    this.storyObjective = {
+      title: 'A Caçada das Sete Notas',
+      text: 'Ressoe os seis Ecos-guia e sintetize Ré, Mi, Fá, Sol, Lá e Si',
+      progress: 1, target: 7, ready: false,
+    };
+    this.bubbles.push({ who: 'npc', npcId: 'story_lucian', text: 'Os Ecos-guia carregam as seis alturas que faltam. Ressoa cada um e monte cada nota você mesmo.', born: this.timeElapsed, ttl: 8 });
+    this.bubbles.push({ who: 'npc', npcId: 'story_pippo', text: 'Sete notas, uma por uma. Sem nota emprestada e sem pular linha!', born: this.timeElapsed + .5, ttl: 8 });
+    this.onStoryVoice?.('Os Ecos-guia carregam as seis alturas que faltam. Ressoa cada um e monte cada nota você mesmo.', 'lucian');
+    this.onQuestsChange?.();
+  }
+
   finishAntonyMeeting() {
     this.clearInputState();
     this.storyStage = 'complete';
@@ -3723,6 +3762,9 @@ export class GameEngine {
           dialogue = ['Aproxime-se do Eco de Dó e ative o Ressonador. Nós esperamos por você.'];
         } else if (this.echoTutorialStage === 'synthesize_note') {
           dialogue = ['A captura separou a assinatura em fragmentos. Abra a Síntese e reúna trinta deles em uma Nota Dó.'];
+        } else if (this.echoTutorialStage === 'collect_scale_notes') {
+          const ready = this.majorScaleNotes(0).filter((note) => (this.notesBuilt[note] || 0) > 0).length;
+          dialogue = [`Você sintetizou ${ready}/7 notas de Dó Maior. Ressoa os Ecos-guia e construa cada nota que falta.`, 'A escala não aceitará espaços vazios: Dó, Ré, Mi, Fá, Sol, Lá e Si precisam existir de verdade.'];
         } else if (this.echoTutorialStage === 'synthesize_scale') {
           dialogue = ['Notas isoladas são alturas. Uma escala é um caminho: T–T–S–T–T–T–S. Monte Dó Maior na Síntese.'];
         } else {
@@ -4692,20 +4734,22 @@ export class GameEngine {
     this.inventory[key] = Math.max(0, (this.inventory[key] || 0) - FRAGMENTS_PER_NOTE);
     if (this.inventory[key] === 0) delete this.inventory[key];
     if (this.echoTutorialStage === 'synthesize_note') {
-      // Lucian empresta as seis notas restantes para demonstrar a primeira
-      // escala. A nota capturada pelo jogador continua sendo a peça central.
-      [2, 4, 5, 7, 9, 11].forEach((index) => { this.notesBuilt[index] += 1; });
-      this.addToInventory('tone', 5);
-      this.addToInventory('semitone', 2);
-      this.echoTutorialStage = 'synthesize_scale';
-      this.storyObjective = {
-        title: 'O Ofício dos Ecos',
-        text: 'Monte a Escala de Dó Maior: T–T–S–T–T–T–S',
-        progress: 3, target: 4, ready: false,
-      };
-      this.bubbles.push({ who: 'npc', npcId: 'story_lucian', text: 'Agora ordene as notas: dois tons, um semitom, três tons e um semitom.', born: this.timeElapsed, ttl: 7 });
-      this.bubbles.push({ who: 'npc', npcId: 'story_pippo', text: 'Eu lembro assim: T–T–S, T–T–T–S!', born: this.timeElapsed + .5, ttl: 7 });
-      this.onStoryVoice?.('Agora ordene as notas: dois tons, um semitom, três tons e um semitom.', 'lucian');
+      this.echoTutorialStage = 'collect_scale_notes';
+      this.beginScaleNoteHunt();
+    } else if (this.echoTutorialStage === 'collect_scale_notes' && this.majorScaleNotes(0).includes(note)) {
+      const readyNotes = this.majorScaleNotes(0).filter((required) => (this.notesBuilt[required] || 0) > 0).length;
+      if (readyNotes >= 7) {
+        const missingTones = Math.max(0, 5 - (this.inventory.tone || 0));
+        const missingSemitones = Math.max(0, 2 - (this.inventory.semitone || 0));
+        if (missingTones) this.addToInventory('tone', missingTones);
+        if (missingSemitones) this.addToInventory('semitone', missingSemitones);
+        this.echoTutorialStage = 'synthesize_scale';
+        this.storyObjective = { title: 'O Ofício dos Ecos', text: 'Monte Dó Maior: T–T–S–T–T–T–S', progress: 3, target: 4, ready: false };
+        this.bubbles.push({ who: 'npc', npcId: 'story_lucian', text: 'Agora você tem as sete notas. Ordene-as usando cinco Tons e dois Semitons.', born: this.timeElapsed, ttl: 8 });
+        this.bubbles.push({ who: 'npc', npcId: 'story_pippo', text: 'T–T–S, T–T–T–S. Dessa vez cada nota foi você quem encontrou!', born: this.timeElapsed + .5, ttl: 8 });
+      } else {
+        this.storyObjective = { title: 'A Caçada das Sete Notas', text: 'Ressoe os Ecos-guia e sintetize todas as notas de Dó Maior', progress: readyNotes, target: 7, ready: false };
+      }
       this.onQuestsChange?.();
     }
     this.onFragmentsChange?.({ fragments: [...this.fragments], built: [...this.notesBuilt] });
@@ -6143,7 +6187,8 @@ export class GameEngine {
     };
     const roll = ([min, max]: [number, number]) => min + Math.floor(Math.random() * (max - min + 1));
     const tutorialCapture = target.id === 'enemy_91001' && this.echoTutorialStage === 'capture_echo';
-    const fragments = tutorialCapture ? FRAGMENTS_PER_NOTE : roll(ranges[tier].fragments);
+    const lessonCapture = target.id.startsWith('enemy_911') && this.echoTutorialStage === 'collect_scale_notes';
+    const fragments = tutorialCapture || lessonCapture ? FRAGMENTS_PER_NOTE : roll(ranges[tier].fragments);
     const dust = roll(ranges[tier].dust);
     const note = target.note;
     this.echoCaptureFx.push({ x: target.x + 8, y: target.y, life: 0, duration: 1.15, note, tier });

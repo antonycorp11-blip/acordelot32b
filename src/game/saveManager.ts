@@ -414,7 +414,7 @@ export function applySaveToEngine(engine: GameEngine, save: Partial<AcordelotSav
         );
       }
     }
-    if (typeof s.echo_tutorial_stage === 'string' && ['locked', 'forge_resonator', 'return_to_lucian', 'capture_echo', 'synthesize_note', 'synthesize_scale', 'completed'].includes(s.echo_tutorial_stage)) {
+    if (typeof s.echo_tutorial_stage === 'string' && ['locked', 'forge_resonator', 'return_to_lucian', 'capture_echo', 'synthesize_note', 'collect_scale_notes', 'synthesize_scale', 'completed'].includes(s.echo_tutorial_stage)) {
       engine.echoTutorialStage = s.echo_tutorial_stage as typeof engine.echoTutorialStage;
     }
     if (typeof s.post_echo_stage === 'string' && ['locked', 'antony_riddle', 'miro_bell', 'gather_dust', 'lucian_harmony', 'equip_harmony', 'antony_letter', 'completed'].includes(s.post_echo_stage)) {

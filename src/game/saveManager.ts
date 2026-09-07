@@ -50,6 +50,9 @@ const PROGRESSION_MARKER_KEY = 'acordelot_progression_version';
 // gravado no primeiro autosave novo; portanto não afeta outras contas nem
 // reinicia Áquilles novamente nos acessos seguintes.
 const AQUILLES_FLOW_RESET_VERSION = '2026-09-06-opening-flow-test-1';
+// Migração única: a conta de testes já havia recebido as seis notas pelo fluxo
+// antigo. Recuamos somente a lição harmônica para permitir testar a nova caça.
+const HARMONY_LESSON_VERSION = '2026-09-07-seven-notes-lesson-1';
 
 /**
  * Invalida somente progresso local antigo. Login, preferências de áudio,
@@ -96,6 +99,33 @@ function isCurrentAccountReset(save: AcordelotSaveData | null, email?: string | 
   const emailPrefix = String(email || '').trim().toLowerCase().split('@')[0];
   if (emailPrefix !== 'antonycorp11') return true;
   return (save?.settings as Record<string, unknown> | undefined)?.aquilles_flow_reset_version === AQUILLES_FLOW_RESET_VERSION;
+}
+
+function migrateAquillesHarmonyLesson(save: AcordelotSaveData | null, email?: string | null): AcordelotSaveData | null {
+  if (!save) return null;
+  const emailPrefix = String(email || '').trim().toLowerCase().split('@')[0];
+  const settings = (save.settings || {}) as Record<string, unknown>;
+  if (emailPrefix !== 'antonycorp11' || settings.harmony_lesson_version === HARMONY_LESSON_VERSION) return save;
+  if (settings.echo_tutorial_stage !== 'synthesize_scale' && settings.echo_tutorial_stage !== 'completed') return save;
+
+  const next = JSON.parse(JSON.stringify(save)) as AcordelotSaveData;
+  const nextSettings = (next.settings ||= {}) as Record<string, unknown>;
+  nextSettings.harmony_lesson_version = HARMONY_LESSON_VERSION;
+  nextSettings.echo_tutorial_stage = 'collect_scale_notes';
+  nextSettings.post_echo_stage = 'locked';
+  nextSettings.fragments = Array(12).fill(0);
+  nextSettings.notes_built = [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+  nextSettings.scales_built = {};
+  nextSettings.owned_chords = {};
+  nextSettings.equipped_scales_by_character = { akles: [], wins: [], huans: [] };
+  nextSettings.equipped_chords_by_scale_by_character = { akles: {}, wins: {}, huans: {} };
+
+  const lessonItems = new Set(['tone', 'semitone', ...['c', 'd', 'e', 'f', 'g', 'a', 'b'].map((key) => `frag_${key}`)]);
+  next.inventory = Object.fromEntries(Object.entries(next.inventory || {}).filter(([key]) => !key.startsWith('scale_') && !lessonItems.has(key)));
+  const completed = next.quests?.mainCompleted || [];
+  next.quests.mainCompleted = completed.filter((id) => !id.startsWith('MQ_C1_004_ECOS_') && !id.startsWith('MQ_C1_POST_ECHO_'));
+  next.quests.mainCompleted.push('MQ_C1_004_ECOS_COLLECT_SCALE_NOTES');
+  return next;
 }
 
 /**
@@ -176,6 +206,7 @@ export function serializeEngineSave(engine: GameEngine, userId: string): Omit<Ac
     settings: {
       progression_version: PROGRESSION_VERSION,
       aquilles_flow_reset_version: AQUILLES_FLOW_RESET_VERSION,
+      harmony_lesson_version: HARMONY_LESSON_VERSION,
       fragments: [...(engine.fragments || [])],
       notes_built: [...(engine.notesBuilt || [])],
       scales_built: { ...engine.scalesBuilt },
@@ -486,7 +517,7 @@ export async function saveToCloud(engine: GameEngine, userId: string): Promise<b
  */
 export async function loadCloudSave(userId: string, email?: string | null): Promise<AcordelotSaveData | null> {
   const cached = getLocalInstantSave(userId);
-  const localSave = isCurrentProgression(cached) && isCurrentAccountReset(cached, email) ? cached : null;
+  const localSave = isCurrentProgression(cached) && isCurrentAccountReset(cached, email) ? migrateAquillesHarmonyLesson(cached, email) : null;
   if (cached && !localSave) {
     try { localStorage.removeItem(LOCAL_SAVE_PREFIX + userId); } catch {}
   }
@@ -502,7 +533,7 @@ export async function loadCloudSave(userId: string, email?: string | null): Prom
       return localSave;
     }
 
-    const cloudSave = data as AcordelotSaveData;
+    const cloudSave = migrateAquillesHarmonyLesson(data as AcordelotSaveData, email);
     // Saves anteriores ao reset global nunca podem ressuscitar a progressão
     // apagada no PWA. O primeiro autosave grava o estado inicial versionado.
     if (!isCurrentProgression(cloudSave) || !isCurrentAccountReset(cloudSave, email)) return localSave;

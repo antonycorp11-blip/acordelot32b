@@ -106,11 +106,26 @@ const OPENING_LINES: Record<OpeningPhase, OpeningLine[]> = {
     { speaker: 'Mirella', voice: 'mirella', text: 'Gentileza não é dívida. E perigo algum anuncia a própria chegada com um acorde perfeito.' },
   ],
   rest: [
-    { speaker: 'Narração', voice: 'narrator', text: 'Pela primeira vez desde que abriu os olhos, Akles encontra silêncio sem perigo.' },
-    { speaker: 'Narração', voice: 'narrator', text: 'Do lado de fora, a lanterna de Pippo permanece acesa por mais alguns minutos.' },
-    { speaker: 'Narração', voice: 'narrator', text: 'A manhã trará um mundo novo — e perguntas que ninguém parece disposto a responder.' },
+    { speaker: 'Narração', voice: 'narrator', text: 'A porta se fecha. Pela primeira vez desde que abriu os olhos, Akles encontra silêncio sem perigo.' },
+    { speaker: 'Narração', voice: 'narrator', text: 'No quarto ao lado, Pippo adormece cantarolando três notas: Dó, Mi, Sol.' },
+    { speaker: 'Narração', voice: 'memory', text: 'A melodia atravessa a parede — e alguma coisa enterrada na memória de Akles responde.' },
+    { speaker: 'Akles', voice: 'akles', text: 'Eu conheço este lugar... mas não existem paredes.' },
+    { speaker: 'Voz distante', voice: 'memory', text: 'Porque isto não é um lugar. É o intervalo entre duas vezes.' },
+    { speaker: 'Narração', voice: 'memory', text: 'Doze notas orbitam uma luz impossível. Além delas, uma sombra ergue a mão e o mundo inteiro perde o som.' },
+    { speaker: 'Voz distante', voice: 'memory', text: 'Se encontrarem a Primeira Nota, o silêncio alcançará todos.' },
+    { speaker: 'Akles', voice: 'akles', text: 'Quem está falando?', choices: [
+      { label: 'Eu já estive aqui?', reply: 'Isto já aconteceu comigo antes?' },
+      { label: 'Quem procura a Nota?', reply: 'Quem está procurando a Primeira Nota?' },
+    ] },
+    { speaker: 'Voz distante', voice: 'memory', text: 'Você sempre faz essa pergunta. E sempre acorda antes da resposta.' },
+    { speaker: 'Narração', voice: 'narrator', text: 'A escuridão se parte. Uma única palavra permanece onde deveria existir uma lembrança: Klassíkia.' },
   ],
   morning: [
+    { speaker: 'Narração', voice: 'narrator', text: 'Amanhece em Acordelot. Sinos distantes devolvem som às ruas, mas Akles desperta com a sensação de ter esquecido tudo outra vez.' },
+    { speaker: 'Mirella', voice: 'mirella', text: 'Você falou enquanto dormia. Repetiu uma palavra: Klassíkia.' },
+    { speaker: 'Akles', voice: 'akles', text: 'Eu não sei o que significa.' },
+    { speaker: 'Mirella', voice: 'mirella', text: 'Não conheço essa palavra.' },
+    { speaker: 'Narração', voice: 'narrator', text: 'Ela responde rápido demais e evita olhar para Pippo.' },
     { speaker: 'Mirella', voice: 'mirella', text: 'Bom dia. O caminho até o centro de Acordelot é longo, mas você precisa falar com quem pode ajudá-lo.' },
     { speaker: 'Mirella', voice: 'mirella', text: 'Vá ao centro da cidade e procure o Sr. Antony. Ele é o líder de Acordelot.' },
     { speaker: 'Pippo', voice: 'pippo', text: 'Eu mostro o caminho pela avenida. Você anda por conta própria e eu espero sempre que precisar.', choices: [
@@ -1872,7 +1887,14 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
         )}
 
         {openingPhase && currentOpeningLine && (
-          <div className="fixed inset-0 z-[60] pointer-events-auto select-none flex items-end justify-center pb-[max(8px,env(safe-area-inset-bottom))]">
+          <div className={`fixed inset-0 z-[60] pointer-events-auto select-none flex items-end justify-center pb-[max(8px,env(safe-area-inset-bottom))] transition-colors duration-700 ${openingPhase === 'rest' ? 'bg-black' : ''}`}>
+            {openingPhase === 'rest' && (
+              <div className="pointer-events-none absolute inset-0 overflow-hidden">
+                <div className="absolute left-1/2 top-1/2 h-64 w-64 -translate-x-1/2 -translate-y-1/2 rounded-full border border-violet-300/10 shadow-[0_0_100px_rgba(139,92,246,.12)]" />
+                <div className="absolute left-1/2 top-1/2 h-36 w-36 -translate-x-1/2 -translate-y-1/2 rounded-full border border-amber-200/10" />
+                <span className="absolute left-1/2 top-[31%] -translate-x-1/2 text-4xl text-violet-100/10">♪</span>
+              </div>
+            )}
             <div className="absolute left-3 top-3 rounded-lg border border-violet-300/20 bg-slate-950/78 px-3 py-1.5 backdrop-blur-sm">
               <p className="text-[8px] font-black uppercase tracking-[.28em] text-violet-200/70">Capítulo I · Missão 1</p>
               <p className="text-[10px] font-black tracking-[.1em] text-white/90 drop-shadow-lg">
@@ -1883,7 +1905,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
                         openingPhase === 'echoes' ? 'TRÊS ECOS' :
                           openingPhase === 'gate' ? 'O MENINO DA LANTERNA' :
                             openingPhase === 'mirella' ? 'ABRIGO' :
-                              openingPhase === 'rest' ? 'ANTES DO AMANHECER' :
+                              openingPhase === 'rest' ? 'O SONHO ENTRE NOTAS' :
                                 openingPhase === 'morning' ? 'UMA LONGA ESTRADA' : 'O LÍDER DE ACORDELOT'}
               </p>
             </div>

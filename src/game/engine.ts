@@ -2957,13 +2957,30 @@ export class GameEngine {
   }
 
   beginHouseRest() {
-    this.storyStage = 'entering_house';
+    this.clearInputState();
+    this.storyStage = 'rest_scene';
     this.storyControlLocked = true;
     const door = this.mirellaHomeDoor();
     const pippo = this.npcs.find((npc) => npc.id === 'story_pippo');
     const mirella = this.npcs.find((npc) => npc.id === 'story_mirella');
     if (pippo) this.moveStoryActor('npc', pippo.id, door.x - 13, door.insideY, 42);
     if (mirella) this.moveStoryActor('npc', mirella.id, door.x + 13, door.insideY, 42);
+    // A decisão de entrar já foi tomada pelo jogador no diálogo. A transição
+    // coloca Akles dentro da casa sem simular movimento ou tomar o joystick.
+    this.player.x = door.x;
+    this.player.y = door.insideY;
+    this.player.direction = 'up';
+    this.storyObjective = {
+      title: 'Despertar sem Nome',
+      text: 'Descanse na casa de Mirella',
+      progress: 1,
+      target: 1,
+      ready: true,
+    };
+    this.onQuestsChange?.();
+    // Não depende mais do término da caminhada dos NPCs: no mapa editado um
+    // destino interno podia ficar distante e impedir para sempre o amanhecer.
+    this.onStoryBeat?.('house_entered');
   }
 
   finishOpeningRest() {

@@ -179,7 +179,11 @@ export function serializeEngineSave(engine: GameEngine, userId: string): Omit<Ac
       fragments: [...(engine.fragments || [])],
       notes_built: [...(engine.notesBuilt || [])],
       scales_built: { ...engine.scalesBuilt },
+      owned_chords: { ...engine.ownedChords },
+      equipped_scales_by_character: structuredClone(engine.equippedScalesByCharacter),
+      equipped_chords_by_scale_by_character: structuredClone(engine.equippedChordsByScaleByCharacter),
       echo_tutorial_stage: engine.echoTutorialStage,
+      post_echo_stage: engine.postEchoStage,
       shop_purchases: { ...engine.shopPurchases, counts: { ...engine.shopPurchases.counts } },
       bag_level: engine.bagLevel,
       hud_layout: (() => {
@@ -394,8 +398,41 @@ export function applySaveToEngine(engine: GameEngine, save: Partial<AcordelotSav
       engine.notesBuilt = [...s.notes_built];
     }
     if (s.scales_built && typeof s.scales_built === 'object') engine.scalesBuilt = { ...s.scales_built };
+    if (s.owned_chords && typeof s.owned_chords === 'object') engine.ownedChords = { ...s.owned_chords };
+    if (s.equipped_scales_by_character && typeof s.equipped_scales_by_character === 'object') {
+      for (const key of ['akles', 'wins', 'huans'] as const) {
+        const list = s.equipped_scales_by_character[key];
+        if (Array.isArray(list)) engine.equippedScalesByCharacter[key] = list.filter((v: unknown) => typeof v === 'string').slice(0, 3);
+      }
+    }
+    if (s.equipped_chords_by_scale_by_character && typeof s.equipped_chords_by_scale_by_character === 'object') {
+      for (const key of ['akles', 'wins', 'huans'] as const) {
+        const source = s.equipped_chords_by_scale_by_character[key];
+        if (!source || typeof source !== 'object') continue;
+        engine.equippedChordsByScaleByCharacter[key] = Object.fromEntries(
+          Object.entries(source).map(([scale, ids]) => [scale, Array.isArray(ids) ? ids.filter((v) => typeof v === 'string').slice(0, 3) : []]),
+        );
+      }
+    }
     if (typeof s.echo_tutorial_stage === 'string' && ['locked', 'forge_resonator', 'return_to_lucian', 'capture_echo', 'synthesize_note', 'synthesize_scale', 'completed'].includes(s.echo_tutorial_stage)) {
       engine.echoTutorialStage = s.echo_tutorial_stage as typeof engine.echoTutorialStage;
+    }
+    if (typeof s.post_echo_stage === 'string' && ['locked', 'antony_riddle', 'miro_bell', 'gather_dust', 'lucian_harmony', 'equip_harmony', 'antony_letter', 'completed'].includes(s.post_echo_stage)) {
+      engine.postEchoStage = s.post_echo_stage as typeof engine.postEchoStage;
+    } else if (engine.echoTutorialStage === 'completed') engine.postEchoStage = 'antony_riddle';
+    if (engine.echoTutorialStage === 'completed' && engine.postEchoStage !== 'completed') {
+      const chordCount = Math.min(3, Object.values(engine.equippedChordsByScale).flat().length);
+      const dustCount = Math.min(12, engine.inventory.eco_dust || 0);
+      const objectives: Record<string, { title: string; text: string; progress: number; target: number; ready: boolean }> = {
+        locked: { title: 'O Sino que Esqueceu o Fá', text: 'Procure o Sr. Antony', progress: 0, target: 2, ready: false },
+        antony_riddle: { title: 'O Sino que Esqueceu o Fá', text: 'Procure o Sr. Antony', progress: 0, target: 2, ready: false },
+        miro_bell: { title: 'O Sino que Esqueceu o Fá', text: 'Pergunte a Miro pelo sino mudo', progress: 0, target: 2, ready: false },
+        gather_dust: { title: 'O Sino que Esqueceu o Fá', text: dustCount >= 12 ? 'Amostras prontas! Volte a Miro.' : 'Reúna 12 porções de Poeira de Eco', progress: dustCount, target: 12, ready: dustCount >= 12 },
+        lucian_harmony: { title: 'Três Funções, Uma Intenção', text: 'Leve a leitura do sino até Lucian', progress: 0, target: 2, ready: false },
+        equip_harmony: { title: 'Três Funções, Uma Intenção', text: chordCount >= 3 ? 'Composição pronta! Volte a Lucian.' : 'Equipe uma escala e 3 acordes', progress: chordCount, target: 3, ready: chordCount >= 3 },
+        antony_letter: { title: 'A Carta que Ninguém Enviou', text: 'Conte a descoberta ao Sr. Antony', progress: 0, target: 1, ready: false },
+      };
+      engine.storyObjective = objectives[engine.postEchoStage] ?? engine.storyObjective;
     }
     if (s.fragments || s.notes_built) {
       engine.onFragmentsChange?.({ fragments: [...engine.fragments], built: [...engine.notesBuilt] });

@@ -51,6 +51,7 @@ const STAT_ICON: Record<StatKey, React.ComponentType<{ className?: string }>> = 
   energyMaxPct: Battery,
   energyRegenPct: BatteryCharging,
   harmonicPowerPct: Music2,
+  lifeStealPct: Heart,
 };
 
 const SLOT_ICON: Record<EquipSlotKey, React.ComponentType<{ className?: string }>> = {

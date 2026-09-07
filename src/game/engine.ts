@@ -55,6 +55,17 @@ import { PASSIVE_DEFS } from './passives';
 import { EQUIP_SETS, EQUIP_PIECE_INDEX, EQUIP_SLOT_ORDER, EquipSlotKey, EquipSetDef, EquipPieceDef, equipSetClass } from './catalogData';
 import { StatKey, StatBag, mergeStatBags, STATS_WITHOUT_EFFECT, CharacterClassKey } from './statTypes';
 import { DAILY_QUEST_POOL, QuestDef, QuestKind } from './quests';
+import {
+  ScaleInterval,
+  MAJOR_SCALE_PATTERN,
+  INTERVAL_SEMITONES,
+  chordsForMajorScale,
+  isMajorPattern,
+  majorScaleNotes as buildMajorScaleNotes,
+  scaleBaseBonus,
+} from './harmony';
+export { MAJOR_SCALE_PATTERN, INTERVAL_LABEL, chordsForMajorScale, scaleBaseBonus } from './harmony';
+export type { ScaleInterval, ScaleChord } from './harmony';
 export { WEAPON_DEFS } from './weapons';
 export { PASSIVE_DEFS, PASSIVE_ORDER } from './passives';
 export { EQUIP_SETS, EQUIP_PIECE_INDEX, EQUIP_SLOT_ORDER, EQUIP_SLOT_LABEL } from './catalogData';
@@ -98,6 +109,15 @@ interface SpriteVfx {
   duration: number;
   width: number;
   height: number;
+}
+
+interface EchoCaptureFx {
+  x: number;
+  y: number;
+  life: number;
+  duration: number;
+  note: number;
+  tier: ToolTier;
 }
 
 // Geometria das sprite sheets do Akles (geradas por scripts/process-akles.mjs)
@@ -238,6 +258,16 @@ export const ITEM_META: Record<string, ItemMeta> = {
     name: 'Ressonador de Ecos', icon: '◉', weight: 0,
     img: '/assets/tools/echo_resonator.png',
     desc: 'Ferramenta de luteria usada para capturar a assinatura de um Eco.',
+  },
+  tone: {
+    name: 'Tom', icon: 'T', weight: 0,
+    img: '/assets/items/notes/tom.png',
+    desc: 'Intervalo de dois semitons. Usado para construir escalas nota por nota.',
+  },
+  semitone: {
+    name: 'Semitom', icon: 'S', weight: 0,
+    img: '/assets/items/notes/semitom.png',
+    desc: 'Menor intervalo do sistema. Usado para construir escalas nota por nota.',
   },
   partitura_bronze: {
     name: 'Partitura de Bronze',
@@ -1380,6 +1410,7 @@ export class GameEngine {
   lightBeams: LightBeam[] = [];
   combatZones: CombatZone[] = [];
   spriteVfx: SpriteVfx[] = [];
+  echoCaptureFx: EchoCaptureFx[] = [];
   coins = 0; // claves musicais
   onCoinsChange?: (n: number) => void;
   playerHurtFlash = 0;
@@ -1413,7 +1444,94 @@ export class GameEngine {
   private harvestFxNode: WorldProp | null = null;
 
   echoTutorialStage: 'locked' | 'forge_resonator' | 'return_to_lucian' | 'capture_echo' | 'synthesize_note' | 'synthesize_scale' | 'completed' = 'locked';
+  postEchoStage: 'locked' | 'antony_riddle' | 'miro_bell' | 'gather_dust' | 'lucian_harmony' | 'equip_harmony' | 'antony_letter' | 'completed' = 'locked';
   scalesBuilt: Record<string, number> = {};
+  ownedChords: Record<string, number> = {};
+  equippedScalesByCharacter: Record<PlayerCharacterKey, string[]> = { akles: [], wins: [], huans: [] };
+  equippedChordsByScaleByCharacter: Record<PlayerCharacterKey, Record<string, string[]>> = { akles: {}, wins: {}, huans: {} };
+
+  get equippedScales(): string[] { return this.equippedScalesByCharacter[this.activeCharacter] ?? []; }
+  get equippedChordsByScale(): Record<string, string[]> { return this.equippedChordsByScaleByCharacter[this.activeCharacter] ?? {}; }
+
+  private scaleTonic(scaleKey: string): number {
+    const key = scaleKey.replace(/^scale_/, '').replace(/_major$/, '');
+    return NOTE_KEY.indexOf(key);
+  }
+
+  harmonyStat(key: StatKey): number {
+    let total = 0;
+    for (const scaleKey of this.equippedScales) {
+      const tonic = this.scaleTonic(scaleKey);
+      if (tonic < 0) continue;
+      total += scaleBaseBonus(tonic).stats[key] ?? 0;
+      const byId = new Map(chordsForMajorScale(tonic, NOTE_KEY).map((chord) => [chord.id, chord]));
+      for (const chordId of this.equippedChordsByScale[scaleKey] ?? []) total += byId.get(chordId)?.stats[key] ?? 0;
+    }
+    return total;
+  }
+
+  toggleScaleEquip(scaleKey: string): { ok: boolean; message: string } {
+    if ((this.scalesBuilt[scaleKey] || 0) < 1) return { ok: false, message: 'Você ainda não forjou esta escala.' };
+    const list = this.equippedScales;
+    const index = list.indexOf(scaleKey);
+    if (index >= 0) {
+      list.splice(index, 1);
+      this.syncEquipHpBonus();
+      this.onEquipChange?.();
+      this.updateHarmonyQuestProgress();
+      return { ok: true, message: 'Escala removida da composição.' };
+    }
+    if (list.length >= 3) return { ok: false, message: 'A composição comporta no máximo 3 escalas.' };
+    list.push(scaleKey);
+    this.syncEquipHpBonus();
+    this.onEquipChange?.();
+    this.updateHarmonyQuestProgress();
+    return { ok: true, message: 'Escala equipada: o bônus já está ativo.' };
+  }
+
+  toggleChordEquip(scaleKey: string, chordId: string): { ok: boolean; message: string } {
+    if (!this.equippedScales.includes(scaleKey)) return { ok: false, message: 'Equipe a escala antes de inserir seus acordes.' };
+    if ((this.ownedChords[chordId] || 0) < 1) return { ok: false, message: 'Você ainda não obteve este acorde.' };
+    const tonic = this.scaleTonic(scaleKey);
+    if (!chordsForMajorScale(tonic, NOTE_KEY).some((chord) => chord.id === chordId)) return { ok: false, message: 'Este acorde não pertence à escala.' };
+    const slots = this.equippedChordsByScale[scaleKey] ?? (this.equippedChordsByScale[scaleKey] = []);
+    const index = slots.indexOf(chordId);
+    if (index >= 0) slots.splice(index, 1);
+    else {
+      if (slots.length >= 3) return { ok: false, message: 'Cada escala aceita no máximo 3 acordes.' };
+      slots.push(chordId);
+    }
+    this.syncEquipHpBonus();
+    this.onEquipChange?.();
+    this.updateHarmonyQuestProgress();
+    return { ok: true, message: index >= 0 ? 'Acorde removido.' : 'Acorde equipado e bônus ativado.' };
+  }
+
+  claimScaleChords(scaleKey: string, chordIds: string[]): boolean {
+    const tonic = this.scaleTonic(scaleKey);
+    const valid = new Set(chordsForMajorScale(tonic, NOTE_KEY).map((chord) => chord.id));
+    const chosen = [...new Set(chordIds)].filter((id) => valid.has(id)).slice(0, 3);
+    if (chosen.length === 0) return false;
+    for (const id of chosen) this.ownedChords[id] = (this.ownedChords[id] || 0) + 1;
+    const slots = this.equippedChordsByScale[scaleKey] ?? (this.equippedChordsByScale[scaleKey] = []);
+    for (const id of chosen) if (!slots.includes(id) && slots.length < 3) slots.push(id);
+    this.syncEquipHpBonus();
+    this.onInventoryChange?.({ ...this.inventory });
+    this.onEquipChange?.();
+    this.updateHarmonyQuestProgress();
+    return true;
+  }
+
+  private updateHarmonyQuestProgress() {
+    if (this.postEchoStage !== 'equip_harmony') return;
+    const amount = Math.min(3, Object.values(this.equippedChordsByScale).flat().length);
+    this.storyObjective = {
+      title: 'Três Funções, Uma Intenção',
+      text: amount >= 3 ? 'Composição pronta! Volte a Lucian.' : 'Equipe uma escala e 3 acordes na Composição',
+      progress: amount, target: 3, ready: amount >= 3,
+    };
+    this.onQuestsChange?.();
+  }
 
   // ---- SISTEMA DE ARMA FLUTUANTE + SKILLS DE AKLES ----
   // A arma é 100% separada do personagem: nunca fica nas sheets dele. Trocar
@@ -1869,6 +1987,7 @@ export class GameEngine {
       if (n >= 4) total += set.bonus4[key] ?? 0;
     }
     total += this.weaponDef.statBonus[key] ?? 0;
+    total += this.harmonyStat(key);
     return total;
   }
   // HP Máximo é % — reconciliado como delta flat sobre stats.maxHp sempre
@@ -2043,6 +2162,12 @@ export class GameEngine {
         return echo ? { x: echo.x, y: echo.y } : null;
       }
     }
+    if (this.echoTutorialStage === 'completed') {
+      if (this.postEchoStage === 'locked' || this.postEchoStage === 'antony_riddle' || this.postEchoStage === 'antony_letter') return npcPoint('story_sr_antony');
+      if (this.postEchoStage === 'miro_bell') return npcPoint('npc_mercador_cidade');
+      if (this.postEchoStage === 'gather_dust') return (this.inventory.eco_dust || 0) >= 12 ? npcPoint('npc_mercador_cidade') : null;
+      if (this.postEchoStage === 'lucian_harmony' || this.postEchoStage === 'equip_harmony') return npcPoint('story_lucian');
+    }
     return null;
   }
 
@@ -2063,6 +2188,7 @@ export class GameEngine {
     if (this.marketIntroStage === 'completed') ids.push('SQ_MERCADO_PRIMEIRA_COLETA');
     if (this.lucianMeetingRewarded) ids.push('MQ_C1_003_AS_VOZES_DE_ACORDELOT');
     if (this.echoTutorialStage !== 'locked') ids.push(`MQ_C1_004_ECOS_${this.echoTutorialStage.toUpperCase()}`);
+    if (this.postEchoStage !== 'locked') ids.push(`MQ_C1_POST_ECHO_${this.postEchoStage.toUpperCase()}`);
     return ids;
   }
 
@@ -2092,6 +2218,11 @@ export class GameEngine {
       if (['forge_resonator', 'return_to_lucian', 'capture_echo', 'synthesize_note', 'synthesize_scale', 'completed'].includes(restored)) {
         this.echoTutorialStage = restored as typeof this.echoTutorialStage;
       }
+    }
+    const postEchoId = ids.find((id) => id.startsWith('MQ_C1_POST_ECHO_'));
+    if (postEchoId) {
+      const restored = postEchoId.slice('MQ_C1_POST_ECHO_'.length).toLowerCase();
+      if (['antony_riddle', 'miro_bell', 'gather_dust', 'lucian_harmony', 'equip_harmony', 'antony_letter', 'completed'].includes(restored)) this.postEchoStage = restored as typeof this.postEchoStage;
     }
     const echoObjectives: Partial<Record<typeof this.echoTutorialStage, NonNullable<typeof this.storyObjective>>> = {
       forge_resonator: {
@@ -2242,6 +2373,24 @@ export class GameEngine {
                   : this.echoTutorialStage === 'synthesize_scale'
                     ? 'Monte Dó Maior pelo padrão T–T–S–T–T–T–S.'
                     : 'Fragmentos, notas e escalas dominados.',
+      },
+      {
+        id: 'MQ_C1_005_O_SINO_SEM_FA', chapter: 'Capítulo I', title: 'O Sino que Esqueceu o Fá',
+        description: 'Um sino da cidade perdeu uma frequência. Sr. Antony e Miro suspeitam que os Ecos ouviram algo durante a noite.',
+        status: this.echoTutorialStage !== 'completed' ? ('locked' as const) : ['lucian_harmony', 'equip_harmony', 'antony_letter', 'completed'].includes(this.postEchoStage) ? ('completed' as const) : ('active' as const),
+        objective: this.postEchoStage === 'miro_bell' ? 'Pergunte a Miro por que o sino do mercado está mudo.' : this.postEchoStage === 'gather_dust' ? `Reúna Poeira de Eco (${Math.min(12, this.inventory.eco_dust || 0)}/12) e volte a Miro.` : 'Converse com o Sr. Antony sobre a nota ausente.',
+      },
+      {
+        id: 'MQ_C1_006_CAMPO_HARMONICO', chapter: 'Capítulo I', title: 'Três Funções, Uma Intenção',
+        description: 'Lucian ensina que uma escala orienta o músico, mas os acordes revelam sua intenção.',
+        status: !['lucian_harmony', 'equip_harmony', 'antony_letter', 'completed'].includes(this.postEchoStage) ? ('locked' as const) : ['antony_letter', 'completed'].includes(this.postEchoStage) ? ('completed' as const) : ('active' as const),
+        objective: this.postEchoStage === 'equip_harmony' ? `Equipe uma escala e 3 acordes (${Math.min(3, Object.values(this.equippedChordsByScale).flat().length)}/3). Depois volte a Lucian.` : 'Converse com Lucian sobre o campo harmônico.',
+      },
+      {
+        id: 'MQ_C1_007_CARTA_SEM_REMETENTE', chapter: 'Capítulo I', title: 'A Carta que Ninguém Enviou',
+        description: 'Uma mensagem impossível chega ao gabinete do Sr. Antony e menciona uma palavra que Akles ouviu apenas em sonho.',
+        status: this.postEchoStage !== 'antony_letter' && this.postEchoStage !== 'completed' ? ('locked' as const) : this.postEchoStage === 'completed' ? ('completed' as const) : ('active' as const),
+        objective: this.postEchoStage === 'completed' ? 'A palavra Klassíkia foi registrada no diário.' : 'Leve a descoberta harmônica ao Sr. Antony.',
       },
     ];
   }
@@ -3474,7 +3623,20 @@ export class GameEngine {
       const hasMaterials = woodCount >= 3 && stoneCount >= 3;
 
       let dialogue = n.dialogue ?? ['...'];
-      if (this.voicesMissionAccepted && this.marketIntroStage === 'intro') {
+      if (this.echoTutorialStage === 'completed' && this.postEchoStage === 'miro_bell') {
+        dialogue = [
+          'O sino mudo? Eu não ouvi nada. O que, tecnicamente, prova que ele está mudo.',
+          'Ontem ele tocava Fá na abertura do mercado. Hoje o badalo se move, mas a frequência não chega.',
+          'Os Ecos guardam vestígios do que escutam. Traga 12 porções de Poeira de Eco; compararei as assinaturas no meu afinador.',
+          'E não conte ao Dório que uso uma colher como afinador. É uma colher muito precisa.',
+        ];
+      } else if (this.echoTutorialStage === 'completed' && this.postEchoStage === 'gather_dust' && (this.inventory.eco_dust || 0) >= 12) {
+        dialogue = [
+          'Doze amostras. Vamos ver... Dó, Sol, Mi, um espirro de Pippo e aqui: um vazio exatamente onde deveria existir Fá.',
+          'Isso não é desgaste. Alguém retirou a lembrança da nota sem tocar no metal.',
+          'Leve esta leitura a Lucian. Ele entende memórias musicais melhor do que entende horários comerciais.',
+        ];
+      } else if (this.voicesMissionAccepted && this.marketIntroStage === 'intro') {
         dialogue = [
           'Você deve ser o rapaz sem memória. O Sr. Antony descreveu o cabelo; Pippo descreveu o olhar perdido.',
           'Sou Miro. Vendo poções, compro histórias e finjo não ouvir boatos depois do terceiro sino.',
@@ -3521,7 +3683,25 @@ export class GameEngine {
 
     if (n.id === 'story_lucian') {
       let dialogue = n.dialogue ?? ['...'];
-      if (this.marketIntroStage === 'completed') {
+      if (this.echoTutorialStage === 'completed' && this.postEchoStage === 'lucian_harmony') {
+        dialogue = [
+          'Uma nota não desaparece sozinha, Akles. Ela pode ser abafada, esquecida ou... retirada da sequência.',
+          'Antes de perseguirmos fantasmas, você precisa aprender intenção harmônica. Uma escala oferece sete acordes; cada grau cumpre uma função.',
+          'A Tônica repousa. A Dominante cria tensão. A Subdominante abre caminho. As outras cores ficam entre essas forças.',
+          'Abra a Síntese, equipe uma escala e escolha três acordes. Não procure o conjunto “mais forte”; monte uma intenção que combine com seu estilo.',
+          'Pippo escolheria três Dominantes se eu deixasse. É por isso que crianças não organizam concertos militares.',
+        ];
+      } else if (this.echoTutorialStage === 'completed' && this.postEchoStage === 'equip_harmony') {
+        const chordCount = Object.values(this.equippedChordsByScale).flat().length;
+        dialogue = chordCount >= 3 ? [
+          'Ouça: sua composição agora responde antes mesmo de você atacar. Os bônus já fazem parte dos seus atributos.',
+          'A leitura de Miro e seus acordes formam o mesmo desenho: alguém criou tensão sem permitir resolução.',
+          'Só conheço uma pessoa com arquivos antigos o bastante para reconhecer isso. Volte ao Sr. Antony.',
+        ] : [
+          `Sua composição ainda tem ${chordCount}/3 acordes. Abra Síntese → Composição, equipe uma escala e complete os três espaços.`,
+          'Toque em cada acorde para ler sua função. A escolha deve ensinar tanto quanto fortalecer.',
+        ];
+      } else if (this.marketIntroStage === 'completed') {
         if (!this.lucianMeetingRewarded) {
           dialogue = [
             'Saudações, Akles. Pippo contou que os Ecos guiaram você até o portão e que ele mostrou o caminho até Mirella.',
@@ -3596,6 +3776,25 @@ export class GameEngine {
       };
     }
 
+    if (n.id === 'story_sr_antony' && this.echoTutorialStage === 'completed') {
+      let dialogue = n.dialogue ?? ['...'];
+      if (this.postEchoStage === 'locked' || this.postEchoStage === 'antony_riddle') dialogue = [
+        'Akles, preciso de um ouvido que ainda não aprendeu o que deve ignorar.',
+        'O sino do mercado perdeu a nota Fá durante a madrugada. Os guardas juram que ele tocou; os músicos juram que não.',
+        'Mais estranho: no livro de manutenção há um espaço em branco entre Mi e Sol. Ninguém lembra de ter escrito ali.',
+        'Fale com Miro. Finja que é sobre o sino. Ainda não quero que a cidade aprenda a temer páginas vazias.',
+      ];
+      else if (this.postEchoStage === 'antony_letter') dialogue = [
+        'Lucian escreveu “tensão sem resolução”. Há uma carta esperando em minha mesa com exatamente as mesmas palavras.',
+        'Ela apareceu dentro de uma gaveta trancada. Não tem selo, remetente ou marcas de dobra.',
+        'Há apenas uma palavra ao final: “Klassíkia”.',
+        'Você empalideceu. Já ouviu esse nome antes?',
+        'Não responda agora. Certas lembranças quebram quando são forçadas. Vou procurar o nome nos arquivos antigos; você continuará conhecendo a cidade.',
+        'Se alguém perguntar, investigávamos um sino desafinado. Pela primeira vez, espero que Miro espalhe a versão errada.',
+      ];
+      return { id: n.id, name: n.name, title: n.title, accent: n.accent ?? '#fbbf24', dialogue, isMerchant: false, spriteType: n.spriteType };
+    }
+
     return {
       id: n.id,
       name: n.name,
@@ -3639,7 +3838,20 @@ export class GameEngine {
   closeDialogue() {
     const talking = this.npcs.find((n) => n.id === this.talkingNpcId);
     if (talking?.id === 'npc_mercador_cidade') {
-      if (this.voicesMissionAccepted && this.marketIntroStage === 'intro') {
+      if (this.echoTutorialStage === 'completed' && this.postEchoStage === 'miro_bell') {
+        this.postEchoStage = 'gather_dust';
+        this.storyObjective = { title: 'O Sino que Esqueceu o Fá', text: 'Ressoe Ecos e reúna 12 porções de Poeira de Eco', progress: Math.min(12, this.inventory.eco_dust || 0), target: 12, ready: false };
+        this.onQuestsChange?.();
+      } else if (this.echoTutorialStage === 'completed' && this.postEchoStage === 'gather_dust' && (this.inventory.eco_dust || 0) >= 12) {
+        this.inventory.eco_dust -= 12;
+        if (this.inventory.eco_dust <= 0) delete this.inventory.eco_dust;
+        this.addToInventory('partitura_prata', 1);
+        this.gainXp(65);
+        this.postEchoStage = 'lucian_harmony';
+        this.storyObjective = { title: 'Três Funções, Uma Intenção', text: 'Leve a leitura do sino até Lucian', progress: 0, target: 2, ready: false };
+        this.onInventoryChange?.({ ...this.inventory });
+        this.onQuestsChange?.();
+      } else if (this.voicesMissionAccepted && this.marketIntroStage === 'intro') {
         this.marketIntroStage = 'smith_intro';
         this.storyObjective = {
           title: 'As Vozes de Acordelot',
@@ -3694,7 +3906,17 @@ export class GameEngine {
         this.onQuestsChange?.();
       }
     } else if (talking?.id === 'story_lucian') {
-      if (this.marketIntroStage === 'completed' && !this.lucianMeetingRewarded) {
+      if (this.echoTutorialStage === 'completed' && this.postEchoStage === 'lucian_harmony') {
+        this.postEchoStage = 'equip_harmony';
+        this.storyObjective = { title: 'Três Funções, Uma Intenção', text: 'Equipe uma escala e 3 acordes na Composição', progress: Math.min(3, Object.values(this.equippedChordsByScale).flat().length), target: 3, ready: false };
+        this.onQuestsChange?.();
+      } else if (this.echoTutorialStage === 'completed' && this.postEchoStage === 'equip_harmony' && Object.values(this.equippedChordsByScale).flat().length >= 3) {
+        this.gainXp(80);
+        this.addCoins(75);
+        this.postEchoStage = 'antony_letter';
+        this.storyObjective = { title: 'A Carta que Ninguém Enviou', text: 'Conte a descoberta ao Sr. Antony', progress: 0, target: 1, ready: false };
+        this.onQuestsChange?.();
+      } else if (this.marketIntroStage === 'completed' && !this.lucianMeetingRewarded) {
         this.lucianMeetingRewarded = true;
         this.addCoins(60);
         this.addToInventory('wood', 3);
@@ -3714,6 +3936,18 @@ export class GameEngine {
         this.onQuestsChange?.();
       } else if (this.echoTutorialStage === 'return_to_lucian') {
         this.beginEchoCaptureTutorial();
+      }
+    } else if (talking?.id === 'story_sr_antony' && this.echoTutorialStage === 'completed') {
+      if (this.postEchoStage === 'locked' || this.postEchoStage === 'antony_riddle') {
+        this.postEchoStage = 'miro_bell';
+        this.storyObjective = { title: 'O Sino que Esqueceu o Fá', text: 'Pergunte a Miro pelo sino mudo do mercado', progress: 0, target: 2, ready: false };
+        this.onQuestsChange?.();
+      } else if (this.postEchoStage === 'antony_letter') {
+        this.postEchoStage = 'completed';
+        this.gainXp(100);
+        this.addCoins(100);
+        this.storyObjective = { title: 'Capítulo I', text: 'Klassíkia: uma palavra que não deveria estar na memória de Akles', progress: 1, target: 1, ready: true };
+        this.onQuestsChange?.();
       }
     }
 
@@ -4461,6 +4695,8 @@ export class GameEngine {
       // Lucian empresta as seis notas restantes para demonstrar a primeira
       // escala. A nota capturada pelo jogador continua sendo a peça central.
       [2, 4, 5, 7, 9, 11].forEach((index) => { this.notesBuilt[index] += 1; });
+      this.addToInventory('tone', 5);
+      this.addToInventory('semitone', 2);
       this.echoTutorialStage = 'synthesize_scale';
       this.storyObjective = {
         title: 'O Ofício dos Ecos',
@@ -4479,25 +4715,40 @@ export class GameEngine {
   }
 
   majorScaleNotes(tonic: number): number[] {
-    return [0, 2, 4, 5, 7, 9, 11].map((step) => (tonic + step) % 12);
+    return buildMajorScaleNotes(tonic);
   }
 
   canSynthesizeMajorScale(tonic: number): boolean {
-    return this.majorScaleNotes(tonic).every((note) => (this.notesBuilt[note] || 0) > 0);
+    return this.majorScaleNotes(tonic).every((note) => (this.notesBuilt[note] || 0) > 0)
+      && (this.inventory.tone || 0) >= 5
+      && (this.inventory.semitone || 0) >= 2;
   }
 
   synthesizeMajorScale(tonic: number): boolean {
-    if (!this.canSynthesizeMajorScale(tonic)) return false;
+    return this.forgeMajorScale(tonic, MAJOR_SCALE_PATTERN).ok;
+  }
+
+  forgeMajorScale(tonic: number, intervals: ScaleInterval[]): { ok: boolean; message: string; scaleKey?: string } {
+    if (!isMajorPattern(intervals)) return { ok: false, message: 'A escala maior pede exatamente T–T–S–T–T–T–S.' };
+    const walked = intervals.reduce((sum, interval) => sum + INTERVAL_SEMITONES[interval], 0);
+    if (walked !== 12) return { ok: false, message: 'O caminho precisa fechar a oitava em 12 semitons.' };
+    if (!this.canSynthesizeMajorScale(tonic)) return { ok: false, message: 'Faltam notas, 5 Tons ou 2 Semitons para esta escala.' };
     this.majorScaleNotes(tonic).forEach((note) => { this.notesBuilt[note] -= 1; });
+    this.inventory.tone -= 5;
+    this.inventory.semitone -= 2;
+    if (this.inventory.tone <= 0) delete this.inventory.tone;
+    if (this.inventory.semitone <= 0) delete this.inventory.semitone;
     const key = `scale_${NOTE_KEY[tonic]}_major`;
     this.scalesBuilt[key] = (this.scalesBuilt[key] || 0) + 1;
     this.inventory[key] = (this.inventory[key] || 0) + 1;
+    if (!this.equippedScales.includes(key) && this.equippedScales.length < 3) this.equippedScales.push(key);
     if (this.echoTutorialStage === 'synthesize_scale' && tonic === 0) {
       this.echoTutorialStage = 'completed';
+      if (this.postEchoStage === 'locked') this.postEchoStage = 'antony_riddle';
       this.storyObjective = {
-        title: 'O Ofício dos Ecos',
-        text: 'Tutorial concluído: fragmento → nota → escala',
-        progress: 4, target: 4, ready: true,
+        title: 'O Sino que Esqueceu o Fá',
+        text: 'Procure o Sr. Antony: um sino da cidade perdeu uma nota',
+        progress: 0, target: 2, ready: false,
       };
       this.bubbles.push({ who: 'npc', npcId: 'story_lucian', text: 'Perfeito. Uma escala não é uma coleção: é um caminho entre alturas.', born: this.timeElapsed, ttl: 7 });
       this.bubbles.push({ who: 'npc', npcId: 'story_pippo', text: 'E dessa vez o caminho não passou atrás de nenhuma casa!', born: this.timeElapsed + .5, ttl: 7 });
@@ -4506,8 +4757,10 @@ export class GameEngine {
     }
     this.onFragmentsChange?.({ fragments: [...this.fragments], built: [...this.notesBuilt] });
     this.onInventoryChange?.({ ...this.inventory });
+    this.syncEquipHpBonus();
+    this.onEquipChange?.();
     this.onHarvestPopup?.(`♬ Escala de ${NOTE_NAMES[tonic]} Maior criada!`, this.player.x, this.player.y - 24);
-    return true;
+    return { ok: true, message: 'Escala forjada. Agora escolha até 3 acordes.', scaleKey: key };
   }
 
   addCoins(n: number) {
@@ -4810,6 +5063,11 @@ export class GameEngine {
     }
     dmg = Math.max(1, Math.round(dmg));
     e.hp -= dmg;
+    const lifeSteal = !opts.networkFinal ? this.equipStat('lifeStealPct') / 100 : 0;
+    if (lifeSteal > 0 && this.stats.hp < this.stats.maxHp) {
+      this.stats.hp = Math.min(this.stats.maxHp, this.stats.hp + Math.max(1, Math.round(dmg * lifeSteal)));
+      this.onStatsChange?.({ ...this.stats });
+    }
     if (!this.applyingNetworkDamage) this.onEnemyDamaged?.(e.id, dmg, fromX, fromY);
     e.hurtFlash = 0.2;
     this.addDamageText(
@@ -5148,6 +5406,10 @@ export class GameEngine {
   }
 
   private updateSkillTimers(dt: number) {
+    for (let i = this.echoCaptureFx.length - 1; i >= 0; i--) {
+      this.echoCaptureFx[i].life += dt;
+      if (this.echoCaptureFx[i].life >= this.echoCaptureFx[i].duration) this.echoCaptureFx.splice(i, 1);
+    }
     for (let i = this.spriteVfx.length - 1; i >= 0; i--) {
       this.spriteVfx[i].life += dt;
       if (this.spriteVfx[i].life >= this.spriteVfx[i].duration) this.spriteVfx.splice(i, 1);
@@ -5884,8 +6146,18 @@ export class GameEngine {
     const fragments = tutorialCapture ? FRAGMENTS_PER_NOTE : roll(ranges[tier].fragments);
     const dust = roll(ranges[tier].dust);
     const note = target.note;
+    this.echoCaptureFx.push({ x: target.x + 8, y: target.y, life: 0, duration: 1.15, note, tier });
     this.addToInventory('eco_dust', dust);
     this.addFragment(note, fragments);
+    // A assinatura do Eco também revela a distância entre alturas. Ressonadores
+    // melhores extraem mais intervalos, alimentando a oficina de escalas.
+    const intervalRolls: Record<ToolTier, number> = { wood: 1, gold: 2, crystal: 3 };
+    for (let i = 0; i < intervalRolls[tier]; i++) this.addToInventory(Math.random() < .7 ? 'tone' : 'semitone', 1);
+    if (this.postEchoStage === 'gather_dust') {
+      const amount = Math.min(12, this.inventory.eco_dust || 0);
+      this.storyObjective = { title: 'O Sino que Esqueceu o Fá', text: amount >= 12 ? 'Amostras prontas! Volte a Miro.' : 'Ressoe Ecos e reúna 12 porções de Poeira de Eco', progress: amount, target: 12, ready: amount >= 12 };
+      this.onQuestsChange?.();
+    }
     target.state = 'dead';
     target.frame = 0;
     target.stateTimer = 0;
@@ -7110,6 +7382,39 @@ export class GameEngine {
     }
     for (const fx of this.spriteVfx) {
       drawVfxFrame(fx.sheet, Math.floor(Math.min(.999, fx.life / fx.duration) * 16), fx.x, fx.y, fx.width, fx.height, fx.angle);
+    }
+    // Ressonância visual progressiva: o Eco contrai em anéis, sua nota sobe
+    // até o ressonador e se desfaz em partículas. Não é um flash instantâneo.
+    for (const fx of this.echoCaptureFx) {
+      const t = Math.min(1, fx.life / fx.duration);
+      const x = fx.x - camX, y = fx.y - camY;
+      const color = NOTE_COLORS[fx.note];
+      const tierColor = fx.tier === 'crystal' ? '#67e8f9' : fx.tier === 'gold' ? '#fde047' : '#d8b4fe';
+      ctx.save();
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.lineWidth = 2;
+      for (let ring = 0; ring < 3; ring++) {
+        const phase = Math.max(0, Math.min(1, t * 1.5 - ring * .14));
+        ctx.globalAlpha = (1 - t) * .85;
+        ctx.strokeStyle = ring === 1 ? tierColor : color;
+        ctx.beginPath();
+        ctx.arc(x, y, Math.max(4, 42 * (1 - phase) + ring * 5), 0, Math.PI * 2);
+        ctx.stroke();
+      }
+      const lift = 56 * Math.sin(Math.min(1, t * 1.2) * Math.PI / 2);
+      const pulse = 1 + Math.sin(t * Math.PI * 8) * .16;
+      ctx.globalAlpha = Math.max(0, 1 - Math.max(0, t - .72) / .28);
+      ctx.fillStyle = color;
+      ctx.shadowBlur = 18; ctx.shadowColor = color;
+      ctx.font = `bold ${Math.round(24 * pulse)}px serif`;
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText('♪', x, y - lift);
+      for (let p = 0; p < 8; p++) {
+        const a = p / 8 * Math.PI * 2 + t * 5;
+        const radius = 28 * (1 - t) + 5;
+        ctx.fillRect(x + Math.cos(a) * radius - 1, y - lift + Math.sin(a) * radius - 1, 3, 3);
+      }
+      ctx.restore();
     }
 
     // 3.5 Chuva (atrás do shader de luz)

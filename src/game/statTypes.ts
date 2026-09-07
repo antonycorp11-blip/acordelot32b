@@ -18,7 +18,8 @@ export type StatKey =
   | 'resistPct'
   | 'energyMaxPct'
   | 'energyRegenPct'
-  | 'harmonicPowerPct';
+  | 'harmonicPowerPct'
+  | 'lifeStealPct';
 
 export type CharacterClassKey = 'teclas' | 'vocal' | 'cordas';
 
@@ -37,6 +38,7 @@ export const STAT_LABELS: Record<StatKey, string> = {
   energyMaxPct: 'Energia Máxima',
   energyRegenPct: 'Regeneração de Energia',
   harmonicPowerPct: 'Poder Harmônico',
+  lifeStealPct: 'Roubo de Vida',
 };
 
 // Mantém a API usada pelas telas para sinalizar atributos ainda sem efeito.

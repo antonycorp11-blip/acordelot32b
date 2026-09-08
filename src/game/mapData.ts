@@ -708,42 +708,98 @@ export function buildMap(): MapGrid {
   const inEastExpansion = (p: WorldProp) => p.x + p.w > 187 * TILE_SIZE && p.x < 223 * TILE_SIZE && p.y < 104 * TILE_SIZE;
   for (let i = props.length - 1; i >= 0; i--) if (inEastExpansion(props[i])) props.splice(i, 1);
 
-  // O prolongamento da Avenida chega ao Santuário e dobra para o sul até a DG.
-  for (let r = 5; r <= 38; r++) for (let c = 188; c <= 211; c++) ground[r][c] = TERRAIN_TILES.ECHO_MEADOW;
-  pave(184, 204, 24, 29);
-  pave(201, 207, 24, 91);
-  for (let r = 44; r <= 77; r++) for (let c = 190; c <= 222; c++) ground[r][c] = TERRAIN_TILES.CRYSTAL_FLOOR;
-  // Trilha legível atravessando a caverna até o guardião.
-  for (let r = 48; r <= 91; r++) for (let c = 202; c <= 208; c++) ground[r][c] = TERRAIN_TILES.DARK_PATH;
-
-  props.push({
-    id: 'region_echo_sanctuary', type: 'echoSanctuary',
-    x: 190 * TILE_SIZE, y: 6 * TILE_SIZE, w: 352, h: 330,
-    sortY: 6 * TILE_SIZE + 318,
-  });
-  props.push({
-    id: 'region_crystal_cavern_entrance', type: 'crystalCavernEntrance',
-    x: 199 * TILE_SIZE, y: 68 * TILE_SIZE, w: 288, h: 288,
-    sortY: 68 * TILE_SIZE + 274,
-  });
-
-  // Paredes minerais e recursos próprios da dungeon. O corredor central fica livre.
-  let regionId = 0;
-  const regionProp = (type: string, c: number, r: number, w: number, h: number, collider?: Rect) => {
-    const x = c * TILE_SIZE, y = r * TILE_SIZE;
-    props.push({ id: `east_region_${regionId++}`, type, x, y, w, h, sortY: y + h - 4, collider });
-  };
-  for (let r = 44; r <= 76; r += 3) {
-    regionProp(r % 2 ? 'spot_crystal_blue' : 'dark_bigrock', 189, r, r % 2 ? 56 : 60, r % 2 ? 60 : 46);
-    regionProp(r % 2 ? 'spot_crystal_red' : 'rockMonolith', 220, r, r % 2 ? 56 : 24, r % 2 ? 60 : 40);
+  // A água foi calculada antes da expansão. Recorta seus colisores nesta área
+  // para não deixar "paredes invisíveis" sob os novos caminhos, preservando
+  // os trechos que continuam fora das regiões novas.
+  const eastCut: Rect = { x: 187 * TILE_SIZE, y: 3 * TILE_SIZE, w: 36 * TILE_SIZE, h: 92 * TILE_SIZE };
+  for (let i = solidColliders.length - 1; i >= 0; i--) {
+    const s = solidColliders[i];
+    const ix0 = Math.max(s.x, eastCut.x), iy0 = Math.max(s.y, eastCut.y);
+    const ix1 = Math.min(s.x + s.w, eastCut.x + eastCut.w), iy1 = Math.min(s.y + s.h, eastCut.y + eastCut.h);
+    if (ix0 >= ix1 || iy0 >= iy1) continue;
+    solidColliders.splice(i, 1);
+    if (s.y < iy0) solidColliders.push({ x: s.x, y: s.y, w: s.w, h: iy0 - s.y });
+    if (iy1 < s.y + s.h) solidColliders.push({ x: s.x, y: iy1, w: s.w, h: s.y + s.h - iy1 });
+    if (s.x < ix0) solidColliders.push({ x: s.x, y: iy0, w: ix0 - s.x, h: iy1 - iy0 });
+    if (ix1 < s.x + s.w) solidColliders.push({ x: ix1, y: iy0, w: s.x + s.w - ix1, h: iy1 - iy0 });
   }
-  [48, 54, 61, 67].forEach((r, i) => {
-    regionProp(i % 2 ? 'spot_gold' : 'spot_crystal_blue', 194 + (i % 2) * 22, r, 60, i % 2 ? 44 : 60);
-    regionProp(i % 2 ? 'spot_crystal_red' : 'spot_gold', 216 - (i % 2) * 22, r + 2, 60, i % 2 ? 60 : 44);
-  });
-  // Árvores claras fazem a transição visual entre a estrada e o santuário.
-  [[188,7],[211,8],[188,35],[212,34],[186,20],[214,22]].forEach(([c, r], i) =>
+
+  // O Santuário é uma clareira orgânica; a DG é formada por três câmaras
+  // conectadas. Não há imagem de cenário sobreposta nem teleporte.
+  const paintEllipse = (cx: number, cy: number, rx: number, ry: number, tile: number) => {
+    for (let r = Math.floor(cy - ry); r <= Math.ceil(cy + ry); r++) {
+      for (let c = Math.floor(cx - rx); c <= Math.ceil(cx + rx); c++) {
+        if (r < 0 || r >= MAP_ROWS || c < 0 || c >= MAP_COLS) continue;
+        const dx = (c - cx) / rx, dy = (r - cy) / ry;
+        if (dx * dx + dy * dy <= 1) ground[r][c] = tile;
+      }
+    }
+  };
+  const paintRect = (c0: number, c1: number, r0: number, r1: number, tile: number) => {
+    for (let r = r0; r <= r1; r++) for (let c = c0; c <= c1; c++) ground[r][c] = tile;
+  };
+
+  // Clareira sagrada com gramado próprio e uma avenida que realmente chega nela.
+  paintEllipse(201, 21, 15, 18, TERRAIN_TILES.ECHO_MEADOW);
+  pave(184, 194, 24, 28);
+  paintRect(194, 205, 24, 28, TERRAIN_TILES.ECHO_MEADOW);
+  paintRect(201, 206, 34, 43, TERRAIN_TILES.DARK_PATH);
+
+  // Faixa subterrânea: pedra escura ao redor e três salas de cristal conectadas.
+  paintRect(187, 223, 43, 94, TERRAIN_TILES.DARK_SOIL);
+  paintEllipse(204, 85, 10, 8, TERRAIN_TILES.CRYSTAL_FLOOR); // Arena do guardião
+  paintEllipse(198, 68, 10, 9, TERRAIN_TILES.CRYSTAL_FLOOR); // Conservatório em ruínas
+  paintEllipse(211, 53, 11, 9, TERRAIN_TILES.CRYSTAL_FLOOR); // Galeria de entrada
+  for (let r = 43; r <= 53; r++) {
+    const center = 203 + Math.floor((r - 43) * 8 / 10);
+    for (let c = center - 3; c <= center + 3; c++) ground[r][c] = TERRAIN_TILES.CRYSTAL_FLOOR;
+  }
+  paintRect(201, 207, 72, 85, TERRAIN_TILES.CRYSTAL_FLOOR);
+  for (let r = 60; r <= 74; r++) {
+    const center = 198 + Math.floor((r - 60) * 6 / 14);
+    for (let c = center - 3; c <= center + 3; c++) ground[r][c] = TERRAIN_TILES.CRYSTAL_FLOOR;
+  }
+  for (let r = 53; r <= 62; r++) {
+    const center = 211 - Math.floor((r - 53) * 11 / 9);
+    for (let c = center - 3; c <= center + 3; c++) ground[r][c] = TERRAIN_TILES.CRYSTAL_FLOOR;
+  }
+
+  let regionId = 0;
+  const regionProp = (type: string, c: number, r: number, w: number, h: number, collider?: Rect, fixedId?: string) => {
+    const x = c * TILE_SIZE, y = r * TILE_SIZE;
+    const absoluteCollider = collider ? { x: x + collider.x, y: y + collider.y, w: collider.w, h: collider.h } : undefined;
+    props.push({ id: fixedId ?? `east_region_${regionId++}`, type, x, y, w, h, sortY: y + h - 4, collider: absoluteCollider });
+  };
+
+  // Santuário: portal, árvores cantantes, estelas e altar central formam um lugar reconhecível.
+  regionProp('echoArch', 196, 31, 180, 172, undefined);
+  regionProp('singingTree', 187, 6, 150, 156, { x: 61, y: 128, w: 28, h: 20 });
+  regionProp('singingTree', 209, 7, 138, 144, { x: 56, y: 118, w: 26, h: 20 });
+  regionProp('echoAltar', 198, 16, 170, 128, { x: 32, y: 90, w: 106, h: 28 }, 'region_echo_sanctuary');
+  regionProp('echoSteles', 188, 23, 112, 108, { x: 20, y: 79, w: 72, h: 24 });
+  regionProp('echoSteles', 210, 24, 105, 101, { x: 19, y: 74, w: 67, h: 22 });
+  [[187,12],[212,13],[187,33],[212,33],[185,21],[216,22]].forEach(([c, r], i) =>
     addBlossom(`east_blossom_${i}`, c * TILE_SIZE, r * TILE_SIZE));
+  [[190,17],[211,18],[191,29],[209,31],[202,36]].forEach(([c, r], i) =>
+    regionProp('spot_crystal_blue', c, r, 56, 60, { x: 12, y: 38, w: 32, h: 18 }, `east_sanctuary_crystal_${i}`));
+
+  // DG: paredes minerais dão contorno às câmaras, enquanto colunas e ruínas
+  // contam visualmente que este lugar já foi um conservatório.
+  const wallPositions: Array<[number, number]> = [
+    [188,79],[188,86],[214,79],[216,86],
+    [187,61],[187,69],[207,65],[208,72],
+    [199,44],[215,44],[199,55],[218,55],
+  ];
+  wallPositions.forEach(([c, r], i) => regionProp('caveWall', c, r, 170, 130, { x: 8, y: 92, w: 154, h: 31 }, `east_cave_wall_${i}`));
+  regionProp('musicalRuin', 207, 44, 122, 118, { x: 12, y: 82, w: 98, h: 30 }, 'region_crystal_cavern_entrance');
+  [[191,64],[205,63],[190,72],[205,72],[203,48],[218,48]].forEach(([c, r], i) =>
+    regionProp('organColumn', c, r, 74, 106, { x: 18, y: 78, w: 38, h: 22 }, `east_organ_column_${i}`));
+  [[192,81],[213,82],[189,66],[207,68],[201,51],[219,53]].forEach(([c, r], i) =>
+    regionProp('crystalPillar', c, r, 82, 126, { x: 16, y: 88, w: 50, h: 30 }, `east_crystal_pillar_${i}`));
+  regionProp('musicalRuin', 190, 59, 122, 118, { x: 12, y: 82, w: 98, h: 30 }, 'east_ruin_conservatory');
+  regionProp('musicalRuin', 217, 57, 116, 112, { x: 12, y: 78, w: 92, h: 28 }, 'east_ruin_arena');
+  [[194,88],[213,89],[190,75],[206,75],[202,58],[219,59]].forEach(([c, r], i) =>
+    regionProp(i % 2 ? 'spot_gold' : 'spot_crystal_red', c, r, 58, i % 2 ? 44 : 60, { x: 11, y: i % 2 ? 22 : 38, w: 36, h: 18 }, `east_dungeon_resource_${i}`));
 
   // 10. NPCs COM ROTA (tema musical de Acordelot)
   const T = TILE_SIZE;

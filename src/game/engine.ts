@@ -1144,6 +1144,16 @@ export const EDITABLE_PROP_METAS: Record<
   dark_bigrock: { category: 'rock', name: 'Rochedo Sombrio', baseW: 60, baseH: 46, colOffXRatio: 0.12, colOffYRatio: 0.4, colWRatio: 0.76, colHRatio: 0.5, sortYOffset: 42, canDelete: true, canDuplicate: true },
   dark_icecrystal: { category: 'rock', name: 'Cristal Gélido', baseW: 52, baseH: 58, colOffXRatio: 0.2, colOffYRatio: 0.6, colWRatio: 0.6, colHRatio: 0.34, sortYOffset: 54, canDelete: true, canDuplicate: true },
 
+  // 9b. Santuário dos Ecos e Caverna de Cristal
+  echoArch: { category: 'building', name: 'Arco do Santuário', baseW: 180, baseH: 172, colOffXRatio: 0.08, colOffYRatio: 0.82, colWRatio: 0.20, colHRatio: 0.12, sortYOffset: 166, canDelete: true, canDuplicate: true },
+  singingTree: { category: 'tree', name: 'Árvore Cantante', baseW: 150, baseH: 156, colOffXRatio: 0.42, colOffYRatio: 0.82, colWRatio: 0.16, colHRatio: 0.13, sortYOffset: 150, canDelete: true, canDuplicate: true },
+  echoAltar: { category: 'building', name: 'Altar dos Ecos', baseW: 170, baseH: 128, colOffXRatio: 0.18, colOffYRatio: 0.69, colWRatio: 0.64, colHRatio: 0.24, sortYOffset: 121, canDelete: true, canDuplicate: true },
+  echoSteles: { category: 'building', name: 'Estelas de Ressonância', baseW: 120, baseH: 115, colOffXRatio: 0.18, colOffYRatio: 0.70, colWRatio: 0.64, colHRatio: 0.24, sortYOffset: 108, canDelete: true, canDuplicate: true },
+  caveWall: { category: 'rock', name: 'Parede da Caverna de Cristal', baseW: 170, baseH: 130, colOffXRatio: 0.05, colOffYRatio: 0.68, colWRatio: 0.90, colHRatio: 0.28, sortYOffset: 124, canDelete: true, canDuplicate: true },
+  organColumn: { category: 'building', name: 'Coluna do Conservatório', baseW: 74, baseH: 106, colOffXRatio: 0.24, colOffYRatio: 0.73, colWRatio: 0.52, colHRatio: 0.22, sortYOffset: 101, canDelete: true, canDuplicate: true },
+  crystalPillar: { category: 'rock', name: 'Pilar de Ametista', baseW: 82, baseH: 126, colOffXRatio: 0.20, colOffYRatio: 0.68, colWRatio: 0.60, colHRatio: 0.27, sortYOffset: 120, canDelete: true, canDuplicate: true },
+  musicalRuin: { category: 'building', name: 'Ruína do Conservatório', baseW: 122, baseH: 118, colOffXRatio: 0.10, colOffYRatio: 0.66, colWRatio: 0.80, colHRatio: 0.29, sortYOffset: 112, canDelete: true, canDuplicate: true },
+
   // 10. MURALHAS MUSICAIS (para construir os muros da cidade)
   wallMusical1: { category: 'building', name: 'Muralha com Torreão', baseW: 117, baseH: 108, colOffXRatio: 0.04, colOffYRatio: 0.42, colWRatio: 0.92, colHRatio: 0.5, sortYOffset: 104, canDelete: true, canDuplicate: true },
   wallMusical2: { category: 'building', name: 'Muralha Longa', baseW: 117, baseH: 86, colOffXRatio: 0.02, colOffYRatio: 0.4, colWRatio: 0.96, colHRatio: 0.55, sortYOffset: 82, canDelete: true, canDuplicate: true },
@@ -3932,9 +3942,9 @@ export class GameEngine {
       ];
       else if (this.postEchoStage === 'completed' && this.regionQuestStage === 'return_antony') dialogue = [
         'Um guardião imitou sua voz e disse "a primeira nota não deve ser encontrada"? Isso não foi uma ameaça. Foi uma instrução.',
-        'A poeira negra no cristal pertence a Dissonia, o país dos Dissonantes. Mas o corte no fragmento é perfeito demais para uma criatura da caverna.',
-        'Alguém deseja que culpemos Dissonia. E alguém sabia que você chegaria antes mesmo de acordar na floresta.',
-        'Guardarei o fragmento. Continue conhecendo Acordelot; quando estivermos prontos, a estrada para Dissonia deixará de ser apenas uma linha no mapa.',
+        'A poeira negra no cristal não pertence à caverna. E o corte no fragmento é preciso demais para ter sido feito por uma criatura.',
+        'Alguém deixou uma assinatura falsa para nós encontrarmos. Pior: alguém sabia que você chegaria antes mesmo de acordar na floresta.',
+        'Guardarei o fragmento. Por enquanto, continue conhecendo Acordelot. Ainda não temos um destino — apenas um símbolo que ninguém deveria reconhecer.',
       ];
       return { id: n.id, name: n.name, title: n.title, accent: n.accent ?? '#fbbf24', dialogue, isMerchant: false, spriteType: n.spriteType };
     }
@@ -4107,7 +4117,7 @@ export class GameEngine {
         this.gainXp(180);
         this.addCoins(160);
         this.addToInventory('partitura_prata', 1);
-        this.storyObjective = { title: 'A Caverna sob a Escala', text: 'O caminho para Dissonia foi registrado', progress: 1, target: 1, ready: true };
+        this.storyObjective = { title: 'A Caverna sob a Escala', text: 'Um símbolo de origem desconhecida foi registrado', progress: 1, target: 1, ready: true };
         this.onQuestsChange?.();
       }
     }
@@ -4599,7 +4609,7 @@ export class GameEngine {
 
       if (!Array.isArray(parsed)) return;
 
-      const staticProps = this.props.filter((p) => !EDITABLE_PROP_METAS[p.type] || p.id.startsWith('ore_progression_') || p.id.startsWith('east_region_') || p.id.startsWith('east_blossom_'));
+      const staticProps = this.props.filter((p) => !EDITABLE_PROP_METAS[p.type] || p.id.startsWith('ore_progression_') || p.id.startsWith('east_') || p.id === 'region_echo_sanctuary' || p.id === 'region_crystal_cavern_entrance');
       const rebuiltProps: WorldProp[] = [...staticProps];
       const savedIds = new Set<string>(staticProps.map((prop) => prop.id));
 
@@ -5142,7 +5152,7 @@ export class GameEngine {
 
     // Primeira DG caminhável: sentinelas ocupam o corredor e um guardião
     // cristalino protege a câmara mais profunda.
-    this.spawnEnemy('colosso', 212, 54, 99001, 11);
+    this.spawnEnemy('colosso', 204, 85, 99001, 11);
     this.spawnEnemy('nocturno', 199, 61, 99002, 8);
     this.spawnEnemy('maestro', 216, 65, 99003, 9);
     this.spawnEnemy('aranha', 196, 72, 99004, 8);
@@ -6896,7 +6906,7 @@ export class GameEngine {
       this.storyObjective = { title: 'Doze Luzes, Uma Ausência', text: 'Extraia 5 Cristais de Eco nas redondezas do santuário', progress: 0, target: 5, ready: false };
       this.onHarvestPopup?.('✦ O Santuário respondeu ao nome Klassíkia', this.player.x, this.player.y - 28);
       this.onQuestsChange?.();
-    } else if (this.regionQuestStage === 'enter_cavern' && playerCol >= 190 && playerCol <= 223 && playerRow >= 43 && playerRow <= 79) {
+    } else if (this.regionQuestStage === 'enter_cavern' && playerCol >= 198 && playerCol <= 223 && playerRow >= 43 && playerRow <= 59) {
       this.regionQuestStage = 'defeat_guardian';
       this.storyObjective = { title: 'A Caverna sob a Escala', text: 'Atravesse a DG e derrote o Guardião Cristalino', progress: 0, target: 1, ready: false };
       this.onHarvestPopup?.('💎 DG: Caverna de Cristal', this.player.x, this.player.y - 28);
@@ -7322,6 +7332,50 @@ export class GameEngine {
     }
   }
 
+  private drawRegionalAtmosphere(camX: number, camY: number) {
+    const ctx = this.ctx;
+    const t = this.timeElapsed;
+    const sanctuaryX = 201 * TILE_SIZE + 16 - camX;
+    const sanctuaryY = 21 * TILE_SIZE + 16 - camY;
+    if (sanctuaryX > -520 && sanctuaryX < this.viewportW + 520 && sanctuaryY > -520 && sanctuaryY < this.viewportH + 520) {
+      ctx.save();
+      ctx.globalCompositeOperation = 'screen';
+      const glow = ctx.createRadialGradient(sanctuaryX, sanctuaryY, 18, sanctuaryX, sanctuaryY, 265);
+      glow.addColorStop(0, `rgba(84, 230, 255, ${0.12 + Math.sin(t * 1.3) * 0.025})`);
+      glow.addColorStop(0.48, 'rgba(40, 190, 180, 0.055)');
+      glow.addColorStop(1, 'rgba(20, 120, 110, 0)');
+      ctx.fillStyle = glow;
+      ctx.fillRect(sanctuaryX - 270, sanctuaryY - 270, 540, 540);
+      for (let i = 0; i < 14; i++) {
+        const a = i * 2.399 + t * (0.10 + (i % 3) * 0.025);
+        const radius = 54 + (i * 29) % 185;
+        const x = sanctuaryX + Math.cos(a) * radius;
+        const y = sanctuaryY + Math.sin(a * 1.18) * radius * 0.62 - 12 - Math.sin(t * 1.8 + i) * 8;
+        ctx.globalAlpha = 0.34 + Math.sin(t * 2.1 + i) * 0.16;
+        ctx.fillStyle = i % 4 === 0 ? '#ffe58a' : '#9ff8ff';
+        ctx.beginPath();
+        ctx.arc(x, y, i % 4 === 0 ? 1.4 : 1.05, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.restore();
+    }
+
+    ctx.save();
+    ctx.globalCompositeOperation = 'screen';
+    for (const [c, r, radius] of [[211, 53, 190], [198, 68, 165], [204, 85, 190]] as const) {
+      const x = c * TILE_SIZE + 16 - camX, y = r * TILE_SIZE + 16 - camY;
+      if (x < -radius || x > this.viewportW + radius || y < -radius || y > this.viewportH + radius) continue;
+      const pulse = 0.045 + Math.sin(t * 1.1 + r) * 0.012;
+      const glow = ctx.createRadialGradient(x, y, 8, x, y, radius);
+      glow.addColorStop(0, `rgba(159, 90, 255, ${pulse + 0.045})`);
+      glow.addColorStop(0.55, `rgba(104, 58, 180, ${pulse})`);
+      glow.addColorStop(1, 'rgba(40, 18, 80, 0)');
+      ctx.fillStyle = glow;
+      ctx.fillRect(x - radius, y - radius, radius * 2, radius * 2);
+    }
+    ctx.restore();
+  }
+
   render() {
     const ctx = this.ctx;
     const camX = Math.round(this.camX);
@@ -7350,13 +7404,27 @@ export class GameEngine {
           const screenX = c * TILE_SIZE - camX;
           const screenY = r * TILE_SIZE - camY;
 
+          if (tileId === TERRAIN_TILES.CRYSTAL_FLOOR && this.assets?.crystalFloor?.complete) {
+            const texture = this.assets.crystalFloor;
+            const sw = Math.max(1, Math.floor(texture.naturalWidth / 8));
+            const sh = Math.max(1, Math.floor(texture.naturalHeight / 8));
+            const sx = ((c * 3 + r) & 7) * sw;
+            const sy = ((r * 5 + c) & 7) * sh;
+            ctx.drawImage(texture, sx, sy, sw, sh, screenX, screenY, 32, 32);
+            continue;
+          }
+          if (tileId === TERRAIN_TILES.ECHO_MEADOW && this.assets?.echoGrass?.complete) {
+            const texture = this.assets.echoGrass;
+            const sw = Math.max(1, Math.floor(texture.naturalWidth / 8));
+            const sh = Math.max(1, Math.floor(texture.naturalHeight / 8));
+            const sx = ((c * 5 + r * 3) & 7) * sw;
+            const sy = ((r * 3 + c) & 7) * sh;
+            ctx.drawImage(texture, sx, sy, sw, sh, screenX, screenY, 32, 32);
+            continue;
+          }
           if (tileId >= 9002 && tileId <= 9007) {
             // solo da Floresta Sombria — terra escura, plana (sem xadrez)
-            ctx.fillStyle = tileId === 9006
-              ? ((c + r) % 3 === 0 ? '#202f4d' : '#253959')
-              : tileId === 9007
-                ? ((c + r) % 4 === 0 ? '#446a62' : '#4c7567')
-                : tileId === 9004 ? '#37402d' : '#3b3226';
+            ctx.fillStyle = tileId === 9004 ? '#37402d' : '#3b3226';
             ctx.fillRect(screenX, screenY, 32, 32);
             continue;
           }
@@ -7370,6 +7438,7 @@ export class GameEngine {
         }
       }
     }
+    this.drawRegionalAtmosphere(camX, camY);
 
     // 2. Y-Sorting: Props, Buildings, Rocks, Trees, NPCs, Companion, Player
     interface Renderable {
@@ -8438,11 +8507,23 @@ export class GameEngine {
     } else if (prop.type === 'dark_thorn' && this.assets?.darkThorn) {
       ctx.drawImage(this.assets.darkThorn, px, py, prop.w, prop.h);
     }
-    // 8. Regiões do leste
-    else if (prop.type === 'echoSanctuary' && this.assets?.echoSanctuary) {
-      ctx.drawImage(this.assets.echoSanctuary, px, py, prop.w, prop.h);
-    } else if (prop.type === 'crystalCavernEntrance' && this.assets?.crystalCavernEntrance) {
-      ctx.drawImage(this.assets.crystalCavernEntrance, px, py, prop.w, prop.h);
+    // 8. Regiões do leste — elementos separados sobre terreno realmente caminhável
+    else if (prop.type === 'echoArch' && this.assets?.echoArch) {
+      ctx.drawImage(this.assets.echoArch, px, py, prop.w, prop.h);
+    } else if (prop.type === 'singingTree' && this.assets?.singingTree) {
+      ctx.drawImage(this.assets.singingTree, px, py, prop.w, prop.h);
+    } else if (prop.type === 'echoAltar' && this.assets?.echoAltar) {
+      ctx.drawImage(this.assets.echoAltar, px, py, prop.w, prop.h);
+    } else if (prop.type === 'echoSteles' && this.assets?.echoSteles) {
+      ctx.drawImage(this.assets.echoSteles, px, py, prop.w, prop.h);
+    } else if (prop.type === 'caveWall' && this.assets?.caveWall) {
+      ctx.drawImage(this.assets.caveWall, px, py, prop.w, prop.h);
+    } else if (prop.type === 'organColumn' && this.assets?.organColumn) {
+      ctx.drawImage(this.assets.organColumn, px, py, prop.w, prop.h);
+    } else if (prop.type === 'crystalPillar' && this.assets?.crystalPillar) {
+      ctx.drawImage(this.assets.crystalPillar, px, py, prop.w, prop.h);
+    } else if (prop.type === 'musicalRuin' && this.assets?.musicalRuin) {
+      ctx.drawImage(this.assets.musicalRuin, px, py, prop.w, prop.h);
     }
     // 9. Muralhas musicais
     else if (prop.type === 'wallMusical1' && this.assets?.wallMusical1) {

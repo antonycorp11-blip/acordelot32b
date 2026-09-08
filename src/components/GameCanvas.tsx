@@ -126,12 +126,12 @@ const OPENING_LINES: Record<OpeningPhase, OpeningLine[]> = {
   ],
   morning: [
     { speaker: 'Narração', voice: 'narrator', text: 'Amanhece em Acordelot. Sinos distantes devolvem som às ruas, mas Akles desperta com a sensação de ter esquecido tudo outra vez.' },
-    { speaker: 'Mirella', voice: 'mirella', text: 'Você falou enquanto dormia. Repetiu uma palavra: Klassíkia.' },
+    { speaker: 'Mirella', voice: 'mirella', text: 'Bom dia, Akles. Você falou enquanto dormia. Repetiu uma palavra: Klassíkia.' },
     { speaker: 'Akles', voice: 'akles', text: 'Eu não sei o que significa.' },
     { speaker: 'Mirella', voice: 'mirella', text: 'Não conheço essa palavra.' },
     { speaker: 'Narração', voice: 'narrator', text: 'Ela responde rápido demais e evita olhar para Pippo.' },
     { speaker: 'Pippo', voice: 'pippo', text: 'Não se assusta com as ruas cantando. A gente usa música para iluminar casas, curar feridas, cultivar e lutar. Quase tudo, na verdade.' },
-    { speaker: 'Mirella', voice: 'mirella', text: 'Bom dia. O caminho até o centro de Acordelot é longo, mas você precisa falar com quem pode ajudá-lo.' },
+    { speaker: 'Mirella', voice: 'mirella', text: 'O caminho até o centro de Acordelot é longo, mas você precisa falar com quem pode ajudá-lo.' },
     { speaker: 'Mirella', voice: 'mirella', text: 'Vá ao centro da cidade e procure o Sr. Antony. Ele é o líder de Acordelot.' },
     { speaker: 'Pippo', voice: 'pippo', text: 'Eu mostro o caminho pela avenida. Você anda por conta própria e eu espero sempre que precisar.', choices: [
       { label: 'Vamos encontrar o líder.', reply: 'Certo. Talvez o Sr. Antony tenha respostas.' },

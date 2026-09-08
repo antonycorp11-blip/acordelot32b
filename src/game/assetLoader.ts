@@ -122,9 +122,17 @@ export interface LoadedAssets {
   npcHerbalistFloraWalk: HTMLImageElement;
   npcHerbalistFloraIdle: HTMLImageElement;
 
-  // Marcos das regiões da expansão leste
-  crystalCavernEntrance: HTMLImageElement;
-  echoSanctuary: HTMLImageElement;
+  // Terrenos e marcos das regiões da expansão leste
+  echoGrass: HTMLImageElement;
+  crystalFloor: HTMLImageElement;
+  echoArch: HTMLImageElement;
+  singingTree: HTMLImageElement;
+  echoAltar: HTMLImageElement;
+  echoSteles: HTMLImageElement;
+  caveWall: HTMLImageElement;
+  organColumn: HTMLImageElement;
+  crystalPillar: HTMLImageElement;
+  musicalRuin: HTMLImageElement;
 
   // Akles - Herói Cavaleiro (sprite sheets 32-bit processadas)
   aklesIdle: HTMLImageElement;
@@ -306,8 +314,16 @@ const ASSET_PATHS: Record<keyof LoadedAssets, string> = {
   npcHerbalistFloraWalk: '/assets/characters/npcs/herbalist_flora_walk.png',
   npcHerbalistFloraIdle: '/assets/characters/npcs/herbalist_flora_idle.png',
 
-  crystalCavernEntrance: '/assets/regions/crystal_cavern_entrance.png',
-  echoSanctuary: '/assets/regions/echo_sanctuary.png',
+  echoGrass: '/assets/regions/echo/echo_grass.png',
+  crystalFloor: '/assets/regions/crystal/crystal_floor.png',
+  echoArch: '/assets/regions/echo/echo_arch.png',
+  singingTree: '/assets/regions/echo/singing_tree.png',
+  echoAltar: '/assets/regions/echo/echo_altar.png',
+  echoSteles: '/assets/regions/echo/echo_steles.png',
+  caveWall: '/assets/regions/crystal/cave_wall.png',
+  organColumn: '/assets/regions/crystal/organ_column.png',
+  crystalPillar: '/assets/regions/crystal/crystal_pillar.png',
+  musicalRuin: '/assets/regions/crystal/musical_ruin.png',
 
   // Wins - Classe da Voz (personagem temporária) — 3 folhas separadas
   // (idle/walk/run são animações DIFERENTES, não a mesma reaproveitada).

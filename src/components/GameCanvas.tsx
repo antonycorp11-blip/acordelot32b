@@ -647,6 +647,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
   const [showQuests, setShowQuests] = useState(false);
   const [showWorldMap, setShowWorldMap] = useState(false);
   const [showDungeonGate, setShowDungeonGate] = useState(false);
+  const [inDungeon,setInDungeon] = useState(false);
   const [, setQuestTick] = useState(0);
   const [, setCharacterTick] = useState(0);
   // Skills agora é uma aba dentro da Ficha — abrir com esse atalho já cai nela
@@ -877,8 +878,9 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
       setZoomLevel(zoom);
     };
 
-    engine.onQuestsChange = () => setQuestTick((t) => t + 1);
+    engine.onQuestsChange = () => {setQuestTick((t) => t + 1);scheduleSave();};
     engine.onDungeonGate = () => setShowDungeonGate(true);
+    engine.onSceneChange = (inside) => {setInDungeon(inside);scheduleSave();};
     engine.onCharacterChange = () => setCharacterTick((t) => t + 1);
     engine.onStoryVoice = (text, voice) => speakMusically(text, voice, Math.max(.12, bgmVolume * .34));
     engine.onStoryBeat = (beat) => {
@@ -2384,7 +2386,8 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
             </button>
           )}
 
-          <DayCycleIndicator engine={engineRef.current} />
+          {!inDungeon && <DayCycleIndicator engine={engineRef.current} />}
+          {inDungeon && <button type="button" onClick={()=>engineRef.current?.leaveCrystalDungeon()} className="rounded-xl border border-violet-300/50 bg-slate-950/95 px-3 py-2 text-xs font-bold text-violet-100">Sair da caverna</button>}
 
           <button
             id="hud-settings-btn"

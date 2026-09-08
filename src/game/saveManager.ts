@@ -243,6 +243,7 @@ export function serializeEngineSave(engine: GameEngine, userId: string): Omit<Ac
       post_echo_stage: engine.postEchoStage,
       region_quest_stage: engine.regionQuestStage,
       region_crystal_progress: engine.regionCrystalProgress,
+      crystal_dungeon_run: engine.dungeonRun,
       shop_purchases: { ...engine.shopPurchases, counts: { ...engine.shopPurchases.counts } },
       bag_level: engine.bagLevel,
       hud_layout: (() => {
@@ -504,7 +505,7 @@ export function applySaveToEngine(engine: GameEngine, save: Partial<AcordelotSav
         forge_gold_pick: { title: 'O Santuário que Respondeu', text: (engine.inventory.ore || 0) >= 6 ? 'Minério suficiente. Volte a Dório e forje a Picareta Dourada' : 'Extraia 6 Minérios Ressonantes na pedreira', progress: Math.min(6, engine.inventory.ore || 0), target: 6, ready: (engine.inventory.ore || 0) >= 6 },
         visit_sanctuary: { title: 'O Santuário que Respondeu', text: 'Siga a estrada leste até o Santuário dos Ecos', progress: 1, target: 2, ready: false },
         gather_crystals: { title: 'Doze Luzes, Uma Ausência', text: 'Extraia 5 Cristais de Eco nas redondezas', progress: engine.regionCrystalProgress, target: 5, ready: false },
-        enter_cavern: { title: 'A Caverna sob a Escala', text: 'Siga a estrada sul até a Caverna de Cristal', progress: 0, target: 2, ready: false },
+        enter_cavern: { title: 'A Caverna sob a Escala', text: 'Atravesse o bosque e a ponte na fronteira leste', progress: 0, target: 2, ready: false },
         defeat_guardian: { title: 'A Caverna sob a Escala', text: 'Derrote o Guardião Cristalino', progress: 0, target: 1, ready: false },
         return_antony: { title: 'A Caverna sob a Escala', text: 'Leve a mensagem cristalina ao Sr. Antony', progress: 1, target: 2, ready: true },
       };
@@ -522,6 +523,7 @@ export function applySaveToEngine(engine: GameEngine, save: Partial<AcordelotSav
     }
     if (typeof s.bag_level === 'number') engine.bagLevel = Math.max(0, Math.min(5, Math.floor(s.bag_level)));
     engine.repairHarmonyMissionAfterForge(false);
+    engine.restoreDungeonRun(s.crystal_dungeon_run);
     try {
       if (s.hud_layout) {
         localStorage.setItem('acordelot_hud_layout_v3', JSON.stringify(s.hud_layout));

@@ -12,9 +12,10 @@
  *  - Distrito da pedreira ao nordeste.
  */
 import { Rect, WorldProp, NPC } from './types';
+import { buildEasternRegions } from './easternRegions';
 
 // Mapa: bloco norte (vila + terras editadas) + bloco sul (FLORESTA SOMBRIA).
-export const MAP_COLS = 320; // expansão leste: Santuário, Fronteira e DG monumental
+export const MAP_COLS = 440; // cidade, bosque, desfiladeiro e oito câmaras subterrâneas
 export const OLD_ROWS = 108; // fim do bloco norte — nada acima disso muda
 export const DARK_START = 110; // início da Floresta Sombria
 export const MAP_ROWS = 208; // maior profundidade da Floresta Sombria
@@ -50,6 +51,8 @@ export const TERRAIN_TILES = {
   ECHO_MEADOW: 9007, // gramado azulado do Santuário dos Ecos
   FRONTIER_GROUND: 9008, // terra negra e rocha da fronteira distante
   DUNGEON_VOID: 9009, // vazio rochoso que recorta as salas da DG
+  ECHO_PATH: 9010,
+  FRONTIER_PATH: 9011,
 };
 
 // Faixa de transição (em linhas) entre o mapa antigo e a Floresta Sombria.
@@ -704,146 +707,8 @@ export function buildMap(): MapGrid {
     else dprop(`dr${did++}`, 'stoneQuarry', x, y, 140, 140);
   }
 
-  // =====================================================================
-  //  EXPANSÃO LESTE — duas regiões conectadas a pé, sem teleporte.
-  // =====================================================================
-  const inEastExpansion = (p: WorldProp) => p.x + p.w > 184 * TILE_SIZE && p.x < 319 * TILE_SIZE && p.y < 110 * TILE_SIZE;
-  for (let i = props.length - 1; i >= 0; i--) if (inEastExpansion(props[i])) props.splice(i, 1);
+  buildEasternRegions(ground, props, solidColliders, TERRAIN_TILES);
 
-  // A água foi calculada antes da expansão. Recorta seus colisores nesta área
-  // para não deixar "paredes invisíveis" sob os novos caminhos, preservando
-  // os trechos que continuam fora das regiões novas.
-  const eastCut: Rect = { x: 184 * TILE_SIZE, y: 3 * TILE_SIZE, w: 135 * TILE_SIZE, h: 107 * TILE_SIZE };
-  for (let i = solidColliders.length - 1; i >= 0; i--) {
-    const s = solidColliders[i];
-    const ix0 = Math.max(s.x, eastCut.x), iy0 = Math.max(s.y, eastCut.y);
-    const ix1 = Math.min(s.x + s.w, eastCut.x + eastCut.w), iy1 = Math.min(s.y + s.h, eastCut.y + eastCut.h);
-    if (ix0 >= ix1 || iy0 >= iy1) continue;
-    solidColliders.splice(i, 1);
-    if (s.y < iy0) solidColliders.push({ x: s.x, y: s.y, w: s.w, h: iy0 - s.y });
-    if (iy1 < s.y + s.h) solidColliders.push({ x: s.x, y: iy1, w: s.w, h: s.y + s.h - iy1 });
-    if (s.x < ix0) solidColliders.push({ x: s.x, y: iy0, w: ix0 - s.x, h: iy1 - iy0 });
-    if (ix1 < s.x + s.w) solidColliders.push({ x: ix1, y: iy0, w: s.x + s.w - ix1, h: iy1 - iy0 });
-  }
-
-  // O Santuário fica próximo da cidade. A fronteira e a DG ficam dezenas de
-  // telas mais a leste e continuam conectadas exclusivamente a pé.
-  const paintEllipse = (cx: number, cy: number, rx: number, ry: number, tile: number) => {
-    for (let r = Math.floor(cy - ry); r <= Math.ceil(cy + ry); r++) {
-      for (let c = Math.floor(cx - rx); c <= Math.ceil(cx + rx); c++) {
-        if (r < 0 || r >= MAP_ROWS || c < 0 || c >= MAP_COLS) continue;
-        const dx = (c - cx) / rx, dy = (r - cy) / ry;
-        if (dx * dx + dy * dy <= 1) ground[r][c] = tile;
-      }
-    }
-  };
-  const paintRect = (c0: number, c1: number, r0: number, r1: number, tile: number) => {
-    for (let r = r0; r <= r1; r++) for (let c = c0; c <= c1; c++) ground[r][c] = tile;
-  };
-
-  // Clareira sagrada com gramado próprio e uma avenida que realmente chega nela.
-  paintEllipse(201, 21, 15, 18, TERRAIN_TILES.ECHO_MEADOW);
-  pave(184, 194, 24, 28);
-  paintRect(194, 205, 24, 28, TERRAIN_TILES.ECHO_MEADOW);
-  paintRect(210, 226, 25, 30, TERRAIN_TILES.ECHO_MEADOW);
-
-  // Transição longa: bosque comum -> solo de fronteira -> desfiladeiro.
-  paintEllipse(232, 31, 18, 13, TERRAIN_TILES.FRONTIER_GROUND);
-  paintEllipse(252, 39, 24, 17, TERRAIN_TILES.FRONTIER_GROUND);
-  paintEllipse(267, 49, 15, 18, TERRAIN_TILES.FRONTIER_GROUND);
-  paintRect(219, 270, 27, 34, TERRAIN_TILES.FRONTIER_GROUND);
-  paintRect(244, 270, 35, 52, TERRAIN_TILES.FRONTIER_GROUND);
-
-  // Interior enorme: seis salas amplas em zigue-zague, ligadas por corredores.
-  paintRect(274, 319, 15, 109, TERRAIN_TILES.DUNGEON_VOID);
-  const dungeonRooms: Array<[number, number, number, number]> = [
-    [286, 48, 11, 9], [303, 36, 13, 10], [303, 59, 13, 10],
-    [285, 70, 12, 11], [302, 84, 13, 11], [287, 99, 12, 9],
-  ];
-  dungeonRooms.forEach(([cx, cy, rx, ry]) => paintEllipse(cx, cy, rx, ry, TERRAIN_TILES.CRYSTAL_FLOOR));
-  const paintCorridor = (x0: number, y0: number, x1: number, y1: number, halfWidth = 3) => {
-    const steps = Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0));
-    for (let i = 0; i <= steps; i++) {
-      const c = Math.round(x0 + (x1 - x0) * (i / steps));
-      const r = Math.round(y0 + (y1 - y0) * (i / steps));
-      paintRect(c - halfWidth, c + halfWidth, r - halfWidth, r + halfWidth, TERRAIN_TILES.CRYSTAL_FLOOR);
-    }
-  };
-  paintCorridor(271, 49, 286, 48, 3);
-  paintCorridor(286, 48, 303, 36, 3);
-  paintCorridor(303, 36, 303, 59, 3);
-  paintCorridor(303, 59, 285, 70, 3);
-  paintCorridor(285, 70, 302, 84, 3);
-  paintCorridor(302, 84, 287, 99, 3);
-
-  // O preto fora das salas é vazio real, não piso: transforma cada faixa
-  // contínua em colisão para o jogador percorrer apenas salas e corredores.
-  for (let r = 15; r <= 109; r++) {
-    let runStart = -1;
-    for (let c = 274; c <= 320; c++) {
-      const isVoid = c < 320 && ground[r][c] === TERRAIN_TILES.DUNGEON_VOID;
-      if (isVoid && runStart < 0) runStart = c;
-      if (!isVoid && runStart >= 0) {
-        solidColliders.push({ x: runStart * TILE_SIZE, y: r * TILE_SIZE, w: (c - runStart) * TILE_SIZE, h: TILE_SIZE });
-        runStart = -1;
-      }
-    }
-  }
-
-  let regionId = 0;
-  const regionProp = (type: string, c: number, r: number, w: number, h: number, collider?: Rect, fixedId?: string) => {
-    const x = c * TILE_SIZE, y = r * TILE_SIZE;
-    const absoluteCollider = collider ? { x: x + collider.x, y: y + collider.y, w: collider.w, h: collider.h } : undefined;
-    props.push({ id: fixedId ?? `east_region_${regionId++}`, type, x, y, w, h, sortY: y + h - 4, collider: absoluteCollider });
-  };
-
-  // Santuário: portal, árvores cantantes, estelas e altar central.
-  regionProp('echoArch', 196, 31, 180, 172, undefined);
-  regionProp('singingTree', 187, 6, 150, 156, { x: 61, y: 128, w: 28, h: 20 });
-  regionProp('singingTree', 209, 7, 138, 144, { x: 56, y: 118, w: 26, h: 20 });
-  regionProp('echoAltar', 198, 16, 170, 128, { x: 32, y: 90, w: 106, h: 28 }, 'region_echo_sanctuary');
-  regionProp('echoSteles', 188, 23, 112, 108, { x: 20, y: 79, w: 72, h: 24 });
-  regionProp('echoSteles', 210, 24, 105, 101, { x: 19, y: 74, w: 67, h: 22 });
-  [[187,12],[212,13],[187,33],[212,33],[185,21],[216,22]].forEach(([c, r], i) =>
-    addBlossom(`east_blossom_${i}`, c * TILE_SIZE, r * TILE_SIZE));
-  [[190,17],[211,18],[191,29],[209,31],[202,36]].forEach(([c, r], i) =>
-    regionProp('spot_crystal_blue', c, r, 56, 60, { x: 12, y: 38, w: 32, h: 18 }, `east_sanctuary_crystal_${i}`));
-
-  // A fronteira tem identidade própria e distância real da cidade.
-  regionProp('frontierBridge', 236, 30, 278, 150, undefined, 'east_frontier_bridge');
-  [[219,19],[225,39],[234,18],[239,47],[249,22],[256,55],[263,29],[268,65]].forEach(([c, r], i) =>
-    regionProp('frontierTree', c, r, 154, 150, { x: 54, y: 119, w: 46, h: 24 }, `east_frontier_tree_${i}`));
-  regionProp('crystalCaveGate', 266, 41, 238, 212, undefined, 'region_crystal_cavern_entrance');
-
-  // Parede geográfica: só o vão da entrada liga o mundo à DG. O bloqueio do
-  // vão é retirado pela seleção de dificuldade na tela de preparação.
-  solidColliders.push({ x: 273 * TILE_SIZE, y: 0, w: 24, h: 44 * TILE_SIZE });
-  solidColliders.push({ x: 273 * TILE_SIZE, y: 58 * TILE_SIZE, w: 24, h: WORLD_HEIGHT - 58 * TILE_SIZE });
-  props.push({
-    id: 'crystal_dungeon_barrier', type: 'dungeonBarrier',
-    x: 273 * TILE_SIZE, y: 44 * TILE_SIZE, w: 24, h: 14 * TILE_SIZE,
-    sortY: 58 * TILE_SIZE,
-    collider: { x: 273 * TILE_SIZE, y: 44 * TILE_SIZE, w: 24, h: 14 * TILE_SIZE },
-  });
-
-  // Paredes, colunas e ruínas desenham as seis câmaras sem bloquear o eixo central.
-  const wallPositions: Array<[number, number]> = [
-    [275,40],[275,53],[292,46], [290,26],[309,26],[292,39],[312,42],
-    [290,55],[312,55],[290,64],[311,65], [274,62],[274,75],[294,73],
-    [290,78],[312,78],[290,89],[311,91], [275,91],[275,103],[296,101],
-  ];
-  wallPositions.forEach(([c, r], i) => regionProp('caveWall', c, r, 170, 130, { x: 8, y: 92, w: 154, h: 31 }, `east_cave_wall_${i}`));
-  [[279,43],[292,52],[296,29],[312,33],[296,55],[312,63],[278,65],[292,75],[296,78],[312,88],[280,94],[294,104]].forEach(([c, r], i) =>
-    regionProp('organColumn', c, r, 74, 106, { x: 18, y: 78, w: 38, h: 22 }, `east_organ_column_${i}`));
-  [[276,48],[291,43],[294,35],[313,38],[294,60],[313,57],[276,72],[293,68],[294,85],[313,82],[277,100],[296,96]].forEach(([c, r], i) =>
-    regionProp('crystalPillar', c, r, 82, 126, { x: 16, y: 88, w: 50, h: 30 }, `east_crystal_pillar_${i}`));
-  [[291,34],[310,51],[277,67],[309,75],[278,88]].forEach(([c, r], i) =>
-    regionProp('musicalRuin', c, r, 122, 118, { x: 12, y: 82, w: 98, h: 30 }, `east_ruin_${i}`));
-  [[286,45],[292,49],[300,32],[308,39],[298,56],[309,61],[281,66],[289,74],[298,80],[309,87],[282,95],[293,101],[305,96],[314,71],[279,54],[304,68]].forEach(([c, r], i) =>
-    regionProp(i % 3 === 0 ? 'spot_gold' : i % 2 ? 'spot_crystal_blue' : 'spot_crystal_red', c, r, 58, i % 3 === 0 ? 44 : 60, { x: 11, y: i % 3 === 0 ? 22 : 38, w: 36, h: 18 }, `east_dungeon_resource_${i}`));
-  [[288,52],[306,43],[306,65],[287,78],[305,92]].forEach(([c, r], i) =>
-    regionProp('dungeonChest', c, r, 76, 68, { x: 10, y: 43, w: 56, h: 20 }, `east_dungeon_chest_${i}`));
-  regionProp('dungeonChest', 285, 102, 100, 88, { x: 12, y: 58, w: 76, h: 24 }, 'east_dungeon_boss_chest');
 
   // 10. NPCs COM ROTA (tema musical de Acordelot)
   const T = TILE_SIZE;

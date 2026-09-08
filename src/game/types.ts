@@ -154,6 +154,8 @@ export interface Enemy {
   dmgMul: number; // multiplicador de dano derivado do nível
   armor?: number; // reduz ataques básicos/físicos
   resistance?: number; // reduz dano de skills/magia musical
+  dungeonRoom?: number;
+  attackTarget?: Point;
   facingLeft: boolean;
   direction?: Direction;
   bossAttackMode?: 'melee' | 'cast';

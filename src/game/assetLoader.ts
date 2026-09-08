@@ -330,7 +330,7 @@ const ASSET_PATHS: Record<keyof LoadedAssets, string> = {
   organColumn: '/assets/regions/crystal/organ_column.png',
   crystalPillar: '/assets/regions/crystal/crystal_pillar.png',
   musicalRuin: '/assets/regions/crystal/musical_ruin.png',
-  frontierBridge: '/assets/regions/frontier/frontier_bridge.png',
+  frontierBridge: '/assets/regions/frontier/frontier_bridge_v2.png',
   frontierTree: '/assets/regions/frontier/frontier_tree.png',
   crystalCaveGate: '/assets/regions/frontier/crystal_cave_gate.png',
   dungeonChest: '/assets/regions/frontier/dungeon_chest.png',

@@ -387,7 +387,7 @@ NOTE_KEY.forEach((k, i) => {
 });
 
 // Peso máximo que o Akles carrega
-export const MAX_CARRY_WEIGHT = 40;
+export const MAX_CARRY_WEIGHT = 80;
 
 export interface PlayerStats {
   name: string;

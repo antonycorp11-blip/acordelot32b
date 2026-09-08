@@ -121,6 +121,10 @@ export interface LoadedAssets {
   npcHerbalistFloraWalk: HTMLImageElement;
   npcHerbalistFloraIdle: HTMLImageElement;
 
+  // Marcos das regiões da expansão leste
+  crystalCavernEntrance: HTMLImageElement;
+  echoSanctuary: HTMLImageElement;
+
   // Akles - Herói Cavaleiro (sprite sheets 32-bit processadas)
   aklesIdle: HTMLImageElement;
   aklesWalk: HTMLImageElement;
@@ -299,6 +303,9 @@ const ASSET_PATHS: Record<keyof LoadedAssets, string> = {
   npcTravelerTomasIdle: '/assets/characters/npcs/traveler_tomas_idle.png',
   npcHerbalistFloraWalk: '/assets/characters/npcs/herbalist_flora_walk.png',
   npcHerbalistFloraIdle: '/assets/characters/npcs/herbalist_flora_idle.png',
+
+  crystalCavernEntrance: '/assets/regions/crystal_cavern_entrance.png',
+  echoSanctuary: '/assets/regions/echo_sanctuary.png',
 
   // Wins - Classe da Voz (personagem temporária) — 3 folhas separadas
   // (idle/walk/run são animações DIFERENTES, não a mesma reaproveitada).

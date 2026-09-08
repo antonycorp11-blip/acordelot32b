@@ -16,13 +16,15 @@ const SRC = path.resolve('art_src');
 const OUT = path.resolve('public/assets/characters/npcs');
 fs.mkdirSync(OUT, { recursive: true });
 
-// NPCs: folhas 10x4 (linha 0=frente, andando; ordem canônica [down,left,up,right])
+// NPCs: fontes 11x4 (linha 0=frente; ordem canônica [down,left,up,right]).
+// A versão antiga tratava estas folhas como 10x4 e atravessava a borda de
+// células; por isso partes dos NPCs desapareciam durante a caminhada.
 const SHEETS = [
-  { file: 'npc_cadencia.png', name: 'cadencia', cols: 10, cell: [96, 148], rowMap: [0, 1, 2, 3] },
-  { file: 'npc_tonico.png', name: 'tonico', cols: 10, cell: [96, 148], rowMap: [0, 1, 2, 3] },
-  { file: 'npc_setimo.png', name: 'setimo', cols: 10, cell: [96, 148], rowMap: [0, 1, 2, 3] },
-  { file: 'npc_seminima.png', name: 'seminima', cols: 10, cell: [96, 148], rowMap: [0, 1, 2, 3] },
-  { file: 'npc_diapasao.png', name: 'diapasao', cols: 10, cell: [96, 148], rowMap: [0, 1, 2, 3] },
+  { file: 'npc_cadencia.png', name: 'cadencia', cols: 11, cell: [96, 148], rowMap: [0, 1, 2, 3] },
+  { file: 'npc_tonico.png', name: 'tonico', cols: 11, cell: [96, 148], rowMap: [0, 1, 2, 3] },
+  { file: 'npc_setimo.png', name: 'setimo', cols: 11, cell: [96, 148], rowMap: [0, 1, 2, 3] },
+  { file: 'npc_seminima.png', name: 'seminima', cols: 11, cell: [96, 148], rowMap: [0, 1, 2, 3] },
+  { file: 'npc_diapasao.png', name: 'diapasao', cols: 11, cell: [96, 148], rowMap: [0, 1, 2, 3] },
 ];
 
 const load = (f) => PNG.sync.read(fs.readFileSync(path.join(SRC, f)));
@@ -181,7 +183,7 @@ function processSheet(cfg) {
         maxFh = Math.max(maxFh, b.maxY - b.minY + 1);
         maxFw = Math.max(maxFw, b.maxX - b.minX + 1);
       }
-  const S = Math.min(bodyScale, (ch - 4) / maxFh, (cw + 6) / maxFw);
+  const S = Math.min(bodyScale, (ch - 4) / maxFh, (cw - 4) / maxFw);
 
   // ---- PASSE 2: rasteriza cada frame com a mesma escala e âncora nos pés ----
   for (const rd of rowData) {
@@ -211,7 +213,7 @@ function processSheet(cfg) {
 
       let ox = Math.round(destCellX + cw / 2 - footCxLocal);
       const oy = destCellY + baseline - dh;
-      ox = Math.max(destCellX - 10, Math.min(destCellX + cw + 10 - dw, ox));
+      ox = Math.max(destCellX, Math.min(destCellX + cw - dw, ox));
 
       for (let dy = 0; dy < dh; dy++) {
         const sy = box.minY + Math.min(fh - 1, Math.floor(dy / S));

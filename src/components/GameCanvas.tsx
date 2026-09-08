@@ -168,19 +168,19 @@ const DIALOGUE_PORTRAITS: Record<string, { src: string; sheet?: 'npc' | 'guard' 
   miro: { src: '/assets/characters/npcs/tonico.png', sheet: 'npc' },
 };
 
-const NPC_PORTRAIT_SOURCES: Record<string, { src: string; sheet?: 'npc' | 'guard' | 'portrait' }> = {
-  cadencia: { src: '/assets/characters/npcs/cadencia.png', sheet: 'npc' },
-  tonico: { src: '/assets/characters/npcs/tonico.png', sheet: 'npc' },
-  setimo: { src: '/assets/characters/npcs/setimo.png', sheet: 'npc' },
-  seminima: { src: '/assets/characters/npcs/seminima.png', sheet: 'npc' },
-  diapasao: { src: '/assets/characters/npcs/diapasao.png', sheet: 'npc' },
-  guard_male: { src: '/assets/characters/npcs/guard_male_idle.png', sheet: 'npc' },
-  guard_female: { src: '/assets/characters/npcs/guard_female_idle.png', sheet: 'npc' },
-  villager_lina: { src: '/assets/characters/npcs/villager_lina_idle.png', sheet: 'npc' },
-  traveler_tomas: { src: '/assets/characters/npcs/traveler_tomas_idle.png', sheet: 'npc' },
-  herbalist_flora: { src: '/assets/characters/npcs/herbalist_flora_idle.png', sheet: 'npc' },
-  merchant: { src: '/assets/ancient-ruins/Characters/NPC Merchant-idle.png', sheet: 'npc' },
-  antony: { src: '/assets/characters/npcs/sr_antony.png', sheet: 'npc' },
+const NPC_PORTRAIT_SOURCES: Record<string, { src: string; sheet?: 'npc' | 'guard' | 'portrait'; cols?: number }> = {
+  cadencia: { src: '/assets/characters/npcs/cadencia.png', sheet: 'npc', cols: 11 },
+  tonico: { src: '/assets/characters/npcs/tonico.png', sheet: 'npc', cols: 11 },
+  setimo: { src: '/assets/characters/npcs/setimo.png', sheet: 'npc', cols: 11 },
+  seminima: { src: '/assets/characters/npcs/seminima.png', sheet: 'npc', cols: 11 },
+  diapasao: { src: '/assets/characters/npcs/diapasao.png', sheet: 'npc', cols: 11 },
+  guard_male: { src: '/assets/characters/npcs/guard_male_idle.png', sheet: 'npc', cols: 10 },
+  guard_female: { src: '/assets/characters/npcs/guard_female_idle.png', sheet: 'npc', cols: 10 },
+  villager_lina: { src: '/assets/characters/npcs/villager_lina_idle.png', sheet: 'npc', cols: 10 },
+  traveler_tomas: { src: '/assets/characters/npcs/traveler_tomas_idle.png', sheet: 'npc', cols: 10 },
+  herbalist_flora: { src: '/assets/characters/npcs/herbalist_flora_idle.png', sheet: 'npc', cols: 10 },
+  merchant: { src: '/assets/ancient-ruins/Characters/NPC Merchant-idle.png', sheet: 'npc', cols: 8 },
+  antony: { src: '/assets/characters/npcs/sr_antony.png', sheet: 'npc', cols: 10 },
   lucian: { src: '/assets/characters/npcs/lucian_portrait.png', sheet: 'portrait' },
   blacksmith: { src: '/assets/characters/npcs/blacksmith_portrait.png', sheet: 'portrait' },
 };
@@ -1264,8 +1264,6 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
     unlockMusicalVoice();
     if (dialogueIdx < dlgLines.length - 1) {
       setDialogueIdx((prev) => prev + 1);
-    } else if (interaction.npc?.isMerchant) {
-      setShowShop(true);
     } else {
       handleCloseDialogue();
     }
@@ -2476,7 +2474,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
           className="absolute inset-0 z-30 flex items-end justify-center pb-6 pointer-events-none"
         >
           <div
-            className="relative bg-slate-950/92 backdrop-blur-md rounded-2xl p-4 pt-6 max-w-[620px] w-[min(620px,78vw)] mx-4 shadow-2xl pointer-events-auto animate-in fade-in slide-in-from-bottom-6 duration-200 border"
+            className={`relative bg-slate-950/92 backdrop-blur-md rounded-2xl p-4 pt-6 mx-4 shadow-2xl pointer-events-auto animate-in fade-in slide-in-from-bottom-6 duration-200 border ${showShop ? 'max-w-[920px] w-[min(920px,92vw)]' : 'max-w-[620px] w-[min(620px,78vw)]'}`}
             style={{
               borderColor: (interaction.npc?.accent ?? '#f59e0b') + '99',
               boxShadow: `0 0 40px -8px ${(interaction.npc?.accent ?? '#f59e0b')}55`,
@@ -2509,7 +2507,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
                     backgroundImage: `url(${regularDialoguePortrait.src})`,
                     backgroundSize:
                       regularDialoguePortrait.sheet === 'npc'
-                        ? '1500% auto'
+                        ? `${(regularDialoguePortrait.cols ?? 10) * 100}% auto`
                         : regularDialoguePortrait.sheet === 'guard'
                           ? '600% auto'
                           : 'cover',
@@ -2543,35 +2541,31 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
                       />
                     ))}
                   </div>
-                  <button
-                    type="button"
-                    onClick={handleNextDialogue}
-                    className="cursor-pointer font-bold px-4 py-1.5 rounded-xl text-xs flex items-center gap-1 transition-all active:scale-95"
-                    style={{ background: (interaction.npc?.accent ?? '#f59e0b'), color: '#0b1220' }}
-                  >
+                  <div className="flex items-center gap-2">
+                  {dialogueIdx === dlgLines.length - 1 && interaction.npc?.isMerchant && <button type="button" onClick={() => setShowShop(true)} className="cursor-pointer rounded-xl border border-amber-400/60 bg-amber-950/60 px-3 py-1.5 text-xs font-black text-amber-200 active:scale-95">Abrir mercado</button>}
+                  <button type="button" onClick={handleNextDialogue} className="cursor-pointer font-bold px-4 py-1.5 rounded-xl text-xs flex items-center gap-1 transition-all active:scale-95" style={{ background: (interaction.npc?.accent ?? '#f59e0b'), color: '#0b1220' }}>
                     <span>
                       {dialogueIdx < dlgLines.length - 1
                         ? 'Continuar'
-                        : interaction.npc?.isMerchant
-                          ? 'Ver loja'
-                          : interaction.npc?.isBlacksmith
+                        : interaction.npc?.isBlacksmith
                             ? 'Entrar na ferraria'
                           : 'Encerrar'}
                     </span>
                     <ChevronRight className="w-4 h-4" />
                   </button>
+                  </div>
                 </div>
               </div>
             ) : (
               <div className="max-h-[62vh] overflow-y-auto pr-1">
-                <div className="flex items-center justify-between gap-2 mb-3">
-                  <p className="text-xs text-slate-300">Estoque diário de suprimentos</p>
+                <div className="rounded-xl border border-amber-500/25 bg-gradient-to-r from-amber-950/50 via-slate-950/70 to-sky-950/40 p-2.5 mb-3 flex items-center justify-between gap-2">
+                  <div><p className="text-xs font-black text-amber-100">Mercado de Miro</p><p className="text-[9px] text-slate-400">Suprimentos, alimentos e achados harmônicos</p></div>
                   <div className="flex gap-2 text-[10px] font-bold whitespace-nowrap">
-                    <span className="text-amber-300">◈ {inventory.gold_raw || 0} bruto</span>
-                    <span className="text-yellow-100">◆ {inventory.gold_refined || 0} sintetizado</span>
+                    <span className="flex items-center gap-1 text-amber-300"><img src="/assets/items/market/gold_raw.png" alt="Ouro bruto" className="h-5 w-5 object-contain" />{inventory.gold_raw || 0}</span>
+                    <span className="flex items-center gap-1 text-yellow-100"><img src="/assets/items/market/gold_refined.png" alt="Barra de ouro" className="h-5 w-5 object-contain" />{inventory.gold_refined || 0}</span>
                   </div>
                 </div>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-3">
+                <div className="grid grid-cols-3 lg:grid-cols-4 gap-2 mb-3">
                   {SHOP_ITEMS.map((item) => {
                     const bought = engineRef.current?.getShopBought(item.id) ?? 0;
                     const remaining = Math.max(0, item.dailyLimit - bought);
@@ -2579,10 +2573,10 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
                     const maxedBag = item.item === 'bag_expansion' && (engineRef.current?.bagLevel ?? 0) >= 5;
                     const soldOut = remaining <= 0 || maxedBag;
                     return (
-                      <div key={item.id} className="bg-slate-900 border border-slate-800 rounded-xl p-2 flex flex-col min-h-[132px]">
+                      <div key={item.id} className="relative overflow-hidden bg-gradient-to-b from-slate-900 to-[#07101e] border border-slate-700/70 rounded-xl p-2 flex flex-col min-h-[138px] shadow-[inset_0_1px_rgba(255,255,255,.04)]">
                         <div className="flex items-start gap-2">
                           {item.img ? (
-                            <img src={item.img} alt="" className="w-8 h-8 object-contain shrink-0" />
+                            <img src={item.img} alt="" className="w-11 h-11 object-contain shrink-0 drop-shadow-[0_0_7px_rgba(251,191,36,.25)]" />
                           ) : (
                             <span className="w-8 h-8 grid place-items-center text-xl shrink-0">{item.icon}</span>
                           )}
@@ -2593,8 +2587,8 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
                         </div>
                         <div className="mt-auto pt-2">
                           <div className="flex justify-between text-[9px] mb-1.5">
-                            <span className={item.currency === 'gold_raw' ? 'text-amber-300' : 'text-yellow-100'}>
-                              {item.currency === 'gold_raw' ? '◈' : '◆'} {item.price}
+                            <span className={`flex items-center gap-1 font-black ${item.currency === 'gold_raw' ? 'text-amber-300' : 'text-yellow-100'}`}>
+                              <img src={item.currency === 'gold_raw' ? '/assets/items/market/gold_raw.png' : '/assets/items/market/gold_refined.png'} alt="" className="h-4 w-4 object-contain" /> {item.price}
                             </span>
                             <span className={soldOut ? 'text-rose-400' : 'text-slate-400'}>{maxedBag ? 'máximo' : `${remaining}/${item.dailyLimit} hoje`}</span>
                           </div>
@@ -2612,7 +2606,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
                   })}
                 </div>
                 {shopMessage && <p className="text-[10px] text-center text-amber-200 mb-2">{shopMessage}</p>}
-                <p className="text-[9px] text-slate-500 mb-3">◆ Ouro e cristais brutos são sintetizados somente na Ferraria Harmônica.</p>
+                <p className="text-[9px] text-slate-500 mb-3">Ouro e cristais brutos são sintetizados somente na Ferraria Harmônica.</p>
                 <div className="flex justify-end">
                   <button
                     type="button"

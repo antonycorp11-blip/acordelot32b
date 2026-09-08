@@ -27,6 +27,8 @@ function terrainColor(tile: number): string {
   if (tile === TERRAIN_TILES.DARK_MOSS) return '#263c2b';
   if (tile === TERRAIN_TILES.DARK_PATH) return '#66513b';
   if (tile === TERRAIN_TILES.DARK_STONE) return '#37364a';
+  if (tile === TERRAIN_TILES.CRYSTAL_FLOOR) return '#253959';
+  if (tile === TERRAIN_TILES.ECHO_MEADOW) return '#4c7567';
   if (
     tile === TERRAIN_TILES.STONE_CENTER ||
     tile === TERRAIN_TILES.STONE_CENTER_VAR ||
@@ -101,6 +103,8 @@ export const WorldMapScreen: React.FC<Props> = ({ open, onClose, engine }) => {
       };
       label('Vila Encantada', 36, 19);
       label('Sentinela do Órgão', 168, 6, '#e9d5ff');
+      label('Santuário dos Ecos', 200, 8, '#a5f3fc');
+      label('Caverna de Cristal (DG)', 206, 45, '#c4b5fd');
       label('Floresta Sombria', 72, 137, '#d1fae5');
 
       for (const remote of engine.remotePlayers.values()) {

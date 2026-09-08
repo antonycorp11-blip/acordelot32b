@@ -53,6 +53,9 @@ const AQUILLES_FLOW_RESET_VERSION = '2026-09-06-opening-flow-test-1';
 // Migração única: a conta de testes já havia recebido as seis notas pelo fluxo
 // antigo. Recuamos somente a lição harmônica para permitir testar a nova caça.
 const HARMONY_LESSON_VERSION = '2026-09-07-seven-notes-lesson-1';
+// Reinicia somente a narrativa da conta de validação. Nível, XP, itens,
+// equipamentos, ferramentas e composições conquistadas são preservados.
+const QUEST_REPLAY_VERSION = '2026-09-07-full-campaign-replay-2';
 
 /**
  * Invalida somente progresso local antigo. Login, preferências de áudio,
@@ -125,6 +128,28 @@ function migrateAquillesHarmonyLesson(save: AcordelotSaveData | null, email?: st
   const completed = next.quests?.mainCompleted || [];
   next.quests.mainCompleted = completed.filter((id) => !id.startsWith('MQ_C1_004_ECOS_') && !id.startsWith('MQ_C1_POST_ECHO_'));
   next.quests.mainCompleted.push('MQ_C1_004_ECOS_COLLECT_SCALE_NOTES');
+  return next;
+}
+
+function migrateAquillesQuestReplay(save: AcordelotSaveData | null, email?: string | null): AcordelotSaveData | null {
+  if (!save) return null;
+  const emailPrefix = String(email || '').trim().toLowerCase().split('@')[0];
+  const settings = (save.settings || {}) as Record<string, unknown>;
+  if (emailPrefix !== 'antonycorp11' || settings.quest_replay_version === QUEST_REPLAY_VERSION) return save;
+  const next = JSON.parse(JSON.stringify(save)) as AcordelotSaveData;
+  const nextSettings = (next.settings ||= {}) as Record<string, unknown>;
+  nextSettings.quest_replay_version = QUEST_REPLAY_VERSION;
+  nextSettings.echo_tutorial_stage = 'locked';
+  nextSettings.post_echo_stage = 'locked';
+  nextSettings.region_quest_stage = 'locked';
+  nextSettings.region_crystal_progress = 0;
+  next.quests = { ...(next.quests || { date: '', daily: [] }), mainCompleted: [] };
+  next.active_character = 'akles';
+  next.character_name = 'Akles';
+  next.pos_x = 36 * 32;
+  next.pos_y = 156 * 32;
+  next.direction = 'down';
+  next.updated_at = new Date().toISOString();
   return next;
 }
 
@@ -207,6 +232,7 @@ export function serializeEngineSave(engine: GameEngine, userId: string): Omit<Ac
       progression_version: PROGRESSION_VERSION,
       aquilles_flow_reset_version: AQUILLES_FLOW_RESET_VERSION,
       harmony_lesson_version: HARMONY_LESSON_VERSION,
+      quest_replay_version: QUEST_REPLAY_VERSION,
       fragments: [...(engine.fragments || [])],
       notes_built: [...(engine.notesBuilt || [])],
       scales_built: { ...engine.scalesBuilt },
@@ -215,6 +241,8 @@ export function serializeEngineSave(engine: GameEngine, userId: string): Omit<Ac
       equipped_chords_by_scale_by_character: structuredClone(engine.equippedChordsByScaleByCharacter),
       echo_tutorial_stage: engine.echoTutorialStage,
       post_echo_stage: engine.postEchoStage,
+      region_quest_stage: engine.regionQuestStage,
+      region_crystal_progress: engine.regionCrystalProgress,
       shop_purchases: { ...engine.shopPurchases, counts: { ...engine.shopPurchases.counts } },
       bag_level: engine.bagLevel,
       hud_layout: (() => {
@@ -451,6 +479,10 @@ export function applySaveToEngine(engine: GameEngine, save: Partial<AcordelotSav
     if (typeof s.post_echo_stage === 'string' && ['locked', 'antony_riddle', 'miro_bell', 'gather_dust', 'lucian_harmony', 'equip_harmony', 'antony_letter', 'completed'].includes(s.post_echo_stage)) {
       engine.postEchoStage = s.post_echo_stage as typeof engine.postEchoStage;
     } else if (engine.echoTutorialStage === 'completed') engine.postEchoStage = 'antony_riddle';
+    if (typeof s.region_quest_stage === 'string' && ['locked', 'antony_invitation', 'meet_flora', 'forge_gold_pick', 'visit_sanctuary', 'gather_crystals', 'enter_cavern', 'defeat_guardian', 'return_antony', 'completed'].includes(s.region_quest_stage)) {
+      engine.regionQuestStage = s.region_quest_stage as typeof engine.regionQuestStage;
+    } else if (engine.postEchoStage === 'completed') engine.regionQuestStage = 'antony_invitation';
+    if (typeof s.region_crystal_progress === 'number') engine.regionCrystalProgress = Math.max(0, Math.min(5, Math.floor(s.region_crystal_progress)));
     if (engine.echoTutorialStage === 'completed' && engine.postEchoStage !== 'completed') {
       const chordCount = Math.min(3, Object.values(engine.equippedChordsByScale).flat().length);
       const dustCount = Math.min(12, engine.inventory.eco_dust || 0);
@@ -464,6 +496,19 @@ export function applySaveToEngine(engine: GameEngine, save: Partial<AcordelotSav
         antony_letter: { title: 'A Carta que Ninguém Enviou', text: 'Conte a descoberta ao Sr. Antony', progress: 0, target: 1, ready: false },
       };
       engine.storyObjective = objectives[engine.postEchoStage] ?? engine.storyObjective;
+    }
+    if (engine.postEchoStage === 'completed' && engine.regionQuestStage !== 'completed' && engine.regionQuestStage !== 'locked') {
+      const regionObjectives: Record<string, { title: string; text: string; progress: number; target: number; ready: boolean }> = {
+        antony_invitation: { title: 'O Santuário que Respondeu', text: 'Fale com o Sr. Antony sobre Klassíkia', progress: 0, target: 2, ready: false },
+        meet_flora: { title: 'O Santuário que Respondeu', text: 'Encontre Flora no caminho leste', progress: 0, target: 2, ready: false },
+        forge_gold_pick: { title: 'O Santuário que Respondeu', text: 'Fale com Dório e forje uma Picareta Dourada', progress: 1, target: 3, ready: false },
+        visit_sanctuary: { title: 'O Santuário que Respondeu', text: 'Siga a estrada leste até o Santuário dos Ecos', progress: 1, target: 2, ready: false },
+        gather_crystals: { title: 'Doze Luzes, Uma Ausência', text: 'Extraia 5 Cristais de Eco nas redondezas', progress: engine.regionCrystalProgress, target: 5, ready: false },
+        enter_cavern: { title: 'A Caverna sob a Escala', text: 'Siga a estrada sul até a Caverna de Cristal', progress: 0, target: 2, ready: false },
+        defeat_guardian: { title: 'A Caverna sob a Escala', text: 'Derrote o Guardião Cristalino', progress: 0, target: 1, ready: false },
+        return_antony: { title: 'A Caverna sob a Escala', text: 'Leve a mensagem cristalina ao Sr. Antony', progress: 1, target: 2, ready: true },
+      };
+      engine.storyObjective = regionObjectives[engine.regionQuestStage] ?? engine.storyObjective;
     }
     if (s.fragments || s.notes_built) {
       engine.onFragmentsChange?.({ fragments: [...engine.fragments], built: [...engine.notesBuilt] });
@@ -518,7 +563,9 @@ export async function saveToCloud(engine: GameEngine, userId: string): Promise<b
  */
 export async function loadCloudSave(userId: string, email?: string | null): Promise<AcordelotSaveData | null> {
   const cached = getLocalInstantSave(userId);
-  const localSave = isCurrentProgression(cached) && isCurrentAccountReset(cached, email) ? migrateAquillesHarmonyLesson(cached, email) : null;
+  const localSave = isCurrentProgression(cached) && isCurrentAccountReset(cached, email)
+    ? migrateAquillesHarmonyLesson(migrateAquillesQuestReplay(cached, email), email)
+    : null;
   if (cached && !localSave) {
     try { localStorage.removeItem(LOCAL_SAVE_PREFIX + userId); } catch {}
   }
@@ -534,7 +581,7 @@ export async function loadCloudSave(userId: string, email?: string | null): Prom
       return localSave;
     }
 
-    const cloudSave = migrateAquillesHarmonyLesson(data as AcordelotSaveData, email);
+    const cloudSave = migrateAquillesHarmonyLesson(migrateAquillesQuestReplay(data as AcordelotSaveData, email), email);
     // Saves anteriores ao reset global nunca podem ressuscitar a progressão
     // apagada no PWA. O primeiro autosave grava o estado inicial versionado.
     if (!isCurrentProgression(cloudSave) || !isCurrentAccountReset(cloudSave, email)) return localSave;

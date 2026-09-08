@@ -14,12 +14,12 @@
 import { Rect, WorldProp, NPC } from './types';
 
 // Mapa: bloco norte (vila + terras editadas) + bloco sul (FLORESTA SOMBRIA).
-export const MAP_COLS = 184; // +40 colunas de campo natural a leste
+export const MAP_COLS = 224; // expansão leste: Santuário dos Ecos + Caverna de Cristal
 export const OLD_ROWS = 108; // fim do bloco norte — nada acima disso muda
 export const DARK_START = 110; // início da Floresta Sombria
-export const MAP_ROWS = 176; // + 68 linhas de floresta sombria
+export const MAP_ROWS = 208; // maior profundidade da Floresta Sombria
 export const TILE_SIZE = 32;
-export const WORLD_WIDTH = MAP_COLS * TILE_SIZE; // 5888px
+export const WORLD_WIDTH = MAP_COLS * TILE_SIZE;
 export const WORLD_HEIGHT = MAP_ROWS * TILE_SIZE;
 
 /** Tile IDs do tileset Terrain2 (36 colunas) + sentinelas de água. */
@@ -46,6 +46,8 @@ export const TERRAIN_TILES = {
   DARK_STONE: 9003, // laje de pedra musgosa
   DARK_MOSS: 9004, // musgo escuro (clareiras)
   DARK_PATH: 9005, // trilha de terra batida (caminhos da floresta)
+  CRYSTAL_FLOOR: 9006, // pedra azul da Caverna de Cristal
+  ECHO_MEADOW: 9007, // gramado azulado do Santuário dos Ecos
 };
 
 // Faixa de transição (em linhas) entre o mapa antigo e a Floresta Sombria.
@@ -689,6 +691,49 @@ export function buildMap(): MapGrid {
     else if (q < 0.7) dprop(`dr${did++}`, 'rockMonolith', x, y, 24, 40);
     else dprop(`dr${did++}`, 'stoneQuarry', x, y, 140, 140);
   }
+
+  // =====================================================================
+  //  EXPANSÃO LESTE — duas regiões conectadas a pé, sem teleporte.
+  // =====================================================================
+  const inEastExpansion = (p: WorldProp) => p.x + p.w > 187 * TILE_SIZE && p.x < 223 * TILE_SIZE && p.y < 104 * TILE_SIZE;
+  for (let i = props.length - 1; i >= 0; i--) if (inEastExpansion(props[i])) props.splice(i, 1);
+
+  // O prolongamento da Avenida chega ao Santuário e dobra para o sul até a DG.
+  for (let r = 5; r <= 38; r++) for (let c = 188; c <= 211; c++) ground[r][c] = TERRAIN_TILES.ECHO_MEADOW;
+  pave(184, 204, 24, 29);
+  pave(201, 207, 24, 91);
+  for (let r = 44; r <= 77; r++) for (let c = 190; c <= 222; c++) ground[r][c] = TERRAIN_TILES.CRYSTAL_FLOOR;
+  // Trilha legível atravessando a caverna até o guardião.
+  for (let r = 48; r <= 91; r++) for (let c = 202; c <= 208; c++) ground[r][c] = TERRAIN_TILES.DARK_PATH;
+
+  props.push({
+    id: 'region_echo_sanctuary', type: 'echoSanctuary',
+    x: 190 * TILE_SIZE, y: 6 * TILE_SIZE, w: 352, h: 330,
+    sortY: 6 * TILE_SIZE + 318,
+  });
+  props.push({
+    id: 'region_crystal_cavern_entrance', type: 'crystalCavernEntrance',
+    x: 199 * TILE_SIZE, y: 68 * TILE_SIZE, w: 288, h: 288,
+    sortY: 68 * TILE_SIZE + 274,
+  });
+
+  // Paredes minerais e recursos próprios da dungeon. O corredor central fica livre.
+  let regionId = 0;
+  const regionProp = (type: string, c: number, r: number, w: number, h: number, collider?: Rect) => {
+    const x = c * TILE_SIZE, y = r * TILE_SIZE;
+    props.push({ id: `east_region_${regionId++}`, type, x, y, w, h, sortY: y + h - 4, collider });
+  };
+  for (let r = 44; r <= 76; r += 3) {
+    regionProp(r % 2 ? 'spot_crystal_blue' : 'dark_bigrock', 189, r, r % 2 ? 56 : 60, r % 2 ? 60 : 46);
+    regionProp(r % 2 ? 'spot_crystal_red' : 'rockMonolith', 220, r, r % 2 ? 56 : 24, r % 2 ? 60 : 40);
+  }
+  [48, 54, 61, 67].forEach((r, i) => {
+    regionProp(i % 2 ? 'spot_gold' : 'spot_crystal_blue', 194 + (i % 2) * 22, r, 60, i % 2 ? 44 : 60);
+    regionProp(i % 2 ? 'spot_crystal_red' : 'spot_gold', 216 - (i % 2) * 22, r + 2, 60, i % 2 ? 60 : 44);
+  });
+  // Árvores claras fazem a transição visual entre a estrada e o santuário.
+  [[188,7],[211,8],[188,35],[212,34],[186,20],[214,22]].forEach(([c, r], i) =>
+    addBlossom(`east_blossom_${i}`, c * TILE_SIZE, r * TILE_SIZE));
 
   // 10. NPCs COM ROTA (tema musical de Acordelot)
   const T = TILE_SIZE;

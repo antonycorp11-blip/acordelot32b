@@ -232,14 +232,15 @@ const FRAG_FILE = ['C', 'Cs', 'D', 'Ds', 'E', 'F', 'Fs', 'G', 'Gs', 'A', 'As', '
 export const FRAGMENTS_PER_NOTE = 30;
 
 export const ITEM_META: Record<string, ItemMeta> = {
-  wood: { name: 'Madeira', icon: '🪵', weight: 1.0, desc: 'Madeira bruta cortada de árvores.' },
-  stone: { name: 'Pedra', icon: '🪨', weight: 1.6, desc: 'Rocha bruta extraída de pedreiras.' },
+  wood: { name: 'Madeira', icon: '🪵', weight: 1.0, img: '/assets/items/market/wood.png', desc: 'Madeira bruta cortada de árvores.' },
+  stone: { name: 'Pedra', icon: '🪨', weight: 1.6, img: '/assets/items/market/stone.png', desc: 'Rocha bruta extraída de pedreiras.' },
   ore: { name: 'Minério', icon: '🪙', weight: 2.2, desc: 'Minério bruto com veios ressonantes.' },
-  berry: { name: 'Frutinha', icon: '🍓', weight: 0.2, heal: 8, desc: 'Colhida de arbustos. Restaura um pouco de vida.' },
-  potion_heal: { name: 'Poção de Cura', icon: '🧪', weight: 0.25, heal: 45, img: '/assets/ancient-ruins/Characters/NPC Merchant-icons-potion.png', desc: 'Restaura 45 de vida.' },
-  potion_basic: { name: 'Tônico de Combate', icon: '⚔️', weight: 0.25, buff: { label: '+20% ataque básico', duration: 300, kind: 'basic', value: .20 }, img: '/assets/ancient-ruins/Characters/NPC Merchant-icons-sword.png', desc: 'Aumenta o dano dos ataques básicos por 5 minutos.' },
-  potion_shield: { name: 'Poção de Escudo', icon: '🛡️', weight: 0.25, buff: { label: 'Escudo 25%', duration: 300, kind: 'shield', value: .25 }, img: '/assets/ancient-ruins/Characters/NPC Merchant-icons-potion.png', desc: 'Reduz o dano recebido em 25% por 5 minutos.' },
-  potion_farm: { name: 'Essência do Coletor', icon: '🌿', weight: 0.25, buff: { label: '+50% coleta', duration: 600, kind: 'farm', value: .50 }, img: '/assets/ancient-ruins/Characters/NPC Merchant-icons-potion.png', desc: 'Aumenta os recursos obtidos na coleta por 10 minutos.' },
+  berry: { name: 'Frutinha Harmônica', icon: '🍓', weight: 0.2, heal: 8, img: '/assets/items/market/berry.png', desc: 'Colhida de arbustos. Restaura um pouco de vida.' },
+  bread: { name: 'Pão de Compasso', icon: '🥖', weight: 0.3, heal: 18, img: '/assets/items/market/bread.png', desc: 'Receita da vila que restaura 18 de vida.' },
+  potion_heal: { name: 'Poção de Cura', icon: '🧪', weight: 0.25, heal: 45, img: '/assets/items/market/potion_heal.png', desc: 'Restaura 45 de vida.' },
+  potion_basic: { name: 'Tônico de Combate', icon: '⚔️', weight: 0.25, buff: { label: '+20% ataque básico', duration: 300, kind: 'basic', value: .20 }, img: '/assets/items/market/potion_basic.png', desc: 'Aumenta o dano dos ataques básicos por 5 minutos.' },
+  potion_shield: { name: 'Poção de Escudo', icon: '🛡️', weight: 0.25, buff: { label: 'Escudo 25%', duration: 300, kind: 'shield', value: .25 }, img: '/assets/items/market/potion_shield.png', desc: 'Reduz o dano recebido em 25% por 5 minutos.' },
+  potion_farm: { name: 'Essência do Coletor', icon: '🌿', weight: 0.25, buff: { label: '+50% coleta', duration: 600, kind: 'farm', value: .50 }, img: '/assets/items/market/potion_farm.png', desc: 'Aumenta os recursos obtidos na coleta por 10 minutos.' },
   ascension_keys: { name: 'Núcleo de Ascensão das Teclas', icon: '♬', weight: 0, img: '/assets/items/ascension_keys.png', desc: 'Relíquia garantida do Sentinela do Órgão. Necessária para ascender personagens da classe Teclas.' },
   clave: {
     name: 'Clave Musical',
@@ -252,7 +253,7 @@ export const ITEM_META: Record<string, ItemMeta> = {
     name: 'Poeira de Eco',
     icon: '✨',
     weight: 0.05,
-    img: '/assets/items/props/eco_essence_raw.png',
+    img: '/assets/items/market/eco_dust.png',
     desc: 'Pó harmônico obtido ao ressoar um Eco sem feri-lo.',
   },
   resonator: {
@@ -275,7 +276,7 @@ export const ITEM_META: Record<string, ItemMeta> = {
     icon: '🎵',
     weight: 0,
     xp: PARTITURA_DEFS.bronze.xp,
-    img: '/assets/items/notes/note_c.png',
+    img: '/assets/items/market/partitura_bronze.png',
     desc: `Partitura simples. Usada na ficha para subir de nível (+${PARTITURA_DEFS.bronze.xp} XP).`,
   },
   partitura_prata: {
@@ -310,14 +311,19 @@ export interface ShopItemDef {
 }
 
 export const SHOP_ITEMS: ShopItemDef[] = [
-  { id: 'bag_expansion', item: 'bag_expansion', name: 'Expansão da Mochila', description: '+10 kg permanentes (máximo de 5).', quantity: 1, dailyLimit: 1, currency: 'gold_refined', price: 4, icon: '🎒' },
+  { id: 'bag_expansion', item: 'bag_expansion', name: 'Expansão da Mochila', description: '+10 kg permanentes (máximo de 5).', quantity: 1, dailyLimit: 1, currency: 'gold_refined', price: 4, img: '/assets/items/market/bag_expansion.png', icon: '🎒' },
   { id: 'heal', item: 'potion_heal', name: 'Poção de Cura', description: 'Recupera 45 de vida.', quantity: 1, dailyLimit: 5, currency: 'gold_raw', price: 3, img: ITEM_META.potion_heal.img, icon: '🧪' },
   { id: 'basic', item: 'potion_basic', name: 'Tônico de Combate', description: '+20% no ataque básico por 5 min.', quantity: 1, dailyLimit: 2, currency: 'gold_refined', price: 1, img: ITEM_META.potion_basic.img, icon: '⚔️' },
   { id: 'shield', item: 'potion_shield', name: 'Poção de Escudo', description: '-25% de dano recebido por 5 min.', quantity: 1, dailyLimit: 2, currency: 'gold_refined', price: 2, img: ITEM_META.potion_shield.img, icon: '🛡️' },
   { id: 'farm', item: 'potion_farm', name: 'Essência do Coletor', description: '+50% de recursos coletados por 10 min.', quantity: 1, dailyLimit: 1, currency: 'gold_refined', price: 3, img: ITEM_META.potion_farm.img, icon: '🌿' },
-  { id: 'wood', item: 'wood', name: 'Lote de Madeira', description: 'Pacote com 5 madeiras.', quantity: 5, dailyLimit: 4, currency: 'gold_raw', price: 2, icon: '🪵' },
-  { id: 'stone', item: 'stone', name: 'Lote de Pedra', description: 'Pacote com 5 pedras.', quantity: 5, dailyLimit: 4, currency: 'gold_raw', price: 2, icon: '🪨' },
-  { id: 'fragments', item: 'fragment_pack', name: 'Fragmentos de Nota', description: '3 fragmentos de notas aleatórias.', quantity: 3, dailyLimit: 3, currency: 'gold_refined', price: 1, icon: '◆' },
+  { id: 'wood', item: 'wood', name: 'Lote de Madeira', description: 'Pacote com 5 madeiras.', quantity: 5, dailyLimit: 4, currency: 'gold_raw', price: 2, img: '/assets/items/market/wood.png', icon: '🪵' },
+  { id: 'stone', item: 'stone', name: 'Lote de Pedra', description: 'Pacote com 5 pedras.', quantity: 5, dailyLimit: 4, currency: 'gold_raw', price: 2, img: '/assets/items/market/stone.png', icon: '🪨' },
+  { id: 'fragments', item: 'fragment_pack', name: 'Fragmentos de Nota', description: '3 fragmentos de notas aleatórias.', quantity: 3, dailyLimit: 3, currency: 'gold_refined', price: 1, img: '/assets/items/market/fragment_pack.png', icon: '◆' },
+  { id: 'bread', item: 'bread', name: 'Pão de Compasso', description: 'Recupera 18 de vida.', quantity: 1, dailyLimit: 5, currency: 'gold_raw', price: 1, img: '/assets/items/market/bread.png', icon: '🥖' },
+  { id: 'berry', item: 'berry', name: 'Frutinhas Harmônicas', description: 'Pacote com 3 frutinhas curativas.', quantity: 3, dailyLimit: 4, currency: 'gold_raw', price: 2, img: '/assets/items/market/berry.png', icon: '🍓' },
+  { id: 'dust', item: 'eco_dust', name: 'Poeira de Eco', description: 'Resíduo para síntese harmônica.', quantity: 3, dailyLimit: 2, currency: 'gold_refined', price: 2, img: '/assets/items/market/eco_dust.png', icon: '✨' },
+  { id: 'score', item: 'partitura_bronze', name: 'Partitura de Bronze', description: 'Concede 45 XP na ficha do personagem.', quantity: 1, dailyLimit: 1, currency: 'gold_refined', price: 3, img: '/assets/items/market/partitura_bronze.png', icon: '🎵' },
+  { id: 'blue_crystal', item: 'crystal_blue_raw', name: 'Cristal de Eco Bruto', description: 'Material raro de forja e ascensão.', quantity: 1, dailyLimit: 2, currency: 'gold_refined', price: 3, img: '/assets/items/market/crystal_blue_raw.png', icon: '💎' },
 ];
 
 export function inventorySellOffer(item: string): { quantity: number; goldRaw: number } | null {
@@ -360,6 +366,9 @@ for (const [key, rn, refn, w, rd, refd] of REFINE_PAIRS) {
     desc: refd,
   };
 }
+ITEM_META.gold_raw.img = '/assets/items/market/gold_raw.png';
+ITEM_META.gold_refined.img = '/assets/items/market/gold_refined.png';
+ITEM_META.crystal_blue_raw.img = '/assets/items/market/crystal_blue_raw.png';
 NOTE_KEY.forEach((k, i) => {
   ITEM_META['frag_' + k] = {
     name: 'Fragmento de ' + NOTE_NAMES[i],
@@ -430,7 +439,7 @@ export interface FragmentPickup {
   respawnAt: number;
 }
 
-const NPC_ANIM = { cw: 96, ch: 148, cols: 10, fps: 9 };
+const NPC_ANIM = { cw: 96, ch: 148, cols: 11, fps: 9 };
 const NPC_SHEET: Record<string, keyof LoadedAssets> = {
   cadencia: 'npcCadencia',
   tonico: 'npcTonico',
@@ -1453,6 +1462,8 @@ export class GameEngine {
 
   echoTutorialStage: 'locked' | 'forge_resonator' | 'return_to_lucian' | 'capture_echo' | 'synthesize_note' | 'collect_scale_notes' | 'synthesize_scale' | 'completed' = 'locked';
   postEchoStage: 'locked' | 'antony_riddle' | 'miro_bell' | 'gather_dust' | 'lucian_harmony' | 'equip_harmony' | 'antony_letter' | 'completed' = 'locked';
+  regionQuestStage: 'locked' | 'antony_invitation' | 'meet_flora' | 'forge_gold_pick' | 'visit_sanctuary' | 'gather_crystals' | 'enter_cavern' | 'defeat_guardian' | 'return_antony' | 'completed' = 'locked';
+  regionCrystalProgress = 0;
   scalesBuilt: Record<string, number> = {};
   ownedChords: Record<string, number> = {};
   equippedScalesByCharacter: Record<PlayerCharacterKey, string[]> = { akles: [], wins: [], huans: [] };
@@ -1646,6 +1657,12 @@ export class GameEngine {
       };
       this.onQuestsChange?.();
       this.onHarvestPopup?.('✓ Kit básico forjado. Agora você pode coletar!', this.player.x, this.player.y - 20);
+    }
+    if (kind === 'pick' && tier === 'gold' && this.regionQuestStage === 'forge_gold_pick') {
+      this.regionQuestStage = 'visit_sanctuary';
+      this.storyObjective = { title: 'O Santuário que Respondeu', text: 'Picareta pronta. Siga a estrada leste até o Santuário dos Ecos', progress: 2, target: 3, ready: false };
+      this.onHarvestPopup?.('✦ Picareta Dourada afinada: cristais e ouro liberados', this.player.x, this.player.y - 20);
+      this.onQuestsChange?.();
     }
     return true;
   }
@@ -2180,6 +2197,17 @@ export class GameEngine {
       if (this.postEchoStage === 'gather_dust') return (this.inventory.eco_dust || 0) >= 12 ? npcPoint('npc_mercador_cidade') : null;
       if (this.postEchoStage === 'lucian_harmony' || this.postEchoStage === 'equip_harmony') return npcPoint('story_lucian');
     }
+    if (this.postEchoStage === 'completed') {
+      if (this.regionQuestStage === 'antony_invitation' || this.regionQuestStage === 'return_antony') return npcPoint('story_sr_antony');
+      if (this.regionQuestStage === 'meet_flora') return npcPoint('npc_contralto');
+      if (this.regionQuestStage === 'forge_gold_pick') return npcPoint('npc_ferreiro') ?? propPoint('b_blacksmith');
+      if (this.regionQuestStage === 'visit_sanctuary') return propPoint('region_echo_sanctuary');
+      if (this.regionQuestStage === 'enter_cavern') return propPoint('region_crystal_cavern_entrance');
+      if (this.regionQuestStage === 'defeat_guardian') {
+        const guardian = this.enemies.find((enemy) => enemy.id === 'enemy_99001' && enemy.state !== 'dead');
+        return guardian ? { x: guardian.x, y: guardian.y } : null;
+      }
+    }
     return null;
   }
 
@@ -2201,6 +2229,7 @@ export class GameEngine {
     if (this.lucianMeetingRewarded) ids.push('MQ_C1_003_AS_VOZES_DE_ACORDELOT');
     if (this.echoTutorialStage !== 'locked') ids.push(`MQ_C1_004_ECOS_${this.echoTutorialStage.toUpperCase()}`);
     if (this.postEchoStage !== 'locked') ids.push(`MQ_C1_POST_ECHO_${this.postEchoStage.toUpperCase()}`);
+    if (this.regionQuestStage !== 'locked') ids.push(`MQ_C1_REGION_${this.regionQuestStage.toUpperCase()}`);
     return ids;
   }
 
@@ -2235,6 +2264,11 @@ export class GameEngine {
     if (postEchoId) {
       const restored = postEchoId.slice('MQ_C1_POST_ECHO_'.length).toLowerCase();
       if (['antony_riddle', 'miro_bell', 'gather_dust', 'lucian_harmony', 'equip_harmony', 'antony_letter', 'completed'].includes(restored)) this.postEchoStage = restored as typeof this.postEchoStage;
+    }
+    const regionId = ids.find((id) => id.startsWith('MQ_C1_REGION_'));
+    if (regionId) {
+      const restored = regionId.slice('MQ_C1_REGION_'.length).toLowerCase();
+      if (['antony_invitation', 'meet_flora', 'forge_gold_pick', 'visit_sanctuary', 'gather_crystals', 'enter_cavern', 'defeat_guardian', 'return_antony', 'completed'].includes(restored)) this.regionQuestStage = restored as typeof this.regionQuestStage;
     }
     const echoObjectives: Partial<Record<typeof this.echoTutorialStage, NonNullable<typeof this.storyObjective>>> = {
       forge_resonator: {
@@ -2410,6 +2444,24 @@ export class GameEngine {
         description: 'Uma mensagem impossível chega ao gabinete do Sr. Antony e menciona uma palavra que Akles ouviu apenas em sonho.',
         status: this.postEchoStage !== 'antony_letter' && this.postEchoStage !== 'completed' ? ('locked' as const) : this.postEchoStage === 'completed' ? ('completed' as const) : ('active' as const),
         objective: this.postEchoStage === 'completed' ? 'A palavra Klassíkia foi registrada no diário.' : 'Leve a descoberta harmônica ao Sr. Antony.',
+      },
+      {
+        id: 'MQ_C1_008_SANTUARIO_RESPONDEU', chapter: 'Capítulo I', title: 'O Santuário que Respondeu',
+        description: 'Uma herborista ouviu o Santuário dos Ecos responder a uma palavra proibida.',
+        status: this.postEchoStage !== 'completed' ? ('locked' as const) : ['gather_crystals', 'enter_cavern', 'defeat_guardian', 'return_antony', 'completed'].includes(this.regionQuestStage) ? ('completed' as const) : ('active' as const),
+        objective: this.regionQuestStage === 'meet_flora' ? 'Encontre Flora, a herborista, no caminho leste.' : this.regionQuestStage === 'forge_gold_pick' ? 'Forje uma Picareta Dourada com Dório.' : this.regionQuestStage === 'visit_sanctuary' ? 'Caminhe com suas próprias pernas até o Santuário dos Ecos.' : 'Fale novamente com o Sr. Antony.',
+      },
+      {
+        id: 'MQ_C1_009_DOZE_LUZES', chapter: 'Capítulo I', title: 'Doze Luzes, Uma Ausência',
+        description: 'Os cristais do santuário preservaram doze frequências, mas uma delas parece ter sido arrancada.',
+        status: !['gather_crystals', 'enter_cavern', 'defeat_guardian', 'return_antony', 'completed'].includes(this.regionQuestStage) ? ('locked' as const) : ['enter_cavern', 'defeat_guardian', 'return_antony', 'completed'].includes(this.regionQuestStage) ? ('completed' as const) : ('active' as const),
+        objective: `Extraia Cristais de Eco no santuário (${Math.min(5, this.regionCrystalProgress)}/5).`,
+      },
+      {
+        id: 'MQ_C1_010_CAVERNA_SOB_ESCALA', chapter: 'Capítulo I', title: 'A Caverna sob a Escala',
+        description: 'A trilha cristalina desce a uma dungeon onde algo tenta imitar a voz de Akles.',
+        status: !['enter_cavern', 'defeat_guardian', 'return_antony', 'completed'].includes(this.regionQuestStage) ? ('locked' as const) : this.regionQuestStage === 'completed' ? ('completed' as const) : ('active' as const),
+        objective: this.regionQuestStage === 'enter_cavern' ? 'Siga a estrada e entre na Caverna de Cristal.' : this.regionQuestStage === 'defeat_guardian' ? 'Derrote o Guardião Cristalino no fundo da dungeon.' : this.regionQuestStage === 'return_antony' ? 'Leve o fragmento de mensagem ao Sr. Antony.' : 'A caverna revelou que alguém conhece o nome de Akles.',
       },
     ];
   }
@@ -3665,6 +3717,17 @@ export class GameEngine {
   }
 
   private npcToInteraction(n: NPC): InteractionNpc {
+    if (n.id === 'npc_contralto' && this.postEchoStage === 'completed' && (this.regionQuestStage === 'meet_flora' || this.regionQuestStage === 'visit_sanctuary')) {
+      const dialogue = this.regionQuestStage === 'meet_flora' ? [
+        'Você é Akles. Eu saberia mesmo sem Antony descrever seu cabelo como "uma decisão tomada durante uma tempestade".',
+        'Sou Flora. Cuido de plantas que cantam, Ecos que espirram e aventureiros que confundem ambos com ingredientes.',
+        'Na noite em que o sino perdeu o Fá, o Santuário dos Ecos respondeu com uma décima terceira vibração. Não era nota. Parecia uma palavra tentando lembrar como se fala.',
+        'Disse "Klassíkia". Depois todas as flores se viraram para o leste, em direção à Caverna de Cristal.',
+        'Não temos teleporte e isso é uma sorte: caminhos revelam coisas que portais escondem. Siga a estrada leste até o santuário.',
+        'Se Pippo perguntar, eu não disse que cristais cantam quando são lambidos. E você também não vai descobrir.',
+      ] : ['A estrada leste termina no santuário. Escute antes de colher: algumas plantas só florescem para quem chega sem pressa.'];
+      return { id: n.id, name: n.name, title: n.title, accent: n.accent ?? '#86efac', dialogue, isMerchant: false, spriteType: n.spriteType };
+    }
     if (n.id === 'npc_mercador_cidade') {
       const woodCount = Math.min(3, this.inventory['wood'] || 0);
       const stoneCount = Math.min(3, this.inventory['stone'] || 0);
@@ -3800,7 +3863,13 @@ export class GameEngine {
     if (n.id === 'npc_ferreiro') {
       const firstVisit = this.voicesMissionAccepted && this.marketIntroStage === 'smith_intro';
       const resonatorVisit = this.echoTutorialStage === 'forge_resonator';
-      const dialogue = resonatorVisit ? [
+      const goldenPickVisit = this.regionQuestStage === 'forge_gold_pick';
+      const dialogue = goldenPickVisit ? [
+        'Flora quer mandar você colher cristal com uma picareta básica? Finalmente ela fez uma piada que eu entendo.',
+        'Cristal de Eco exige Picareta Dourada. Não por luxo: o ouro conduz a vibração para fora da rocha sem quebrar a nota guardada nela.',
+        'Você pode extrair Minério comum com a picareta básica. Traga seis, além de madeira e pedra, e forje o tier Dourado na aba Ferramentas.',
+        'Toque nos materiais da receita se esquecer o nome. Minha bigorna explica menos e cobra mais.',
+      ] : resonatorVisit ? [
         'Esse desenho só pode ser de Lucian. Elegante, exagerado e com três anotações dizendo “não bater com martelo”.',
         'O Ressonador não aprisiona o Eco. Ele copia sua frequência e deixa a criatura seguir cantando.',
         'Na aba Ferramentas, forje o modelo Básico com os materiais que Lucian entregou. Tiers maiores preservam muito mais pó e fragmentos.',
@@ -3844,6 +3913,17 @@ export class GameEngine {
         'Você empalideceu. Já ouviu esse nome antes?',
         'Não responda agora. Certas lembranças quebram quando são forçadas. Vou procurar o nome nos arquivos antigos; você continuará conhecendo a cidade.',
         'Se alguém perguntar, investigávamos um sino desafinado. Pela primeira vez, espero que Miro espalhe a versão errada.',
+      ];
+      else if (this.postEchoStage === 'completed' && this.regionQuestStage === 'antony_invitation') dialogue = [
+        'Os arquivos não reconhecem Klassíkia. Mas Flora reconheceu o som: o Santuário dos Ecos repetiu essa palavra durante a madrugada.',
+        'Ela vive no caminho leste e conhece cada planta pela frequência. Fale com ela antes que Miro transforme o assunto em promoção.',
+        'Akles... o santuário existe há séculos. Nunca respondeu a nomes. Se respondeu ao seu, talvez sua memória não esteja perdida. Talvez esteja sendo mantida longe de você.',
+      ];
+      else if (this.postEchoStage === 'completed' && this.regionQuestStage === 'return_antony') dialogue = [
+        'Um guardião imitou sua voz e disse "a primeira nota não deve ser encontrada"? Isso não foi uma ameaça. Foi uma instrução.',
+        'A poeira negra no cristal pertence a Dissonia, o país dos Dissonantes. Mas o corte no fragmento é perfeito demais para uma criatura da caverna.',
+        'Alguém deseja que culpemos Dissonia. E alguém sabia que você chegaria antes mesmo de acordar na floresta.',
+        'Guardarei o fragmento. Continue conhecendo Acordelot; quando estivermos prontos, a estrada para Dissonia deixará de ser apenas uma linha no mapa.',
       ];
       return { id: n.id, name: n.name, title: n.title, accent: n.accent ?? '#fbbf24', dialogue, isMerchant: false, spriteType: n.spriteType };
     }
@@ -3949,13 +4029,20 @@ export class GameEngine {
         this.addToInventory('stone', 6);
         this.onInventoryChange?.({ ...this.inventory });
         this.marketIntroStage = 'forge_tools';
-        this.storyObjective = {
-          title: 'A Primeira Coleta do Mercado',
-          text: 'Use o presente de Dório para forjar o Machado Básico e a Picareta Básica',
-          progress: 0,
-          target: 2,
-          ready: false,
-        };
+        const alreadyForged = this.ownedAxes.includes('wood') && this.ownedPicks.includes('wood');
+        if (alreadyForged) this.marketIntroStage = 'collecting';
+        this.storyObjective = alreadyForged
+          ? { title: 'A Primeira Coleta do Mercado', text: 'Seu kit básico ainda responde. Colete Madeira (0/3) e Pedra (0/3) para Miro', progress: 0, target: 2, ready: false }
+          : { title: 'A Primeira Coleta do Mercado', text: 'Use o presente de Dório para forjar o Machado Básico e a Picareta Básica', progress: 0, target: 2, ready: false };
+        this.onQuestsChange?.();
+      }
+    } else if (talking?.id === 'npc_contralto' && this.postEchoStage === 'completed') {
+      if (this.regionQuestStage === 'meet_flora') {
+        const alreadyHasGoldenPick = this.ownedPicks.includes('gold');
+        this.regionQuestStage = alreadyHasGoldenPick ? 'visit_sanctuary' : 'forge_gold_pick';
+        this.storyObjective = alreadyHasGoldenPick
+          ? { title: 'O Santuário que Respondeu', text: 'Siga a estrada leste até o Santuário dos Ecos', progress: 1, target: 2, ready: false }
+          : { title: 'O Santuário que Respondeu', text: 'Fale com Dório e forje uma Picareta Dourada', progress: 1, target: 3, ready: false };
         this.onQuestsChange?.();
       }
     } else if (talking?.id === 'story_lucian') {
@@ -3974,18 +4061,16 @@ export class GameEngine {
         this.addCoins(60);
         this.addToInventory('wood', 3);
         this.addToInventory('stone', 2);
-        this.echoTutorialStage = 'forge_resonator';
-        this.storyObjective = {
-          title: 'O Ofício dos Ecos',
-          text: 'Forje o Ressonador Básico na Ferraria Harmônica',
-          progress: 0, target: 4, ready: false,
-        };
+        const alreadyHasResonator = this.ownedResonators.includes('wood');
+        this.echoTutorialStage = alreadyHasResonator ? 'return_to_lucian' : 'forge_resonator';
+        this.storyObjective = { title: 'O Ofício dos Ecos', text: alreadyHasResonator ? 'Seu Ressonador ainda funciona. Fale novamente com Lucian' : 'Forje o Ressonador Básico na Ferraria Harmônica', progress: 0, target: 4, ready: false };
         this.onQuestsChange?.();
       } else if (this.marketIntroStage === 'completed' && this.lucianMeetingRewarded && this.echoTutorialStage === 'locked') {
         this.addToInventory('wood', 3);
         this.addToInventory('stone', 2);
-        this.echoTutorialStage = 'forge_resonator';
-        this.storyObjective = { title: 'O Ofício dos Ecos', text: 'Forje o Ressonador Básico na Ferraria Harmônica', progress: 0, target: 4, ready: false };
+        const alreadyHasResonator = this.ownedResonators.includes('wood');
+        this.echoTutorialStage = alreadyHasResonator ? 'return_to_lucian' : 'forge_resonator';
+        this.storyObjective = { title: 'O Ofício dos Ecos', text: alreadyHasResonator ? 'Seu Ressonador ainda funciona. Fale novamente com Lucian' : 'Forje o Ressonador Básico na Ferraria Harmônica', progress: 0, target: 4, ready: false };
         this.onQuestsChange?.();
       } else if (this.echoTutorialStage === 'return_to_lucian') {
         this.beginEchoCaptureTutorial();
@@ -3997,9 +4082,21 @@ export class GameEngine {
         this.onQuestsChange?.();
       } else if (this.postEchoStage === 'antony_letter') {
         this.postEchoStage = 'completed';
+        this.regionQuestStage = 'antony_invitation';
         this.gainXp(100);
         this.addCoins(100);
-        this.storyObjective = { title: 'Capítulo I', text: 'Klassíkia: uma palavra que não deveria estar na memória de Akles', progress: 1, target: 1, ready: true };
+        this.storyObjective = { title: 'O Santuário que Respondeu', text: 'Fale novamente com o Sr. Antony sobre Klassíkia', progress: 0, target: 2, ready: false };
+        this.onQuestsChange?.();
+      } else if (this.postEchoStage === 'completed' && this.regionQuestStage === 'antony_invitation') {
+        this.regionQuestStage = 'meet_flora';
+        this.storyObjective = { title: 'O Santuário que Respondeu', text: 'Encontre Flora no caminho leste', progress: 0, target: 2, ready: false };
+        this.onQuestsChange?.();
+      } else if (this.postEchoStage === 'completed' && this.regionQuestStage === 'return_antony') {
+        this.regionQuestStage = 'completed';
+        this.gainXp(180);
+        this.addCoins(160);
+        this.addToInventory('partitura_prata', 1);
+        this.storyObjective = { title: 'A Caverna sob a Escala', text: 'O caminho para Dissonia foi registrado', progress: 1, target: 1, ready: true };
         this.onQuestsChange?.();
       }
     }
@@ -5031,6 +5128,13 @@ export class GameEngine {
     // Boss da ascensão de Teclas, sozinho no centro da arena nordeste.
     this.spawnEnemy('organ_sentinel', 168, 13, id++, 12);
 
+    // Primeira DG caminhável: sentinelas ocupam o corredor e um guardião
+    // cristalino protege a câmara mais profunda.
+    this.spawnEnemy('colosso', 212, 54, 99001, 11);
+    this.spawnEnemy('nocturno', 199, 61, 99002, 8);
+    this.spawnEnemy('maestro', 216, 65, 99003, 9);
+    this.spawnEnemy('aranha', 196, 72, 99004, 8);
+
     // FLORESTA SOMBRIA — MUITOS monstros espalhados por toda a região
     const darkStartRow = DARK_START + 3;
     const darkEndRow = MAP_ROWS - 4;
@@ -5149,6 +5253,12 @@ export class GameEngine {
       e.frame = 0;
       e.stateTimer = 0;
       this.bumpQuestProgress('kill');
+      if (e.id === 'enemy_99001' && this.regionQuestStage === 'defeat_guardian') {
+        this.regionQuestStage = 'return_antony';
+        this.storyObjective = { title: 'A Caverna sob a Escala', text: 'Leve a mensagem cristalina ao Sr. Antony', progress: 1, target: 2, ready: true };
+        this.onHarvestPopup?.('❖ O cristal repete: "A Primeira Nota não deve ser encontrada"', e.x, e.y - 42);
+        this.onQuestsChange?.();
+      }
       if (this.storyStage === 'fight' && this.storyEnemyIds.has(e.id)) {
         const defeated = [...this.storyEnemyIds].filter((id) => this.enemies.find((enemy) => enemy.id === id)?.state === 'dead').length;
         if (this.storyObjective) {
@@ -6379,6 +6489,16 @@ export class GameEngine {
     else if (item === 'gold_raw') this.bumpQuestProgress('collect_gold', qty);
     else if (item === 'crystal_blue_raw') this.bumpQuestProgress('collect_crystal', qty);
 
+    if (item === 'crystal_blue_raw' && this.regionQuestStage === 'gather_crystals') {
+      this.regionCrystalProgress = Math.min(5, this.regionCrystalProgress + qty);
+      const complete = this.regionCrystalProgress >= 5;
+      if (complete) this.regionQuestStage = 'enter_cavern';
+      this.storyObjective = complete
+        ? { title: 'A Caverna sob a Escala', text: 'A trilha acendeu. Siga a estrada sul até a Caverna de Cristal', progress: 0, target: 2, ready: false }
+        : { title: 'Doze Luzes, Uma Ausência', text: 'Extraia 5 Cristais de Eco nas redondezas do santuário', progress: this.regionCrystalProgress, target: 5, ready: false };
+      this.onQuestsChange?.();
+    }
+
     if (this.marketIntroStage === 'collecting' && (item === 'wood' || item === 'stone')) {
       const woodCount = Math.min(3, this.inventory['wood'] || 0);
       const stoneCount = Math.min(3, this.inventory['stone'] || 0);
@@ -6744,6 +6864,21 @@ export class GameEngine {
     if (this.companionVisible) this.updateCompanion(dt);
     this.updateRemotePlayers(dt);
     this.updateNpcs(dt);
+    // Progressão espacial das novas regiões: nenhuma transição usa teleporte.
+    const playerCol = this.player.x / TILE_SIZE;
+    const playerRow = this.player.y / TILE_SIZE;
+    if (this.regionQuestStage === 'visit_sanctuary' && playerCol >= 187 && playerCol <= 214 && playerRow <= 40) {
+      this.regionQuestStage = 'gather_crystals';
+      this.regionCrystalProgress = 0;
+      this.storyObjective = { title: 'Doze Luzes, Uma Ausência', text: 'Extraia 5 Cristais de Eco nas redondezas do santuário', progress: 0, target: 5, ready: false };
+      this.onHarvestPopup?.('✦ O Santuário respondeu ao nome Klassíkia', this.player.x, this.player.y - 28);
+      this.onQuestsChange?.();
+    } else if (this.regionQuestStage === 'enter_cavern' && playerCol >= 190 && playerCol <= 223 && playerRow >= 43 && playerRow <= 79) {
+      this.regionQuestStage = 'defeat_guardian';
+      this.storyObjective = { title: 'A Caverna sob a Escala', text: 'Atravesse a DG e derrote o Guardião Cristalino', progress: 0, target: 1, ready: false };
+      this.onHarvestPopup?.('💎 DG: Caverna de Cristal', this.player.x, this.player.y - 28);
+      this.onQuestsChange?.();
+    }
     // Re-sincroniza posições fixas de NPCs a cada 2s (Dório, Miro, Lucian seguem o prédio)
     this._npcSyncTimer += dt;
     if (this._npcSyncTimer >= 2) {
@@ -7192,9 +7327,13 @@ export class GameEngine {
           const screenX = c * TILE_SIZE - camX;
           const screenY = r * TILE_SIZE - camY;
 
-          if (tileId >= 9002 && tileId <= 9005) {
+          if (tileId >= 9002 && tileId <= 9007) {
             // solo da Floresta Sombria — terra escura, plana (sem xadrez)
-            ctx.fillStyle = tileId === 9004 ? '#37402d' : '#3b3226';
+            ctx.fillStyle = tileId === 9006
+              ? ((c + r) % 3 === 0 ? '#202f4d' : '#253959')
+              : tileId === 9007
+                ? ((c + r) % 4 === 0 ? '#446a62' : '#4c7567')
+                : tileId === 9004 ? '#37402d' : '#3b3226';
             ctx.fillRect(screenX, screenY, 32, 32);
             continue;
           }
@@ -8274,7 +8413,13 @@ export class GameEngine {
     } else if (prop.type === 'dark_thorn' && this.assets?.darkThorn) {
       ctx.drawImage(this.assets.darkThorn, px, py, prop.w, prop.h);
     }
-    // 8. Muralhas musicais
+    // 8. Regiões do leste
+    else if (prop.type === 'echoSanctuary' && this.assets?.echoSanctuary) {
+      ctx.drawImage(this.assets.echoSanctuary, px, py, prop.w, prop.h);
+    } else if (prop.type === 'crystalCavernEntrance' && this.assets?.crystalCavernEntrance) {
+      ctx.drawImage(this.assets.crystalCavernEntrance, px, py, prop.w, prop.h);
+    }
+    // 9. Muralhas musicais
     else if (prop.type === 'wallMusical1' && this.assets?.wallMusical1) {
       ctx.drawImage(this.assets.wallMusical1, px, py, prop.w, prop.h);
     } else if (prop.type === 'wallMusical2' && this.assets?.wallMusical2) {
@@ -8660,18 +8805,7 @@ export class GameEngine {
       const rawCol = npc.isMoving
         ? Math.floor(npc.stepTimer * (m.fps / 8)) % m.cols
         : 0; // parado = frame neutro (sem "pisar no lugar")
-      // A folha original do Pippo possui uma célula quebrada nas vistas
-      // laterais/costas. Pula esses quadros para nunca exibir corpo cortado.
-      const pippoFrames: Record<Direction, number[]> = {
-        down: [0, 1, 2, 3, 4, 5, 7, 8, 9],
-        left: [0, 1, 2, 3, 4, 6, 7, 8, 9],
-        up: [0, 1, 2, 3, 4, 5, 7, 8, 9],
-        right: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
-      };
-      const safePippoFrames = pippoFrames[npc.direction];
-      const col = npc.spriteType === 'seminima' && npc.isMoving
-        ? (safePippoFrames[rawCol % safePippoFrames.length] ?? 0)
-        : rawCol;
+      const col = rawCol;
       const dx = Math.round(cx + npc.width / 2 - dispW / 2);
       const dy = Math.round(cy + npc.height - dispH * ((m.ch - 4) / m.ch));
 

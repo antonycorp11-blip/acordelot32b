@@ -20,26 +20,30 @@ const RECIPES = [
   { key: 'crystal_red' as const, label: 'Cristal Rubro', icon: '🔮', raw: 'crystal_red_raw', refined: 'crystal_red_refined', need: 3, color: '#f87171' },
 ];
 
-const MatBadge: React.FC<{ itemKey: string; have: number; need: number }> = ({ itemKey, have, need }) => {
+const MatBadge: React.FC<{ itemKey: string; have: number; need: number; onInspect: (key: string) => void }> = ({ itemKey, have, need, onInspect }) => {
   const meta = ITEM_META[itemKey];
   const ok = have >= need;
   return (
-    <span className={`inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[9px] font-bold border ${ok ? 'border-emerald-500/50 bg-emerald-950/40 text-emerald-300' : 'border-rose-500/50 bg-rose-950/40 text-rose-300'}`}>
+    <button type="button" onClick={() => onInspect(itemKey)} title={`Ver ${meta?.name ?? itemKey}`} className={`inline-flex cursor-pointer items-center gap-1 rounded px-1.5 py-0.5 text-[9px] font-bold border transition hover:brightness-125 active:scale-95 ${ok ? 'border-emerald-500/50 bg-emerald-950/40 text-emerald-300' : 'border-rose-500/50 bg-rose-950/40 text-rose-300'}`}>
       {meta?.img ? <img src={meta.img} alt="" className="h-3 w-3 object-contain" /> : <span>{meta?.icon ?? '◆'}</span>}
       {have}/{need}
-    </span>
+    </button>
   );
 };
 
-const CostRow: React.FC<{ cost: Record<string, number>; inventory: Record<string, number> }> = ({ cost, inventory }) => (
+const CostRow: React.FC<{ cost: Record<string, number>; inventory: Record<string, number>; onInspect: (key: string) => void }> = ({ cost, inventory, onInspect }) => (
   <div className="flex flex-wrap gap-1">
-    {Object.entries(cost).map(([k, n]) => <MatBadge key={k} itemKey={k} have={inventory[k] ?? 0} need={n} />)}
+    {Object.entries(cost).map(([k, n]) => <MatBadge key={k} itemKey={k} have={inventory[k] ?? 0} need={n} onInspect={onInspect} />)}
   </div>
 );
 
 export const ForgeScreen: React.FC<Props> = ({ open, onClose, engine, inventory, openOnTools }) => {
   const [tab, setTab] = React.useState<ForgeTab>('refine');
   const [message, setMessage] = React.useState('Dório: "Escolha o trabalho. A bigorna não gosta de indecisão."');
+  const inspectMaterial = (itemKey: string) => {
+    const meta = ITEM_META[itemKey];
+    setMessage(`Dório: "${meta?.name ?? itemKey}: ${meta?.desc ?? 'Material de forja.'} Você possui ${inventory[itemKey] ?? 0}."`);
+  };
   const [, refresh] = React.useReducer((n) => n + 1, 0);
   const [showGift, setShowGift] = React.useState(false);
 
@@ -131,7 +135,7 @@ export const ForgeScreen: React.FC<Props> = ({ open, onClose, engine, inventory,
                         <p className="text-xs font-black text-amber-100">{r.label}</p>
                         <p className="text-[10px] text-slate-400 mt-0.5">{r.need} brutos → 1 refinado</p>
                         <div className="mt-1.5">
-                          <MatBadge itemKey={r.raw} have={have} need={r.need} />
+                          <MatBadge itemKey={r.raw} have={have} need={r.need} onInspect={inspectMaterial} />
                         </div>
                       </div>
                       <button
@@ -189,7 +193,7 @@ export const ForgeScreen: React.FC<Props> = ({ open, onClose, engine, inventory,
                             <img src={`/assets/tools/${kind}_${tier}.png`} alt="" className="h-10 w-10 object-contain shrink-0" />
                             <div className="flex-1 min-w-0">
                               <p className="text-[11px] font-black text-white">{tierIcon} {label}</p>
-                              <div className="mt-1"><CostRow cost={cost} inventory={inventory} /></div>
+                              <div className="mt-1"><CostRow cost={cost} inventory={inventory} onInspect={inspectMaterial} /></div>
                             </div>
                             <button
                               type="button"
@@ -236,7 +240,7 @@ export const ForgeScreen: React.FC<Props> = ({ open, onClose, engine, inventory,
                           <div className="min-w-0 flex-1">
                             <p className="text-[11px] font-black text-white">{label}</p>
                             <p className="text-[9px] text-violet-200/70">{yieldText}</p>
-                            <div className="mt-1"><CostRow cost={cost} inventory={inventory} /></div>
+                            <div className="mt-1"><CostRow cost={cost} inventory={inventory} onInspect={inspectMaterial} /></div>
                           </div>
                           <button
                             type="button"
@@ -279,7 +283,7 @@ export const ForgeScreen: React.FC<Props> = ({ open, onClose, engine, inventory,
                     <p className="text-xs text-amber-300 mt-0.5">+{engine.weaponLevel} · ATQ {engine.weaponAtk}</p>
                     {weaponCost ? (
                       <>
-                        <div className="mt-2"><CostRow cost={weaponCost} inventory={inventory} /></div>
+                        <div className="mt-2"><CostRow cost={weaponCost} inventory={inventory} onInspect={inspectMaterial} /></div>
                         <button
                           type="button"
                           disabled={!engine.canUpgradeWeapon()}

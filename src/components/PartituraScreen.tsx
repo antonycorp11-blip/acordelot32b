@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, Music, ChevronsUp } from 'lucide-react';
+import { X, Music } from 'lucide-react';
 import type { GameEngine, PartituraTier } from '../game/engine';
 import { PARTITURA_DEFS, PARTITURA_TIERS } from '../game/engine';
 
@@ -33,10 +33,6 @@ export const PartituraScreen: React.FC<Props> = ({
   const totalFrags = fragments.reduce((a, b) => a + b, 0);
   const craft = (tier: PartituraTier) => {
     if (engine.synthPartitura(tier)) force();
-  };
-  const doLevel = () => {
-    engine.levelUpWithPartituras();
-    force();
   };
 
   return (
@@ -125,19 +121,6 @@ export const PartituraScreen: React.FC<Props> = ({
             })}
           </div>
 
-          <button
-            type="button"
-            onClick={doLevel}
-            disabled={engine.partituraXpAvailable <= 0 && engine.stats.xp < engine.stats.xpNext}
-            className={`w-full flex items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-xs font-bold transition-all ${
-              engine.partituraXpAvailable > 0 || engine.stats.xp >= engine.stats.xpNext
-                ? 'bg-emerald-600 text-white hover:bg-emerald-500 active:scale-95 shadow-lg shadow-emerald-600/25'
-                : 'bg-slate-800 text-slate-600 cursor-not-allowed'
-            }`}
-          >
-            <ChevronsUp className="w-4 h-4" />
-            Usar partituras e subir de nível
-          </button>
         </div>
       </div>
     </div>

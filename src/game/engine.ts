@@ -87,6 +87,22 @@ export type { StatKey, StatBag } from './statTypes';
 
 export type TimeOfDay = 'day' | 'sunset' | 'night';
 
+export interface DungeonDifficulty {
+  id: number;
+  name: string;
+  subtitle: string;
+  requiredPower: number;
+  enemyLevel: number;
+  rewardMultiplier: number;
+}
+
+export const CRYSTAL_DUNGEON_DIFFICULTIES: DungeonDifficulty[] = [
+  { id: 1, name: 'I · Ressonância Fraca', subtitle: 'Exploração inicial', requiredPower: 90, enemyLevel: 7, rewardMultiplier: 1 },
+  { id: 2, name: 'II · Acorde Partido', subtitle: 'Inimigos resistentes', requiredPower: 320, enemyLevel: 11, rewardMultiplier: 1.6 },
+  { id: 3, name: 'III · Câmara Silenciosa', subtitle: 'Elite e efeitos severos', requiredPower: 620, enemyLevel: 16, rewardMultiplier: 2.4 },
+  { id: 4, name: 'IV · Fronteira Dissonante', subtitle: 'Desafio máximo', requiredPower: 980, enemyLevel: 22, rewardMultiplier: 3.5 },
+];
+
 export type AklesAction = 'chop' | 'mine' | 'attack' | 'spin' | 'cast';
 
 interface CombatZone {
@@ -1153,6 +1169,10 @@ export const EDITABLE_PROP_METAS: Record<
   organColumn: { category: 'building', name: 'Coluna do Conservatório', baseW: 74, baseH: 106, colOffXRatio: 0.24, colOffYRatio: 0.73, colWRatio: 0.52, colHRatio: 0.22, sortYOffset: 101, canDelete: true, canDuplicate: true },
   crystalPillar: { category: 'rock', name: 'Pilar de Ametista', baseW: 82, baseH: 126, colOffXRatio: 0.20, colOffYRatio: 0.68, colWRatio: 0.60, colHRatio: 0.27, sortYOffset: 120, canDelete: true, canDuplicate: true },
   musicalRuin: { category: 'building', name: 'Ruína do Conservatório', baseW: 122, baseH: 118, colOffXRatio: 0.10, colOffYRatio: 0.66, colWRatio: 0.80, colHRatio: 0.29, sortYOffset: 112, canDelete: true, canDuplicate: true },
+  frontierBridge: { category: 'street', name: 'Ponte da Fronteira', baseW: 278, baseH: 150, sortYOffset: 145, canDelete: true, canDuplicate: true },
+  frontierTree: { category: 'tree', name: 'Árvore da Fronteira', baseW: 154, baseH: 150, colOffXRatio: 0.35, colOffYRatio: 0.79, colWRatio: 0.30, colHRatio: 0.16, sortYOffset: 144, canDelete: true, canDuplicate: true },
+  crystalCaveGate: { category: 'building', name: 'Entrada da Caverna de Cristal', baseW: 238, baseH: 212, sortYOffset: 204, canDelete: true, canDuplicate: true },
+  dungeonChest: { category: 'street', name: 'Baú da Caverna', baseW: 76, baseH: 68, colOffXRatio: 0.13, colOffYRatio: 0.63, colWRatio: 0.74, colHRatio: 0.29, sortYOffset: 64, canDelete: true, canDuplicate: true },
 
   // 10. MURALHAS MUSICAIS (para construir os muros da cidade)
   wallMusical1: { category: 'building', name: 'Muralha com Torreão', baseW: 117, baseH: 108, colOffXRatio: 0.04, colOffYRatio: 0.42, colWRatio: 0.92, colHRatio: 0.5, sortYOffset: 104, canDelete: true, canDuplicate: true },
@@ -1476,6 +1496,12 @@ export class GameEngine {
   postEchoStage: 'locked' | 'antony_riddle' | 'miro_bell' | 'gather_dust' | 'lucian_harmony' | 'equip_harmony' | 'antony_letter' | 'completed' = 'locked';
   regionQuestStage: 'locked' | 'antony_invitation' | 'meet_flora' | 'forge_gold_pick' | 'visit_sanctuary' | 'gather_crystals' | 'enter_cavern' | 'defeat_guardian' | 'return_antony' | 'completed' = 'locked';
   regionCrystalProgress = 0;
+  onDungeonGate?: () => void;
+  private dungeonGatePrompted = false;
+  private dungeonGateCooldownUntil = 0;
+  private dungeonAccessGranted = false;
+  private activeDungeonDifficulty = 0;
+  private dungeonClaimedChests = new Set<string>();
   scalesBuilt: Record<string, number> = {};
   ownedChords: Record<string, number> = {};
   equippedScalesByCharacter: Record<PlayerCharacterKey, string[]> = { akles: [], wins: [], huans: [] };
@@ -1483,6 +1509,36 @@ export class GameEngine {
 
   get equippedScales(): string[] { return this.equippedScalesByCharacter[this.activeCharacter] ?? []; }
   get equippedChordsByScale(): Record<string, string[]> { return this.equippedChordsByScaleByCharacter[this.activeCharacter] ?? {}; }
+
+  cancelDungeonEntry() {
+    this.dungeonGatePrompted = false;
+    this.dungeonGateCooldownUntil = this.timeElapsed + 1.4;
+    this.storyControlLocked = false;
+    this.clearInputState();
+  }
+
+  enterCrystalDungeon(difficultyId: number): { ok: boolean; message: string } {
+    const difficulty = CRYSTAL_DUNGEON_DIFFICULTIES.find((candidate) => candidate.id === difficultyId);
+    if (!difficulty) return { ok: false, message: 'Dificuldade inválida.' };
+    if (this.combatPower < difficulty.requiredPower) {
+      return { ok: false, message: `Poder ${difficulty.requiredPower} necessário. Seu poder atual é ${this.combatPower}.` };
+    }
+    this.activeDungeonDifficulty = difficulty.id;
+    this.dungeonAccessGranted = true;
+    this.dungeonGatePrompted = false;
+    this.storyControlLocked = false;
+    this.props = this.props.filter((prop) => prop.id !== 'crystal_dungeon_barrier');
+    this.rebuildColliderGrid();
+    this.spawnCrystalDungeonEnemies(difficulty);
+    if (this.regionQuestStage === 'enter_cavern') {
+      this.regionQuestStage = 'defeat_guardian';
+      this.storyObjective = { title: 'A Caverna sob a Escala', text: 'Explore as câmaras e derrote o Guardião Cristalino', progress: 0, target: 1, ready: false };
+      this.onQuestsChange?.();
+    }
+    this.onHarvestPopup?.(`◆ ${difficulty.name} — os selos da caverna se abriram`, this.player.x, this.player.y - 28);
+    this.clearInputState();
+    return { ok: true, message: 'Entrada liberada.' };
+  }
 
   private scaleTonic(scaleKey: string): number {
     const key = scaleKey.replace(/^scale_/, '').replace(/_major$/, '');
@@ -2334,6 +2390,18 @@ export class GameEngine {
     }
     if (this.echoTutorialStage === 'capture_echo') this.beginEchoCaptureTutorial();
     if (this.echoTutorialStage === 'collect_scale_notes') this.beginScaleNoteHunt();
+    if (this.regionQuestStage === 'defeat_guardian') {
+      const difficulty = CRYSTAL_DUNGEON_DIFFICULTIES[0];
+      this.activeDungeonDifficulty = difficulty.id;
+      this.dungeonAccessGranted = true;
+      this.props = this.props.filter((prop) => prop.id !== 'crystal_dungeon_barrier');
+      this.rebuildColliderGrid();
+      this.spawnCrystalDungeonEnemies(difficulty);
+    } else if (this.regionQuestStage === 'return_antony' || this.regionQuestStage === 'completed') {
+      this.dungeonAccessGranted = true;
+      this.props = this.props.filter((prop) => prop.id !== 'crystal_dungeon_barrier');
+      this.rebuildColliderGrid();
+    }
     this.onQuestsChange?.();
   }
 
@@ -5069,6 +5137,33 @@ export class GameEngine {
     }
   }
 
+  private tryOpenDungeonChest() {
+    if (!this.activeDungeonDifficulty) return;
+    const px = this.player.x + 12;
+    const py = this.player.y + 20;
+    const chest = this.props.find((prop) => prop.type === 'dungeonChest'
+      && !this.dungeonClaimedChests.has(prop.id)
+      && Math.hypot(px - (prop.x + prop.w / 2), py - (prop.y + prop.h / 2)) < 76);
+    if (!chest) return;
+    const bossChest = chest.id === 'east_dungeon_boss_chest';
+    const livingBoss = this.enemies.some((enemy) => enemy.id === 'enemy_99001' && enemy.state !== 'dead');
+    const guarded = this.enemies.some((enemy) => enemy.id.startsWith('enemy_99') && enemy.state !== 'dead'
+      && Math.hypot(enemy.x - chest.x, enemy.y - chest.y) < (bossChest ? 420 : 245));
+    if ((bossChest && livingBoss) || guarded) return;
+    const difficulty = CRYSTAL_DUNGEON_DIFFICULTIES.find((candidate) => candidate.id === this.activeDungeonDifficulty)!;
+    const rawGold = Math.max(2, Math.round(3 * difficulty.rewardMultiplier));
+    const crystals = Math.max(1, Math.round(2 * difficulty.rewardMultiplier));
+    this.addToInventory('gold_raw', rawGold);
+    this.addToInventory('crystal_blue_raw', crystals);
+    this.addToInventory(bossChest ? 'partitura_prata' : 'partitura_bronze', 1);
+    this.coins += Math.round((bossChest ? 18 : 6) * difficulty.rewardMultiplier);
+    this.onCoinsChange?.(this.coins);
+    this.dungeonClaimedChests.add(chest.id);
+    this.props = this.props.filter((prop) => prop.id !== chest.id);
+    this.rebuildColliderGrid();
+    this.onHarvestPopup?.(`✦ Baú aberto: ${rawGold} ouro bruto · ${crystals} cristais · 1 partitura`, chest.x, chest.y - 18);
+  }
+
   // ---- MONSTROS / COMBATE ----
   private spawnEnemy(kind: string, c: number, r: number, id: number, level = 1): boolean {
     const g = this.ground[r]?.[c];
@@ -5094,6 +5189,8 @@ export class GameEngine {
       maxHp: hp,
       level: lvl,
       dmgMul,
+      armor: Math.round(lvl * (def.boss ? 2.2 : 1.05)),
+      resistance: Math.round(lvl * (def.boss ? 1.8 : 0.8)),
       facingLeft: this.enemyRandom() < 0.5,
       direction: 'down',
       state: 'idle',
@@ -5150,13 +5247,6 @@ export class GameEngine {
     // Boss da ascensão de Teclas, sozinho no centro da arena nordeste.
     this.spawnEnemy('organ_sentinel', 168, 13, id++, 12);
 
-    // Primeira DG caminhável: sentinelas ocupam o corredor e um guardião
-    // cristalino protege a câmara mais profunda.
-    this.spawnEnemy('colosso', 204, 85, 99001, 11);
-    this.spawnEnemy('nocturno', 199, 61, 99002, 8);
-    this.spawnEnemy('maestro', 216, 65, 99003, 9);
-    this.spawnEnemy('aranha', 196, 72, 99004, 8);
-
     // FLORESTA SOMBRIA — MUITOS monstros espalhados por toda a região
     const darkStartRow = DARK_START + 3;
     const darkEndRow = MAP_ROWS - 4;
@@ -5173,6 +5263,36 @@ export class GameEngine {
       const depthLvl = 6 + Math.floor((r - DARK_START) / 7) + Math.floor(this.enemyRandom() * 3);
       const lvl = kind === 'colosso' ? depthLvl + 4 : depthLvl;
       if (this.spawnEnemy(kind, c, r, id++, lvl)) placed++;
+    }
+  }
+
+  private spawnCrystalDungeonEnemies(difficulty: DungeonDifficulty) {
+    this.enemies = this.enemies.filter((enemy) => !enemy.id.startsWith('enemy_99'));
+    const encounters: Array<[string, number, number, number]> = [
+      ['aranha', 282, 46, 0], ['nocturno', 289, 49, 0], ['aranha', 292, 44, 1],
+      ['maestro', 298, 34, 1], ['nocturno', 305, 32, 1], ['aranha', 310, 38, 2], ['dama', 303, 42, 2],
+      ['aranha', 297, 55, 1], ['maestro', 304, 61, 2], ['nocturno', 310, 65, 2], ['dama', 301, 67, 3],
+      ['nocturno', 280, 68, 2], ['aranha', 287, 75, 2], ['maestro', 293, 78, 3],
+      ['dama', 298, 83, 3], ['nocturno', 305, 87, 3], ['maestro', 311, 92, 4], ['aranha', 303, 94, 4],
+      ['nocturno', 279, 96, 4], ['maestro', 284, 103, 4], ['dama', 292, 101, 5],
+    ];
+    encounters.forEach(([kind, col, row, bonus], index) => {
+      if (!this.spawnEnemy(kind, col, row, 99200 + index, difficulty.enemyLevel + bonus)) return;
+      const enemy = this.enemies.find((candidate) => candidate.id === `enemy_${99200 + index}`);
+      if (!enemy) return;
+      enemy.armor = Math.round((enemy.armor || 0) * (1 + difficulty.id * .14));
+      enemy.resistance = Math.round((enemy.resistance || 0) * (1 + difficulty.id * .16));
+      enemy.respawnAt = Number.POSITIVE_INFINITY;
+    });
+    if (this.spawnEnemy('colosso', 287, 103, 99001, difficulty.enemyLevel + 6)) {
+      const boss = this.enemies.find((enemy) => enemy.id === 'enemy_99001');
+      if (boss) {
+        boss.maxHp = Math.round(boss.maxHp * (1.45 + difficulty.id * .2));
+        boss.hp = boss.maxHp;
+        boss.armor = Math.round((boss.armor || 0) * 1.55);
+        boss.resistance = Math.round((boss.resistance || 0) * 1.45);
+        boss.respawnAt = Number.POSITIVE_INFINITY;
+      }
     }
   }
 
@@ -5243,6 +5363,8 @@ export class GameEngine {
       if (this.activeCharacter === 'wins' && opts.skill && e.resonantT && e.resonantT > 0) dmg *= 1 + (.08 + (this.getAnyPassiveLevel('winsRessonanciaVocal') - 1) * .01);
       if (this.activeCharacter === 'huans' && (e.preyMarks ?? 0) > 0) dmg *= 1 + (e.preyMarks ?? 0) * this.classPassiveValue('huansInstinto');
       if (this.activeCharacter === 'huans') e.preyLastHitAt = this.timeElapsed;
+      const mitigation = (opts.skill || opts.isPulse) ? (e.resistance || 0) : (e.armor || 0);
+      dmg *= 100 / (100 + mitigation);
     }
     // Reverberação (Pulso Harmônico) — marca consumida pelo próximo golpe básico
     if (!opts.isPulse && e.reverbMarkHits && e.reverbMarkHits > 0) {
@@ -5316,7 +5438,7 @@ export class GameEngine {
         }
       }
       // sem XP direto de kill — o XP vem das partituras (compostas de claves)
-      e.respawnAt = this.timeElapsed + def.respawnSecs;
+      e.respawnAt = e.id.startsWith('enemy_99') ? Number.POSITIVE_INFINITY : this.timeElapsed + def.respawnSecs;
       // Eco Final — Pulso Harmônico derrotando um inimigo recupera cooldown
       // e (nv.5) concede um pequeno bônus de dano temporário
       if (opts.isPulse) {
@@ -6906,11 +7028,15 @@ export class GameEngine {
       this.storyObjective = { title: 'Doze Luzes, Uma Ausência', text: 'Extraia 5 Cristais de Eco nas redondezas do santuário', progress: 0, target: 5, ready: false };
       this.onHarvestPopup?.('✦ O Santuário respondeu ao nome Klassíkia', this.player.x, this.player.y - 28);
       this.onQuestsChange?.();
-    } else if (this.regionQuestStage === 'enter_cavern' && playerCol >= 198 && playerCol <= 223 && playerRow >= 43 && playerRow <= 59) {
-      this.regionQuestStage = 'defeat_guardian';
-      this.storyObjective = { title: 'A Caverna sob a Escala', text: 'Atravesse a DG e derrote o Guardião Cristalino', progress: 0, target: 1, ready: false };
-      this.onHarvestPopup?.('💎 DG: Caverna de Cristal', this.player.x, this.player.y - 28);
-      this.onQuestsChange?.();
+    } else if (this.regionQuestStage === 'enter_cavern'
+      && !this.dungeonAccessGranted
+      && !this.dungeonGatePrompted
+      && this.timeElapsed >= this.dungeonGateCooldownUntil
+      && playerCol >= 266 && playerCol <= 273 && playerRow >= 41 && playerRow <= 59) {
+      this.dungeonGatePrompted = true;
+      this.storyControlLocked = true;
+      this.clearInputState();
+      this.onDungeonGate?.();
     }
     // Re-sincroniza posições fixas de NPCs a cada 2s (Dório, Miro, Lucian seguem o prédio)
     this._npcSyncTimer += dt;
@@ -6919,6 +7045,7 @@ export class GameEngine {
       this.syncFixedNpcPositions();
     }
     this.updateFragments(dt);
+    this.tryOpenDungeonChest();
     if (!this.storyControlLocked) this.updateEnemies(dt);
     this.updateLightBeams(dt);
     this.updateCombatZones(dt);
@@ -7362,7 +7489,7 @@ export class GameEngine {
 
     ctx.save();
     ctx.globalCompositeOperation = 'screen';
-    for (const [c, r, radius] of [[211, 53, 190], [198, 68, 165], [204, 85, 190]] as const) {
+    for (const [c, r, radius] of [[286,48,190],[303,36,200],[303,59,200],[285,70,190],[302,84,205],[287,99,195]] as const) {
       const x = c * TILE_SIZE + 16 - camX, y = r * TILE_SIZE + 16 - camY;
       if (x < -radius || x > this.viewportW + radius || y < -radius || y > this.viewportH + radius) continue;
       const pulse = 0.045 + Math.sin(t * 1.1 + r) * 0.012;
@@ -7406,23 +7533,37 @@ export class GameEngine {
 
           if (tileId === TERRAIN_TILES.CRYSTAL_FLOOR && this.assets?.crystalFloor?.complete) {
             const texture = this.assets.crystalFloor;
-            const sw = Math.max(1, Math.floor(texture.naturalWidth / 8));
-            const sh = Math.max(1, Math.floor(texture.naturalHeight / 8));
-            const sx = ((c * 3 + r) & 7) * sw;
-            const sy = ((r * 5 + c) & 7) * sh;
+            const sw = Math.max(1, Math.floor(texture.naturalWidth / 16));
+            const sh = Math.max(1, Math.floor(texture.naturalHeight / 16));
+            const sx = ((c * 11 + r * 5) & 15) * sw;
+            const sy = ((r * 13 + c * 3) & 15) * sh;
             ctx.drawImage(texture, sx, sy, sw, sh, screenX, screenY, 32, 32);
             continue;
           }
           if (tileId === TERRAIN_TILES.ECHO_MEADOW && this.assets?.echoGrass?.complete) {
             const texture = this.assets.echoGrass;
-            const sw = Math.max(1, Math.floor(texture.naturalWidth / 8));
-            const sh = Math.max(1, Math.floor(texture.naturalHeight / 8));
-            const sx = ((c * 5 + r * 3) & 7) * sw;
-            const sy = ((r * 3 + c) & 7) * sh;
+            const sw = Math.max(1, Math.floor(texture.naturalWidth / 16));
+            const sh = Math.max(1, Math.floor(texture.naturalHeight / 16));
+            const sx = ((c * 7 + r * 11) & 15) * sw;
+            const sy = ((r * 5 + c * 13) & 15) * sh;
             ctx.drawImage(texture, sx, sy, sw, sh, screenX, screenY, 32, 32);
             continue;
           }
-          if (tileId >= 9002 && tileId <= 9007) {
+          if (tileId === TERRAIN_TILES.FRONTIER_GROUND && this.assets?.frontierGround?.complete) {
+            const texture = this.assets.frontierGround;
+            const sw = Math.max(1, Math.floor(texture.naturalWidth / 16));
+            const sh = Math.max(1, Math.floor(texture.naturalHeight / 16));
+            const sx = ((c * 13 + r * 7) & 15) * sw;
+            const sy = ((r * 11 + c * 5) & 15) * sh;
+            ctx.drawImage(texture, sx, sy, sw, sh, screenX, screenY, 32, 32);
+            continue;
+          }
+          if (tileId === TERRAIN_TILES.DUNGEON_VOID) {
+            ctx.fillStyle = '#03040a';
+            ctx.fillRect(screenX, screenY, 32, 32);
+            continue;
+          }
+          if (tileId >= 9002 && tileId <= 9008) {
             // solo da Floresta Sombria — terra escura, plana (sem xadrez)
             ctx.fillStyle = tileId === 9004 ? '#37402d' : '#3b3226';
             ctx.fillRect(screenX, screenY, 32, 32);
@@ -8524,6 +8665,14 @@ export class GameEngine {
       ctx.drawImage(this.assets.crystalPillar, px, py, prop.w, prop.h);
     } else if (prop.type === 'musicalRuin' && this.assets?.musicalRuin) {
       ctx.drawImage(this.assets.musicalRuin, px, py, prop.w, prop.h);
+    } else if (prop.type === 'frontierBridge' && this.assets?.frontierBridge) {
+      ctx.drawImage(this.assets.frontierBridge, px, py, prop.w, prop.h);
+    } else if (prop.type === 'frontierTree' && this.assets?.frontierTree) {
+      ctx.drawImage(this.assets.frontierTree, px, py, prop.w, prop.h);
+    } else if (prop.type === 'crystalCaveGate' && this.assets?.crystalCaveGate) {
+      ctx.drawImage(this.assets.crystalCaveGate, px, py, prop.w, prop.h);
+    } else if (prop.type === 'dungeonChest' && this.assets?.dungeonChest) {
+      ctx.drawImage(this.assets.dungeonChest, px, py, prop.w, prop.h);
     }
     // 9. Muralhas musicais
     else if (prop.type === 'wallMusical1' && this.assets?.wallMusical1) {

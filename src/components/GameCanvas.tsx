@@ -46,6 +46,7 @@ import { HudIcon } from './HudIcon';
 import { SettingsModal } from './SettingsModal';
 import { ChatBox } from './ChatBox';
 import { WorldMapScreen } from './WorldMapScreen';
+import { DungeonEntranceScreen } from './DungeonEntranceScreen';
 import { publishMapToCode, getGhToken, setGhToken } from '../game/mapPersist';
 import { saveWorldMapToCloud } from '../game/worldMapSync';
 import { loadCloudSave, applySaveToEngine, prepareProgressionVersion, prepareAccountFlowReset, setupAutoSave, saveToCloud } from '../game/saveManager';
@@ -126,7 +127,7 @@ const OPENING_LINES: Record<OpeningPhase, OpeningLine[]> = {
   ],
   morning: [
     { speaker: 'Narração', voice: 'narrator', text: 'Amanhece em Acordelot. Sinos distantes devolvem som às ruas, mas Akles desperta com a sensação de ter esquecido tudo outra vez.' },
-    { speaker: 'Mirella', voice: 'mirella', text: 'Bom dia, Akles. Você falou enquanto dormia. Repetiu uma palavra: Klassíkia.' },
+    { speaker: 'Mirella', voice: 'mirella', text: 'Akles, você falou enquanto dormia. Repetiu uma palavra: Klassíkia.' },
     { speaker: 'Akles', voice: 'akles', text: 'Eu não sei o que significa.' },
     { speaker: 'Mirella', voice: 'mirella', text: 'Não conheço essa palavra.' },
     { speaker: 'Narração', voice: 'narrator', text: 'Ela responde rápido demais e evita olhar para Pippo.' },
@@ -645,6 +646,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
   const [showCatalog, setShowCatalog] = useState(false);
   const [showQuests, setShowQuests] = useState(false);
   const [showWorldMap, setShowWorldMap] = useState(false);
+  const [showDungeonGate, setShowDungeonGate] = useState(false);
   const [, setQuestTick] = useState(0);
   const [, setCharacterTick] = useState(0);
   // Skills agora é uma aba dentro da Ficha — abrir com esse atalho já cai nela
@@ -876,6 +878,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
     };
 
     engine.onQuestsChange = () => setQuestTick((t) => t + 1);
+    engine.onDungeonGate = () => setShowDungeonGate(true);
     engine.onCharacterChange = () => setCharacterTick((t) => t + 1);
     engine.onStoryVoice = (text, voice) => speakMusically(text, voice, Math.max(.12, bgmVolume * .34));
     engine.onStoryBeat = (beat) => {
@@ -2288,6 +2291,20 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
         open={showWorldMap && !isEditMode}
         onClose={() => setShowWorldMap(false)}
         engine={engineRef.current}
+      />
+
+      <DungeonEntranceScreen
+        open={showDungeonGate && !isEditMode}
+        power={engineRef.current?.combatPower ?? 0}
+        onClose={() => {
+          setShowDungeonGate(false);
+          engineRef.current?.cancelDungeonEntry();
+        }}
+        onEnter={(difficultyId) => {
+          const result = engineRef.current?.enterCrystalDungeon(difficultyId);
+          if (result?.ok) setShowDungeonGate(false);
+          return result;
+        }}
       />
 
       {/* Configuração do token do GitHub (uma vez) para publicar o mapa */}

@@ -152,6 +152,8 @@ export interface Enemy {
   maxHp: number;
   level: number;
   dmgMul: number; // multiplicador de dano derivado do nível
+  armor?: number; // reduz ataques básicos/físicos
+  resistance?: number; // reduz dano de skills/magia musical
   facingLeft: boolean;
   direction?: Direction;
   bossAttackMode?: 'melee' | 'cast';

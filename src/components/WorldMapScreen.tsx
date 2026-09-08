@@ -29,6 +29,8 @@ function terrainColor(tile: number): string {
   if (tile === TERRAIN_TILES.DARK_STONE) return '#37364a';
   if (tile === TERRAIN_TILES.CRYSTAL_FLOOR) return '#253959';
   if (tile === TERRAIN_TILES.ECHO_MEADOW) return '#4c7567';
+  if (tile === TERRAIN_TILES.FRONTIER_GROUND) return '#291f2c';
+  if (tile === TERRAIN_TILES.DUNGEON_VOID) return '#03040a';
   if (
     tile === TERRAIN_TILES.STONE_CENTER ||
     tile === TERRAIN_TILES.STONE_CENTER_VAR ||

@@ -125,6 +125,7 @@ export interface LoadedAssets {
   // Terrenos e marcos das regiões da expansão leste
   echoGrass: HTMLImageElement;
   crystalFloor: HTMLImageElement;
+  frontierGround: HTMLImageElement;
   echoArch: HTMLImageElement;
   singingTree: HTMLImageElement;
   echoAltar: HTMLImageElement;
@@ -133,6 +134,10 @@ export interface LoadedAssets {
   organColumn: HTMLImageElement;
   crystalPillar: HTMLImageElement;
   musicalRuin: HTMLImageElement;
+  frontierBridge: HTMLImageElement;
+  frontierTree: HTMLImageElement;
+  crystalCaveGate: HTMLImageElement;
+  dungeonChest: HTMLImageElement;
 
   // Akles - Herói Cavaleiro (sprite sheets 32-bit processadas)
   aklesIdle: HTMLImageElement;
@@ -314,8 +319,9 @@ const ASSET_PATHS: Record<keyof LoadedAssets, string> = {
   npcHerbalistFloraWalk: '/assets/characters/npcs/herbalist_flora_walk.png',
   npcHerbalistFloraIdle: '/assets/characters/npcs/herbalist_flora_idle.png',
 
-  echoGrass: '/assets/regions/echo/echo_grass.png',
+  echoGrass: '/assets/regions/echo/echo_grass_v2.png',
   crystalFloor: '/assets/regions/crystal/crystal_floor.png',
+  frontierGround: '/assets/regions/frontier/frontier_ground.png',
   echoArch: '/assets/regions/echo/echo_arch.png',
   singingTree: '/assets/regions/echo/singing_tree.png',
   echoAltar: '/assets/regions/echo/echo_altar.png',
@@ -324,6 +330,10 @@ const ASSET_PATHS: Record<keyof LoadedAssets, string> = {
   organColumn: '/assets/regions/crystal/organ_column.png',
   crystalPillar: '/assets/regions/crystal/crystal_pillar.png',
   musicalRuin: '/assets/regions/crystal/musical_ruin.png',
+  frontierBridge: '/assets/regions/frontier/frontier_bridge.png',
+  frontierTree: '/assets/regions/frontier/frontier_tree.png',
+  crystalCaveGate: '/assets/regions/frontier/crystal_cave_gate.png',
+  dungeonChest: '/assets/regions/frontier/dungeon_chest.png',
 
   // Wins - Classe da Voz (personagem temporária) — 3 folhas separadas
   // (idle/walk/run são animações DIFERENTES, não a mesma reaproveitada).

@@ -145,3 +145,17 @@ export function worldEdgeColliders(p: Painter): Rect[] {
     { x: W - 20, y: 0, w: 20, h: H },
   ];
 }
+
+/** Keep lake collision aligned with the tile mask consumed by the water shader.
+ * Bridge decks are painted as dry ground before this pass. */
+export function waterColliders(p: Painter): Rect[] {
+  const result:Rect[]=[];
+  for(let r=0;r<p.rows;r++){
+    let start=-1;
+    for(let c=0;c<=p.cols;c++){
+      const id=p.ground[r][c],wet=id===9000||id===9001;
+      if(wet&&start<0)start=c;
+      if(!wet&&start>=0){result.push({x:start*T,y:r*T,w:(c-start)*T,h:T});start=-1;}
+    }
+  }return result;
+}

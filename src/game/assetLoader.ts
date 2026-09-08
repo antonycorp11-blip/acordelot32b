@@ -128,6 +128,9 @@ export interface LoadedAssets {
   frontierGround: HTMLImageElement;
   echoArch: HTMLImageElement;
   singingTree: HTMLImageElement;
+  silverWillow: HTMLImageElement;
+  woodlandTrees: HTMLImageElement;
+  forestFloor: HTMLImageElement;
   echoAltar: HTMLImageElement;
   echoSteles: HTMLImageElement;
   caveWall: HTMLImageElement;
@@ -324,6 +327,9 @@ const ASSET_PATHS: Record<keyof LoadedAssets, string> = {
   frontierGround: '/assets/regions/frontier/frontier_ground.png',
   echoArch: '/assets/regions/echo/echo_arch.png',
   singingTree: '/assets/regions/echo/singing_tree.png',
+  silverWillow: '/assets/regions/echo/silver_willow.png',
+  woodlandTrees: '/assets/regions/echo/woodland_species.png',
+  forestFloor: '/assets/regions/echo/forest_floor_v3.png',
   echoAltar: '/assets/regions/echo/echo_altar.png',
   echoSteles: '/assets/regions/echo/echo_steles.png',
   caveWall: '/assets/regions/crystal/cave_wall.png',

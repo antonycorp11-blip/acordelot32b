@@ -1,219 +1,141 @@
-/**
- * Floresta dos Ecos — bioma gigante (300x220). Cinco sub-regiões ligadas por
- * trilhas: Clareira do Santuário (centro), Bosque Cantante (norte), Ruínas do
- * Conservatório (leste), Lago das Ressonâncias (sudoeste), Fronteira Pétrea
- * (sudeste, com portal pras Cavernas de Cristal).
- */
+/** The forest is a set of readable groves and meadows, not a tree-filled grid. */
 import type { MapGrid } from '../mapData';
-import { TERRAIN_TILES as TT, TILE_SIZE } from '../mapData';
-import type { Rect, WorldProp, NPC } from '../types';
-import {
-  makeRng,
-  fillGround,
-  ellipse,
-  path,
-  paintTile,
-  featherOverlap,
-  worldEdgeColliders,
-  type Painter,
-} from './paint';
-import { portal } from './portalProp';
+import { TERRAIN_TILES as TT, TILE_SIZE as T } from '../mapData';
+import type { Rect, WorldProp } from '../types';
+import {makeRng,fillGround,ellipse,path,worldEdgeColliders,waterColliders,type Painter} from './paint';
+import {portal} from './portalProp';
 
-const COLS = 300;
-const ROWS = 220;
-const T = TILE_SIZE;
-
-// âncoras das sub-regiões (tiles)
-const SANCTUARY = { c: 150, r: 118 };
-const WOODS = { c: 150, r: 44 };
-const RUINS = { c: 242, r: 120 };
-const LAKE = { c: 66, r: 168 };
-const PETREA = { c: 244, r: 192 };
-
-export function buildFlorestaEcos(): MapGrid {
-  const ground: number[][] = [];
-  const props: WorldProp[] = [];
-  const solids: Rect[] = [];
-  const npcs: NPC[] = [];
-  const rng = makeRng(0x5eed3c0);
-  const p: Painter = { ground, props, solids, cols: COLS, rows: ROWS, rng };
-
-  fillGround(p, TT.GRASS_BASE);
-
-  // ---------- terreno das sub-regiões ----------
-  // Clareira do Santuário — gramado azulado grande (sem praça de pedra: o
-  // gramado vai até o altar, que já tem base própria na arte)
-  ellipse(p, SANCTUARY.c, SANCTUARY.r, 62, 48, TT.ECHO_MEADOW, 0.16);
-
-  // Bosque Cantante — faixa norte
-  for (let r = 4; r < 82; r++)
-    for (let c = 4; c < COLS - 4; c++) {
-      const n = Math.sin(c * 0.17 + r * 0.11) + Math.cos(c * 0.07 - r * 0.19);
-      if (r < 74 || n > 0) paintTile(p, c, r, TT.SINGING_WOODS);
-    }
-
-  // Ruínas do Conservatório — chão de pedra clara
-  ellipse(p, RUINS.c, RUINS.r, 34, 30, TT.CRYSTAL_FLOOR, 0.18);
-  ellipse(p, RUINS.c, RUINS.r, 22, 19, TT.ECHO_PATH, 0.22);
-
-  // Fronteira Pétrea — terra negra e rocha
-  ellipse(p, PETREA.c, PETREA.r, 40, 26, TT.FRONTIER_GROUND, 0.2);
-
-  // Lago das Ressonâncias — água de verdade + ilhota
-  ellipse(p, LAKE.c, LAKE.r, 34, 26, TT.WATER_DEEP, 0.1);
-  ellipse(p, LAKE.c, LAKE.r, 40, 31, TT.WATER_SHALLOW, 0.14);
-  // re-pinta o miolo fundo por cima do raso
-  ellipse(p, LAKE.c, LAKE.r, 30, 22, TT.WATER_DEEP, 0.1);
-  ellipse(p, LAKE.c, LAKE.r, 8, 6, TT.ECHO_MEADOW, 0.25); // ilhota
-
-  // ---------- trilhas ligando tudo (banda estreita) ----------
-  path(p, [[SANCTUARY.c, SANCTUARY.r - 40], [150, 96], [WOODS.c, 70]], 2.2, TT.ECHO_PATH, TT.SINGING_WOODS);
-  path(p, [[SANCTUARY.c + 46, SANCTUARY.r], [206, 118], [RUINS.c - 20, RUINS.r]], 2.2, TT.ECHO_PATH, TT.GRASS_BASE);
-  path(p, [[SANCTUARY.c - 48, SANCTUARY.r + 8], [110, 150], [LAKE.c + 26, LAKE.r - 8]], 2.2, TT.ECHO_PATH, TT.GRASS_BASE);
-  path(p, [[SANCTUARY.c + 24, SANCTUARY.r + 44], [200, 168], [PETREA.c - 24, PETREA.r - 10]], 2.2, TT.ECHO_PATH, TT.GRASS_BASE);
-  path(p, [[RUINS.c, RUINS.r + 26], [244, 160], [PETREA.c, PETREA.r - 24]], 2.0, TT.ECHO_PATH, TT.FRONTIER_GROUND);
-
-  // ---------- degradê entre biomas (dá material pro feather) ----------
-  featherOverlap(p, TT.ECHO_MEADOW, TT.GRASS_BASE, 3);
-  featherOverlap(p, TT.SINGING_WOODS, TT.GRASS_BASE, 3);
-  featherOverlap(p, TT.FRONTIER_GROUND, TT.GRASS_BASE, 3);
-  featherOverlap(p, TT.GRASS_BASE, TT.SINGING_WOODS, 2);
-  featherOverlap(p, TT.WATER_SHALLOW, TT.GRASS_BASE, 2);
-
-  // ---------- props: helper ----------
-  const prop = (id: string, type: string, c: number, r: number, w: number, h: number) => {
-    const x = c * T - w / 2;
-    const y = r * T - h;
-    props.push({ id, type, x, y, w, h, sortY: y + h - 4 });
-  };
-  const scatter = (
-    ids: string,
-    type: string,
-    cx: number,
-    cy: number,
-    rx: number,
-    ry: number,
-    count: number,
-    w: number,
-    h: number,
-    avoid = 0,
-  ) => {
-    let n = 0;
-    for (let tries = 0; tries < count * 12 && n < count; tries++) {
-      const a = rng() * Math.PI * 2;
-      const rad = Math.sqrt(rng());
-      const c = Math.round(cx + Math.cos(a) * rx * rad);
-      const r = Math.round(cy + Math.sin(a) * ry * rad);
-      if (c < 3 || c >= COLS - 3 || r < 3 || r >= ROWS - 3) continue;
-      if (avoid && Math.hypot(c - cx, r - cy) < avoid) continue;
-      prop(`${ids}_${n}`, type, c, r, w, h);
-      n++;
-    }
-  };
-
-  // Santuário: altar + arco + estelas em anel
-  prop('region_echo_sanctuary', 'echoAltar', SANCTUARY.c, SANCTUARY.r - 2, 176, 138);
-  prop('fe_echo_arch', 'echoArch', SANCTUARY.c - 2, SANCTUARY.r + 22, 180, 172);
-  for (let i = 0; i < 10; i++) {
-    const a = (i / 10) * Math.PI * 2;
-    prop(`fe_stele_${i}`, i % 2 ? 'echoSteles' : 'spot_crystal_blue',
-      Math.round(SANCTUARY.c + Math.cos(a) * 17),
-      Math.round(SANCTUARY.r + Math.sin(a) * 13),
-      i % 2 ? 118 : 58, i % 2 ? 112 : 62);
-  }
-
-  // Bosque Cantante: floresta DENSA em grade (norte), rareando perto da clareira
-  for (let r = 5; r < 82; r += 2) {
-    for (let c = 5; c < COLS - 5; c += 2) {
-      // rareia perto da Clareira do Santuário e nas trilhas
-      const distClearing = Math.hypot(c - SANCTUARY.c, r - SANCTUARY.r);
-      if (distClearing < 52) continue;
-      const n = Math.abs(Math.sin(c * 12.9898 + r * 78.233) * 43758.5) % 1;
-      const density = r < 70 ? 0.62 : 0.34;
-      if (n > density) {
-        if (n > 0.9 && rng() < 0.4) {
-          const q = rng();
-          prop(
-            `fe_song_spot_${c}_${r}`,
-            q < 0.5 ? 'spot_crystal_blue' : q < 0.8 ? 'spot_crystal_red' : 'spot_gold',
-            c + (rng() - 0.5), r + (rng() - 0.5), q < 0.8 ? 56 : 60, q < 0.8 ? 60 : 44,
-          );
-        }
-        continue;
-      }
-      const q = rng();
-      const jc = c + Math.round((rng() - 0.5) * 1.4);
-      const jr = r + Math.round((rng() - 0.5) * 1.4);
-      if (q < 0.5) prop(`fe_song_tree_${c}_${r}`, 'singingTree', jc, jr, 150, 156);
-      else if (q < 0.82) prop(`fe_song_pine_${c}_${r}`, 'dark_bigpine', jc, jr, 52, 74);
-      else if (q < 0.93) prop(`fe_song_dead_${c}_${r}`, 'dark_deadtree', jc, jr, 34, 74);
-      else prop(`fe_song_thorn_${c}_${r}`, 'dark_thorn', jc, jr, 30, 24);
-    }
-  }
-  scatter('fe_song_rock', 'dark_bigrock', WOODS.c, WOODS.r + 4, 130, 32, 20, 60, 46, 0);
-
-  // Ruínas do Conservatório
-  prop('fe_ruin_main', 'musicalRuin', RUINS.c, RUINS.r - 4, 165, 156);
-  for (let i = 0; i < 6; i++) {
-    const a = (i / 6) * Math.PI * 2 + 0.4;
-    prop(`fe_ruin_col_${i}`, i % 2 ? 'organColumn' : 'crystalPillar',
-      Math.round(RUINS.c + Math.cos(a) * 22),
-      Math.round(RUINS.r + Math.sin(a) * 18),
-      i % 2 ? 88 : 110, i % 2 ? 140 : 160);
-  }
-  prop('fe_ruin_gold', 'spot_gold', RUINS.c, RUINS.r + 4, 60, 44);
-
-  // Lago: ponte atravessando + juncos (via props de árvore pequenos)
-  props.push({
-    id: 'fe_lake_bridge', type: 'frontierBridge',
-    x: (LAKE.c - 8) * T, y: (LAKE.r - 4) * T, w: 512, h: 232, sortY: (LAKE.r - 4) * T + 8,
-  });
-  prop('fe_lake_islet_crystal', 'spot_crystal_blue', LAKE.c, LAKE.r, 56, 60);
-
-  // Fronteira Pétrea: rochas + portal pras Cavernas
-  scatter('fe_petrea_rock', 'dark_bigrock', PETREA.c, PETREA.r, 34, 20, 22, 60, 46, 6);
-  scatter('fe_petrea_ice', 'dark_icecrystal', PETREA.c, PETREA.r, 30, 16, 8, 52, 58, 6);
-
-  // ---------- construções ----------
-  prop('fe_bldg_guardians', 'bldgLodgeEast', SANCTUARY.c - 46, SANCTUARY.r - 30, 116, 124);
-  prop('fe_bldg_luthier', 'bldgHerbalistWest', SANCTUARY.c + 44, SANCTUARY.r - 26, 116, 120);
-
-  // ---------- portais ----------
-  props.push(
-    portal('fe_portal_overworld', SANCTUARY.c, SANCTUARY.r + 30, {
-      to: 'overworld', spawn: { col: 37, row: 8 }, label: 'Acordelot', kind: 'walk',
-    }),
-  );
-  props.push(
-    portal('fe_portal_cavernas', PETREA.c, PETREA.r + 4, {
-      to: 'cavernas_cristal', spawn: { col: 140, row: 182 }, label: 'Cavernas de Cristal', kind: 'walk',
-    }),
-  );
-
-  // ---------- cinta de árvores densas na borda (some o recorte reto) ----------
-  {
-    const edge = (c: number, r: number, type: string, w: number, h: number) => {
-      const x = c * T + Math.round((rng() - 0.5) * 22);
-      const y = r * T + Math.round((rng() - 0.5) * 22);
-      props.push({ id: `fe_edge_${c}_${r}`, type, x, y, w, h, sortY: y + h - 4 });
-    };
-    for (let c = 2; c < COLS - 2; c += 2) {
-      for (let d = 0; d < 2 + Math.floor(rng() * 2); d++) if (rng() < 0.7) edge(c, 2 + d, 'singingTree', 150, 156);
-      for (let d = 0; d < 2 + Math.floor(rng() * 2); d++) if (rng() < 0.7) edge(c, ROWS - 3 - d, 'dark_bigpine', 52, 74);
-    }
-    for (let r = 4; r < ROWS - 4; r += 2) {
-      for (let d = 0; d < 2 + Math.floor(rng() * 2); d++) if (rng() < 0.7) edge(2 + d, r, 'dark_bigpine', 52, 74);
-      for (let d = 0; d < 2 + Math.floor(rng() * 2); d++) if (rng() < 0.7) edge(COLS - 3 - d, r, 'singingTree', 150, 156);
-    }
-  }
-
-  solids.push(...worldEdgeColliders(p));
-  return { ground, solidColliders: solids, props, npcs };
+const COLS=300,ROWS=220;
+const SANCTUARY={c:150,r:118},WOODS={c:150,r:44},RUINS={c:242,r:120};
+const LAKE={c:66,r:168},PETREA={c:244,r:192};
+export const FOREST_CLEARINGS=[
+  {c:150,r:44,rx:15,ry:11,name:'Clareira do Primeiro Canto'},
+  {c:84,r:47,rx:13,ry:10,name:'Jardim dos Salgueiros'},
+  {c:217,r:53,rx:14,ry:12,name:'Pátio das Folhas Douradas'},
+  {c:54,r:102,rx:12,ry:10,name:'Recanto das Borboletas'},
+  {c:155,r:182,rx:13,ry:10,name:'Campina do Entardecer'},
+];
+export const FOREST_TRAILS=[
+  [[150,148],[150,118],[153,91],[145,72],[150,44]],
+  [[150,44],[119,38],[84,47]],
+  [[150,44],[184,61],[217,53]],
+  [[150,118],[186,121],[209,113],[242,120]],
+  [[150,118],[123,137],[113,156],[105,168],[91,168]],
+  [[123,137],[95,119],[75,106],[54,102]],
+  [[150,148],[167,161],[155,182],[196,185],[244,192]],
+  [[242,120],[232,151],[244,175],[244,192]],
+];
+function roadDistance(c:number,r:number){
+  let best=Infinity;
+  for(const line of FOREST_TRAILS)for(let i=1;i<line.length;i++){
+    const a=line[i-1],b=line[i],dx=b[0]-a[0],dy=b[1]-a[1];
+    const t=Math.max(0,Math.min(1,((c-a[0])*dx+(r-a[1])*dy)/(dx*dx+dy*dy)));
+    best=Math.min(best,Math.hypot(c-a[0]-dx*t,r-a[1]-dy*t));
+  }return best;
 }
-
-/** onde os inimigos/Ecos nascem (consumido pelo engine). */
-export const FLORESTA_ECOS_SPAWNS = {
-  sanctuary: SANCTUARY,
-  woods: WOODS,
-  ruins: RUINS,
-};
+export function buildFlorestaEcos():MapGrid{
+  const ground:number[][]=[],props:WorldProp[]=[],solids:Rect[]=[];
+  const rng=makeRng(0x5eed3c0),p:Painter={ground,props,solids,cols:COLS,rows:ROWS,rng};
+  fillGround(p,TT.GRASS_BASE);
+  // Overlapping organic groves, with open country between them.
+  for(const [c,r,rx,ry] of [[54,40,45,34],[143,44,57,34],[235,47,48,37],[50,103,31,32],[204,84,26,20],[199,165,24,30]])
+    ellipse(p,c,r,rx,ry,TT.SINGING_WOODS,.12);
+  ellipse(p,150,118,43,32,TT.ECHO_MEADOW,.12);
+  ellipse(p,242,120,27,24,TT.CRYSTAL_FLOOR,.12);
+  ellipse(p,242,120,17,14,TT.ECHO_PATH,.14);
+  ellipse(p,244,192,35,24,TT.FRONTIER_GROUND,.13);
+  for(const glade of FOREST_CLEARINGS)ellipse(p,glade.c,glade.r,glade.rx,glade.ry,TT.ECHO_MEADOW,.10);
+  ellipse(p,66,168,40,31,TT.WATER_SHALLOW,.08);
+  ellipse(p,66,168,32,24,TT.WATER_DEEP,.08);
+  // An island beside the east bank is actually connected by a walkable bridge.
+  ellipse(p,90,168,8,7,TT.ECHO_MEADOW,.10);
+  for(const points of FOREST_TRAILS)path(p,points,1.8,TT.ECHO_PATH);
+  const prop=(id:string,type:string,c:number,r:number,w:number,h:number)=>{
+    const x=c*T-w/2,y=r*T-h;props.push({id,type,x,y,w,h,sortY:y+h-4});
+  };
+  const dry=(c:number,r:number)=>{
+    const v=ground[Math.floor(r)]?.[Math.floor(c)];
+    return v!==undefined&&v!==TT.WATER_DEEP&&v!==TT.WATER_SHALLOW;
+  };
+  const open=(c:number,r:number)=>{
+    if(roadDistance(c,r)<4.2)return true;
+    if(Math.hypot((c-150)/24,(r-118)/21)<1)return true;
+    if(Math.hypot((c-242)/24,(r-120)/22)<1)return true;
+    if(Math.hypot((c-244)/15,(r-192)/13)<1)return true;
+    if(Math.hypot((c-90)/11,(r-168)/9)<1)return true;
+    return FOREST_CLEARINGS.some(g=>Math.hypot((c-g.c)/g.rx,(r-g.r)/g.ry)<1);
+  };
+  for(let r=7;r<ROWS-7;r+=4)for(let c=7;c<COLS-7;c+=4){
+    const x=c+(rng()-.5)*2.6,y=r+(rng()-.5)*2.6;
+    if(!dry(x,y)||!dry(x-2,y)||!dry(x+2,y)||open(x,y))continue;
+    const grove=ground[Math.floor(y)][Math.floor(x)]===TT.SINGING_WOODS;
+    const cluster=.5+.5*Math.sin(x*.09+Math.cos(y*.075)*2)*Math.cos(y*.11);
+    if(rng()>(grove?.32+cluster*.22:.09+cluster*.18))continue;
+    const q=rng(),willows=x<112,pink=x>186&&y<96;
+    const type=q<.18?'singingTree':q<.40?'silverWillow':q<.66?(pink?'forestBlossom':'forestOak'):q<.88?'forestPine':(willows?'silverWillow':'forestBlossom');
+    const scale=.78+rng()*.40;
+    const w=(type==='forestPine'?94:type==='singingTree'?142:130)*scale;
+    const h=(type==='forestPine'?158:148)*scale;
+    prop(`fe_grove_${c}_${r}`,type,x,y,w,h);
+    if(rng()<.24)prop(`fe_understory_${c}_${r}`,rng()<.5?'bush':'rockFlatSlab',x+2.3,y+1,28,20);
+  }
+  prop('region_echo_sanctuary','echoAltar',150,116,200,156);
+  prop('fe_echo_arch','echoArch',148,140,180,172);
+  for(let i=0;i<10;i++){
+    const a=i*Math.PI/5,c=150+Math.cos(a)*17,r=118+Math.sin(a)*13;
+    if(roadDistance(c,r)<3)continue;
+    prop('fe_stele_'+i,i%2?'echoSteles':'spot_crystal_blue',c,r,i%2?105:58,i%2?102:62);
+  }
+  FOREST_CLEARINGS.forEach((g,i)=>{
+    prop('fe_glade_landmark_'+i,i===1?'echoSteles':i===2?'musicalRuin':i===3?'shrine':'rockMonolith',g.c-5,g.r-3,i===2?165:90,i===2?156:86);
+    for(let k=0;k<7;k++){
+      const a=k*2.399,c=g.c+Math.cos(a)*(g.rx+3),r=g.r+Math.sin(a)*(g.ry+3);
+      if(roadDistance(c,r)<4)continue;
+      prop(`fe_glade_ring_${i}_${k}`,i===1?'silverWillow':i===2?'forestBlossom':k%2?'forestOak':'singingTree',c,r,120,145);
+    }
+  });
+  prop('fe_ruin_main','musicalRuin',242,116,210,192);
+  for(let i=0;i<8;i++){
+    const a=i*Math.PI/4+.4,c=242+Math.cos(a)*20,r=120+Math.sin(a)*17;
+    if(roadDistance(c,r)<3)continue;
+    prop('fe_ruin_col_'+i,i%2?'organColumn':'crystalPillar',c,r,88,140);
+  }
+  // Scattered remnants make the approach read as an abandoned conservatory.
+  for(let i=0;i<18;i++){
+    const a=rng()*6.28,c=242+Math.cos(a)*(20+rng()*10),r=120+Math.sin(a)*(17+rng()*9);
+    if(roadDistance(c,r)<4)continue;
+    prop('fe_ruin_debris_'+i,i%3?'rockFlatSlab':'rockMonolith',c,r,35+rng()*30,24+rng()*32);
+  }
+  props.push({id:'fe_lake_bridge',type:'frontierBridge',x:97*T,y:165.8*T,w:512,h:232,sortY:165.8*T+8});
+  // Deck uses land collision but water continues below the bridge arches visually.
+  for(let r=167;r<=169;r++)for(let c=97;c<=113;c++)ground[r][c]=TT.ECHO_PATH;
+  prop('fe_lake_islet_crystal','spot_crystal_blue',90,165,72,80);
+  for(let i=0;i<24;i++){
+    const a=i*2.399,c=66+Math.cos(a)*43,r=168+Math.sin(a)*34;
+    if(!dry(c,r)||roadDistance(c,r)<4)continue;
+    prop('fe_lake_garden_'+i,i%3===0?'silverWillow':i%3===1?'bush':'rockPair',c,r,i%3===0?135:40,i%3===0?160:30);
+  }
+  for(let i=0;i<65;i++){
+    const c=12+rng()*(COLS-24),r=12+rng()*(ROWS-24);
+    if(!dry(c,r)||open(c,r))continue;
+    const type=i%5===0?'spot_gold':i%3===0?'spot_crystal_red':'spot_crystal_blue';
+    prop('fe_resource_'+i,type,c,r,54,58);
+  }
+  for(let i=0;i<26;i++){
+    const a=rng()*6.28,c=244+Math.cos(a)*(20+rng()*12),r=192+Math.sin(a)*(15+rng()*6);
+    if(roadDistance(c,r)<4)continue;
+    prop('fe_petrea_'+i,i%3?'dark_bigrock':'crystalPillar',c,r,65+rng()*50,65+rng()*50);
+  }
+  prop('fe_bldg_guardians','bldgLodgeEast',104,88,116,124);
+  prop('fe_bldg_luthier','bldgHerbalistWest',194,92,116,120);
+  props.push(portal('fe_portal_overworld',150,148,{to:'overworld',spawn:{col:37,row:8},label:'Acordelot',kind:'walk'}));
+  props.push(portal('fe_portal_cavernas',244,196,{to:'cavernas_cristal',spawn:{col:140,row:182},label:'Cavernas de Cristal',kind:'walk'}));
+  for(let i=0;i<220;i++){
+    const side=i%4,c=side===0?3+rng()*3:side===1?COLS-4-rng()*3:8+rng()*(COLS-16);
+    const r=side===2?4+rng()*3:side===3?ROWS-4-rng()*3:8+rng()*(ROWS-16);
+    prop('fe_edge_'+i,i%3===0?'silverWillow':i%3===1?'forestPine':'forestOak',c,r,110,145);
+  }
+  solids.push(...worldEdgeColliders(p),...waterColliders(p));
+  return {ground,solidColliders:solids,props,npcs:[]};
+}
+export const FLORESTA_ECOS_SPAWNS={sanctuary:SANCTUARY,woods:WOODS,ruins:RUINS};

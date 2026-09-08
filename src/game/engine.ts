@@ -43,6 +43,7 @@ import {
 import { MAP_DEFS, type MapId } from './maps';
 import { loadGameAssets, LoadedAssets } from './assetLoader';
 import { RegionalTerrain } from './regionalTerrain';
+import { WaterSurface } from './waterSurface';
 import { CRYSTAL_GATE, CRYSTAL_ROOMS, DUNGEON_LAYOUT_VERSION, DUNGEON_BOSS_ID, isDungeonEnemy, dungeonEnemyId, dungeonChestId, DUNGEON_DIFFICULTIES, type DungeonRunSave } from './crystalDungeon';
 import { generateCharacterSprites, generateTrees, generateHouses } from './pixelArt';
 import initialCustomMap from './customMapLayout.json';
@@ -487,6 +488,9 @@ export const HARVEST_DEFS: Record<string, HarvestDef> = {
   pine: { kind: 'tree', minTier: 'wood', maxHp: 3, drop: 'wood', dropMin: 2, dropMax: 3, respawnSecs: 20 },
   blossomTree: { kind: 'tree', minTier: 'wood', maxHp: 3, drop: 'wood', dropMin: 2, dropMax: 3, respawnSecs: 24 },
   bush: { kind: 'tree', minTier: 'wood', maxHp: 2, drop: 'berry', dropMin: 1, dropMax: 3, respawnSecs: 14 },
+  forestOak: { kind: 'tree', minTier: 'wood', maxHp: 4, drop: 'wood', dropMin: 2, dropMax: 4, respawnSecs: 45 },
+  forestPine: { kind: 'tree', minTier: 'wood', maxHp: 4, drop: 'wood', dropMin: 2, dropMax: 4, respawnSecs: 45 },
+  forestBlossom: { kind: 'tree', minTier: 'wood', maxHp: 3, drop: 'wood', dropMin: 2, dropMax: 3, respawnSecs: 45 },
   stoneQuarry: { kind: 'rock', minTier: 'wood', maxHp: 8, drop: 'ore', dropMin: 4, dropMax: 7, respawnSecs: 45 },
   limestoneBoulders: { kind: 'rock', minTier: 'wood', maxHp: 5, drop: 'stone', dropMin: 3, dropMax: 5, respawnSecs: 32 },
   rockCluster: { kind: 'rock', minTier: 'wood', maxHp: 3, drop: 'stone', dropMin: 2, dropMax: 3, respawnSecs: 24 },
@@ -1179,6 +1183,10 @@ export const EDITABLE_PROP_METAS: Record<
   // 9b. Santuário dos Ecos e Caverna de Cristal
   echoArch: { category: 'building', name: 'Arco do Santuário', baseW: 180, baseH: 172, colOffXRatio: 0.08, colOffYRatio: 0.82, colWRatio: 0.20, colHRatio: 0.12, sortYOffset: 166, canDelete: true, canDuplicate: true },
   singingTree: { category: 'tree', name: 'Árvore Cantante', baseW: 150, baseH: 156, colOffXRatio: 0.42, colOffYRatio: 0.82, colWRatio: 0.16, colHRatio: 0.13, sortYOffset: 150, canDelete: true, canDuplicate: true },
+  silverWillow: { category: 'tree', name: 'Salgueiro Prateado', baseW: 142, baseH: 166, colOffXRatio: 0.43, colOffYRatio: 0.84, colWRatio: 0.14, colHRatio: 0.10, sortYOffset: 160, canDelete: true, canDuplicate: true },
+  forestOak: { category: 'tree', name: 'Carvalho do Bosque', baseW: 130, baseH: 148, colOffXRatio: 0.40, colOffYRatio: 0.84, colWRatio: 0.18, colHRatio: 0.10, sortYOffset: 142, canDelete: true, canDuplicate: true },
+  forestPine: { category: 'tree', name: 'Abeto Esmeralda', baseW: 94, baseH: 158, colOffXRatio: 0.40, colOffYRatio: 0.84, colWRatio: 0.18, colHRatio: 0.10, sortYOffset: 152, canDelete: true, canDuplicate: true },
+  forestBlossom: { category: 'tree', name: 'Cerejeira do Entardecer', baseW: 130, baseH: 140, colOffXRatio: 0.40, colOffYRatio: 0.84, colWRatio: 0.18, colHRatio: 0.10, sortYOffset: 134, canDelete: true, canDuplicate: true },
   echoAltar: { category: 'building', name: 'Altar dos Ecos', baseW: 170, baseH: 128, colOffXRatio: 0.18, colOffYRatio: 0.69, colWRatio: 0.64, colHRatio: 0.24, sortYOffset: 121, canDelete: true, canDuplicate: true },
   echoSteles: { category: 'building', name: 'Estelas de Ressonância', baseW: 120, baseH: 115, colOffXRatio: 0.18, colOffYRatio: 0.70, colWRatio: 0.64, colHRatio: 0.24, sortYOffset: 108, canDelete: true, canDuplicate: true },
   caveWall: { category: 'rock', name: 'Parede da Caverna de Cristal', baseW: 170, baseH: 130, colOffXRatio: 0.05, colOffYRatio: 0.68, colWRatio: 0.90, colHRatio: 0.28, sortYOffset: 124, canDelete: true, canDuplicate: true },
@@ -1250,6 +1258,7 @@ export class GameEngine {
 
   ground: number[][];
   private regionalTerrain?: RegionalTerrain;
+  private waterSurface?: WaterSurface;
   staticColliders: Rect[] = [];
   props: WorldProp[];
   npcs: NPC[];
@@ -7818,8 +7827,7 @@ export class GameEngine {
     const startRow = Math.max(0, Math.floor(camY / TILE_SIZE));
     const endRow = Math.min(this.mapRows - 1, Math.ceil((camY + this.viewportH) / TILE_SIZE));
 
-    // 1. Ground Tiles (+ água "shader" para os sentinelas 9000/9001)
-    const wt = this.timeElapsed;
+    // Terrain under the continuous water surface, drawn once after blending.
     if (terrainImg && terrainImg.complete && terrainImg.naturalWidth > 0) {
       for (let r = startRow; r <= endRow; r++) {
         for (let c = startCol; c <= endCol; c++) {
@@ -7842,7 +7850,8 @@ export class GameEngine {
             continue;
           }
           if (tileId >= 9000) {
-            this.drawWaterTile(ctx, screenX, screenY, c, r, tileId === 9001, wt);
+            ctx.fillStyle = this.activeMap.ambient.lighting === 'day-cycle' ? '#456244' : '#252b36';
+            ctx.fillRect(screenX,screenY,32,32);
             continue;
           }
           const sx = (tileId % 36) * 32;
@@ -7852,9 +7861,11 @@ export class GameEngine {
       }
     }
     if (this.assetsLoaded && this.assets) {
-      this.regionalTerrain ??= new RegionalTerrain(this.ground, this.assets, this.activeMapId === 'overworld' ? 11 : 0);
+      this.regionalTerrain ??= new RegionalTerrain(this.ground, this.assets, 0, this.activeMap.ambient.lighting !== 'day-cycle');
       this.regionalTerrain.draw(ctx,camX,camY,this.viewportW,this.viewportH);
     }
+    this.waterSurface ??= new WaterSurface();
+    this.waterSurface.draw(ctx,this.ground,camX,camY,this.viewportW,this.viewportH,this.timeElapsed,this.activeMap.ambient.lighting!=='day-cycle');
     // Bioma de cristal: banho ciano/lavanda suave, luz de gruta iluminada.
     if (this.activeMap.ambient.lighting === 'crystal-glow') {
       const gw = ctx.createLinearGradient(0, 0, 0, this.viewportH);
@@ -8979,6 +8990,13 @@ export class GameEngine {
     // 8. Regiões do leste — elementos separados sobre terreno realmente caminhável
     else if (prop.type === 'echoArch' && this.assets?.echoArch) {
       ctx.drawImage(this.assets.echoArch, px, py, prop.w, prop.h);
+    } else if (['forestOak','forestPine','forestBlossom'].includes(prop.type) && this.assets?.woodlandTrees) {
+      const atlas=this.assets.woodlandTrees,frame=['forestOak','forestPine','forestBlossom'].indexOf(prop.type);
+      // Measured gutters in the generated atlas (not perfectly equal thirds).
+      const [left,right]=[[0,645],[648,1164],[1165,1774]][frame],ratio=atlas.naturalWidth/1774;
+      ctx.drawImage(atlas,left*ratio,0,(right-left)*ratio,atlas.naturalHeight,px,py,prop.w,prop.h);
+    } else if (prop.type === 'silverWillow' && this.assets?.silverWillow) {
+      ctx.drawImage(this.assets.silverWillow, px, py, prop.w, prop.h);
     } else if (prop.type === 'singingTree' && this.assets?.singingTree) {
       ctx.drawImage(this.assets.singingTree, px, py, prop.w, prop.h);
     } else if (prop.type === 'echoAltar' && this.assets?.echoAltar) {
@@ -9159,118 +9177,6 @@ export class GameEngine {
     }
   }
 
-  drawWaterTile(
-    ctx: CanvasRenderingContext2D,
-    x: number,
-    y: number,
-    c: number,
-    r: number,
-    shallow: boolean,
-    t: number
-  ) {
-    const g = this.ground;
-    const land = (cc: number, rr: number) => {
-      const v = g[rr]?.[cc];
-      return v !== undefined && v < 9000;
-    };
-    const lN = land(c, r - 1), lS = land(c, r + 1), lW = land(c - 1, r), lE = land(c + 1, r);
-    const edgeTile = lN || lS || lW || lE;
-
-    // Contorno de água ORGÂNICO: nas bordas com terra, recua a água por uma
-    // curva de ruído em vez do quadrado cheio (mata a "escada de 32px").
-    const wob = (p: number, seed: number) =>
-      4 + 6.5 * Math.abs(Math.sin(p * 0.9 + (c * 1.3 + r * 0.7) + seed));
-    ctx.save();
-    if (edgeTile) {
-      ctx.beginPath();
-      const N = lN, S = lS, W = lW, E = lE;
-      ctx.moveTo(x + (W ? wob(0, 0) : 0), y + (N ? wob(0, 1) : 0));
-      // topo
-      if (N) for (let i = 1; i <= 3; i++) ctx.lineTo(x + i * 10.66, y + wob(i * 8, 1));
-      else ctx.lineTo(x + 32, y);
-      ctx.lineTo(x + 32 - (E ? wob(0, 2) : 0), y + (N ? wob(24, 1) : 0));
-      // direita
-      if (E) for (let i = 1; i <= 3; i++) ctx.lineTo(x + 32 - wob(i * 8, 2), y + i * 10.66);
-      else ctx.lineTo(x + 32, y + 32);
-      ctx.lineTo(x + 32 - (E ? wob(24, 2) : 0), y + 32 - (S ? wob(24, 3) : 0));
-      // baixo
-      if (S) for (let i = 1; i <= 3; i++) ctx.lineTo(x + 32 - i * 10.66, y + 32 - wob(i * 8, 3));
-      else ctx.lineTo(x, y + 32);
-      ctx.lineTo(x + (W ? wob(24, 0) : 0), y + 32 - (S ? wob(0, 3) : 0));
-      // esquerda
-      if (W) for (let i = 1; i <= 3; i++) ctx.lineTo(x + wob(i * 8, 0), y + 32 - i * 10.66);
-      ctx.closePath();
-      ctx.clip();
-    }
-
-    // 1. base com gradiente de profundidade (mais escuro no meio do rio)
-    const grad = ctx.createLinearGradient(x, y, x, y + 32);
-    if (shallow) {
-      grad.addColorStop(0, '#63bfb2');
-      grad.addColorStop(1, '#3f9f98');
-    } else {
-      grad.addColorStop(0, '#3a9a9a');
-      grad.addColorStop(0.5, '#227a80');
-      grad.addColorStop(1, '#2f8f92');
-    }
-    ctx.fillStyle = grad;
-    ctx.fillRect(x - 2, y - 2, 36, 36);
-
-    // 2. "respiração" lenta de profundidade
-    const breathe = 0.5 + Math.sin(c * 0.4 + r * 0.4 + t * 0.4) * 0.5;
-    ctx.fillStyle = shallow
-      ? `rgba(170, 230, 220, ${0.10 * breathe})`
-      : `rgba(8, 40, 52, ${0.24 * breathe})`;
-    ctx.fillRect(x - 2, y - 2, 36, 36);
-
-    // 3. rede de cáusticas — 2 camadas em velocidades opostas
-    const wind = this.windX * 0.9;
-    for (let layer = 0; layer < 2; layer++) {
-      const dir = layer === 0 ? 1 : -0.6;
-      const flow = t * (shallow ? 34 : 24) * dir + wind * dir;
-      ctx.strokeStyle =
-        layer === 0
-          ? `rgba(224, 252, 250, ${shallow ? 0.26 : 0.2})`
-          : `rgba(255, 255, 255, ${shallow ? 0.14 : 0.1})`;
-      ctx.lineWidth = 1;
-      for (let i = 0; i < 2; i++) {
-        const period = 44 + layer * 12;
-        const band = (c * (8 + layer * 3) + r * (5 + layer * 4) + i * 22 + flow) % period;
-        const off = band < period / 2 ? band : period - band;
-        const wy = y + off * (32 / (period / 2)) - 4;
-        const wob = Math.sin(t * 2.2 + c + r + i + layer) * 2.4;
-        ctx.beginPath();
-        ctx.moveTo(x - 3, wy + wob);
-        ctx.bezierCurveTo(x + 8, wy - 3 + wob, x + 24, wy + 3 + wob, x + 35, wy + wob);
-        ctx.stroke();
-      }
-    }
-
-    // 4. espuma viva na linha d'água (segue o recorte irregular, não a borda do tile)
-    const foam = Math.sin(t * 3 + c + r) * 0.3 + 0.7;
-    ctx.strokeStyle = `rgba(240, 252, 250, ${0.5 * foam})`;
-    ctx.lineWidth = 2.4;
-    if (edgeTile) ctx.stroke(); // traça o path recortado
-    ctx.restore(); // sai do clip
-
-    // 5. banda "molhada" macia na terra, seguindo a mesma curva
-    if (edgeTile) {
-      ctx.save();
-      ctx.globalAlpha = 0.5;
-      if (lN) { const gg = ctx.createLinearGradient(x, y - 7, x, y + 6); gg.addColorStop(0, 'rgba(40,60,55,0)'); gg.addColorStop(1, 'rgba(24,40,38,0.55)'); ctx.fillStyle = gg; ctx.fillRect(x, y - 7, 32, 13); }
-      if (lS) { const gg = ctx.createLinearGradient(x, y + 38, x, y + 26); gg.addColorStop(0, 'rgba(40,60,55,0)'); gg.addColorStop(1, 'rgba(24,40,38,0.55)'); ctx.fillStyle = gg; ctx.fillRect(x, y + 26, 32, 12); }
-      if (lW) { const gg = ctx.createLinearGradient(x - 7, y, x + 6, y); gg.addColorStop(0, 'rgba(40,60,55,0)'); gg.addColorStop(1, 'rgba(24,40,38,0.55)'); ctx.fillStyle = gg; ctx.fillRect(x - 7, y, 13, 32); }
-      if (lE) { const gg = ctx.createLinearGradient(x + 38, y, x + 26, y); gg.addColorStop(0, 'rgba(40,60,55,0)'); gg.addColorStop(1, 'rgba(24,40,38,0.55)'); ctx.fillStyle = gg; ctx.fillRect(x + 26, y, 12, 32); }
-      ctx.restore();
-    }
-
-    // 6. lampejo especular pontual
-    const spec = Math.sin(c * 1.7 + r * 1.1 + t * 2.1);
-    if (spec > 0.9) {
-      ctx.fillStyle = `rgba(255,255,255,${(spec - 0.9) * 4})`;
-      ctx.fillRect(x + ((c * 11) % 22) + 4, y + ((r * 7) % 20) + 4, 2, 2);
-    }
-  }
 
   drawEnemy(e: Enemy, camX: number, camY: number) {
     if(isDungeonEnemy(e.id)!==this.isDungeon)return;

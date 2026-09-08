@@ -110,6 +110,16 @@ export interface LoadedAssets {
   npcLucianIdle: HTMLImageElement;
   npcBlacksmithWalk: HTMLImageElement;
   npcBlacksmithIdle: HTMLImageElement;
+  npcGuardMaleWalk: HTMLImageElement;
+  npcGuardMaleIdle: HTMLImageElement;
+  npcGuardFemaleWalk: HTMLImageElement;
+  npcGuardFemaleIdle: HTMLImageElement;
+  npcVillagerLinaWalk: HTMLImageElement;
+  npcVillagerLinaIdle: HTMLImageElement;
+  npcTravelerTomasWalk: HTMLImageElement;
+  npcTravelerTomasIdle: HTMLImageElement;
+  npcHerbalistFloraWalk: HTMLImageElement;
+  npcHerbalistFloraIdle: HTMLImageElement;
 
   // Akles - Herói Cavaleiro (sprite sheets 32-bit processadas)
   aklesIdle: HTMLImageElement;
@@ -279,6 +289,16 @@ const ASSET_PATHS: Record<keyof LoadedAssets, string> = {
   npcLucianIdle: '/assets/characters/npcs/lucian_idle.png',
   npcBlacksmithWalk: '/assets/characters/npcs/blacksmith_walk.png',
   npcBlacksmithIdle: '/assets/characters/npcs/blacksmith_idle.png',
+  npcGuardMaleWalk: '/assets/characters/npcs/guard_male_walk.png',
+  npcGuardMaleIdle: '/assets/characters/npcs/guard_male_idle.png',
+  npcGuardFemaleWalk: '/assets/characters/npcs/guard_female_walk.png',
+  npcGuardFemaleIdle: '/assets/characters/npcs/guard_female_idle.png',
+  npcVillagerLinaWalk: '/assets/characters/npcs/villager_lina_walk.png',
+  npcVillagerLinaIdle: '/assets/characters/npcs/villager_lina_idle.png',
+  npcTravelerTomasWalk: '/assets/characters/npcs/traveler_tomas_walk.png',
+  npcTravelerTomasIdle: '/assets/characters/npcs/traveler_tomas_idle.png',
+  npcHerbalistFloraWalk: '/assets/characters/npcs/herbalist_flora_walk.png',
+  npcHerbalistFloraIdle: '/assets/characters/npcs/herbalist_flora_idle.png',
 
   // Wins - Classe da Voz (personagem temporária) — 3 folhas separadas
   // (idle/walk/run são animações DIFERENTES, não a mesma reaproveitada).

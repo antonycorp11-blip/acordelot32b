@@ -39,7 +39,11 @@ export interface CharacterState {
 
 export type NpcSprite =
   | 'merchant'
-  | 'guard'
+  | 'guard_male'
+  | 'guard_female'
+  | 'villager_lina'
+  | 'traveler_tomas'
+  | 'herbalist_flora'
   | 'cadencia'
   | 'tonico'
   | 'setimo'

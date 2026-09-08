@@ -18,6 +18,7 @@ import {
   Direction,
   CharacterState,
   NPC,
+  NpcSprite,
   CompanionState,
   WorldProp,
   Particle,
@@ -437,6 +438,13 @@ const NPC_SHEET: Record<string, keyof LoadedAssets> = {
   seminima: 'npcSeminima',
   diapasao: 'npcDiapasao',
   antony: 'npcSrAntony',
+};
+const NPC_DUAL_SHEET: Partial<Record<NpcSprite, { idle: keyof LoadedAssets; walk: keyof LoadedAssets }>> = {
+  guard_male: { idle: 'npcGuardMaleIdle', walk: 'npcGuardMaleWalk' },
+  guard_female: { idle: 'npcGuardFemaleIdle', walk: 'npcGuardFemaleWalk' },
+  villager_lina: { idle: 'npcVillagerLinaIdle', walk: 'npcVillagerLinaWalk' },
+  traveler_tomas: { idle: 'npcTravelerTomasIdle', walk: 'npcTravelerTomasWalk' },
+  herbalist_flora: { idle: 'npcHerbalistFloraIdle', walk: 'npcHerbalistFloraWalk' },
 };
 
 export const HARVEST_DEFS: Record<string, HarvestDef> = {
@@ -3273,8 +3281,9 @@ export class GameEngine {
     lucian.title = 'Mestre Luthier';
     lucian.direction = 'down';
     lucian.dialogue = [
-      'As cordas de Acordelot vibram com a energia da própria terra.',
-      'Cada instrumento carrega uma parte da alma de quem o toca.',
+      'As cordas de Acordelot vibram com a Energia Harmônica da própria terra. É dela que toda magia musical nasce.',
+      'Um instrumento não é só uma arma. Ele traduz a intenção do músico: pode atacar, curar, proteger ou fazer uma semente despertar.',
+      'Cada instrumento guarda um pouco da maneira como seu dono escuta o mundo.',
     ];
     lucian.barks = [
       'Ouça essa ressonância...',
@@ -3679,6 +3688,7 @@ export class GameEngine {
         dialogue = [
           'Você deve ser o rapaz sem memória. O Sr. Antony descreveu o cabelo; Pippo descreveu o olhar perdido.',
           'Sou Miro. Vendo poções, compro histórias e finjo não ouvir boatos depois do terceiro sino.',
+          'Você vai notar que ninguém aqui separa música de trabalho. Poções são afinadas, metais guardam frequências e até o ouro bruto vibra antes de ser sintetizado.',
           'Preciso de 3 Madeiras e 3 Pedras. Parece pouco até uma árvore decidir cair para o lado errado.',
           'Antes de coletar, procure Dório na Ferraria Harmônica, a oeste da praça. Ele ensinará ferramentas, síntese e forja.',
           'E não peça desconto dizendo que foi enviado por mim. Ele aumenta o preço só para me irritar.',
@@ -3798,6 +3808,7 @@ export class GameEngine {
       ] : firstVisit ? [
         'Então você é Akles. Miro disse que viria alguém sem memória. Eu esperava alguém menos... inteiro.',
         'Sou Dório. Esta é a Ferraria Harmônica: o único lugar seguro para sintetizar metais e cristais.',
+        'Música é magia, mas intenção sem matéria se dispersa. Minha forja prende a frequência em ferramentas, armaduras e instrumentos de combate.',
         'Madeira inicia uma ferramenta. Ouro dá ritmo ao impacto. Cristal faz a matéria lembrar onde deve quebrar.',
         'Armas também sobem de +1, +2 e além somente na minha bigorna. Skills e passivas continuam sendo treinadas nos seus próprios painéis.',
         'Primeira visita merece um presente de ferreiro. Tome: madeira e pedra — suficiente para forjar seu primeiro machado e sua primeira picareta.',
@@ -8524,16 +8535,22 @@ export class GameEngine {
       return;
     }
 
-    if (npc.spriteType === 'guard' && this.assets?.knightIdle && this.assets?.knightWalk) {
-      const sheet = npc.isMoving ? this.assets.knightWalk : this.assets.knightIdle;
-      const fw = 40, fh = 48;
+    const dualNpcSheets = NPC_DUAL_SHEET[npc.spriteType];
+    if (dualNpcSheets && this.assets) {
+      const sheet = this.assets[npc.isMoving ? dualNpcSheets.walk : dualNpcSheets.idle] as HTMLImageElement;
+      const fw = 96, fh = 148, cols = 10;
       const row = AKLES_DIR_ROW[npc.direction];
-      const col = npc.isMoving ? Math.floor(npc.stepTimer) % 4 : Math.floor(npc.stepTimer * .35) % 4;
+      const col = npc.isMoving ? Math.floor(npc.stepTimer * 1.1) % cols : Math.floor(this.timeElapsed * 2) % cols;
+      const disp = 0.44, dw = fw * disp, dh = fh * disp;
+      const dx = Math.round(cx + npc.width / 2 - dw / 2);
+      const dy = Math.round(cy + npc.height - dh + 2);
       ctx.fillStyle = 'rgba(0,0,0,0.28)';
       ctx.beginPath();
       ctx.ellipse(cx + npc.width / 2, cy + npc.height - 2, 11, 4.5, 0, 0, Math.PI * 2);
       ctx.fill();
-      ctx.drawImage(sheet, col * fw, row * fh, fw, fh, cx - 10, cy - 17, 48, 58);
+      ctx.imageSmoothingEnabled = true;
+      ctx.drawImage(sheet, col * fw + 1, row * fh + 1, fw - 2, fh - 2, dx, dy, Math.round(dw), Math.round(dh));
+      ctx.imageSmoothingEnabled = false;
       if (this.nearestNpcId === npc.id && !this.talkingNpcId) {
         const my = cy - 8 + Math.sin(this.timeElapsed * 5) * 2;
         ctx.fillStyle = npc.accent ?? '#60a5fa';

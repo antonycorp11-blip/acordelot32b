@@ -60,6 +60,7 @@ type OpeningLine = { speaker: string; voice: string; text: string; choices?: Arr
 const OPENING_LINES: Record<OpeningPhase, OpeningLine[]> = {
   awakening: [
     { speaker: 'Narração', voice: 'narrator', text: 'Antes de abrir os olhos, ele ouviu a floresta respirar.' },
+    { speaker: 'Narração', voice: 'narrator', text: 'O som não passava apenas por seus ouvidos. Vibrava sob a pele, quente como energia procurando uma melodia.' },
     { speaker: 'Akles', voice: 'akles', text: '...' },
     { speaker: 'Akles', voice: 'akles', text: 'Onde eu estou?' },
     { speaker: 'Narração', voice: 'narrator', text: 'Nenhum nome. Nenhuma lembrança. Apenas um corpo que parecia conhecer aquele perigo.' },
@@ -68,6 +69,7 @@ const OPENING_LINES: Record<OpeningPhase, OpeningLine[]> = {
     { speaker: 'Narração', voice: 'narrator', text: 'Um galho se parte entre as árvores.' },
     { speaker: 'Akles', voice: 'akles', text: 'Sol bemol.' },
     { speaker: 'Akles', voice: 'akles', text: 'Como... como eu sei disso?' },
+    { speaker: 'Narração', voice: 'narrator', text: 'Ao dar nome à nota, uma lâmina-instrumento responde. Naquele mundo, música não acompanhava a magia: música era magia.' },
   ],
   encounter: [
     { speaker: 'Narração', voice: 'narrator', text: 'A vibração se repete. Desta vez, acompanhada por passos.' },
@@ -76,6 +78,7 @@ const OPENING_LINES: Record<OpeningPhase, OpeningLine[]> = {
   ],
   aftermath: [
     { speaker: 'Akles', voice: 'akles', text: 'Eu sabia exatamente onde golpear...' },
+    { speaker: 'Akles', voice: 'akles', text: 'E essa arma... ela tocou quando eu ataquei. Como se cada golpe fosse parte de uma canção.' },
     { speaker: 'Akles', voice: 'akles', text: 'Quem me ensinou isso?' },
     { speaker: 'Narração', voice: 'narrator', text: 'Três pequenas luzes respondem ao combate com uma harmonia impossível.' },
   ],
@@ -88,7 +91,7 @@ const OPENING_LINES: Record<OpeningPhase, OpeningLine[]> = {
   gate: [
     { speaker: 'Narração', voice: 'narrator', text: 'As luzes param diante dos portões. Uma lanterna se ergue do outro lado da muralha.' },
     { speaker: 'Pippo', voice: 'pippo', text: 'Ei! Senhor guarda, ele veio com os Ecos. Eles nunca trazem ninguém até aqui.' },
-    { speaker: 'Guarda', voice: 'guard_muralha', text: 'E apareceu na floresta à meia-noite. Fique perto do menino e mantenha as mãos onde eu possa ver.' },
+    { speaker: 'Sentinela Cael', voice: 'guard_muralha', text: 'E apareceu na floresta à meia-noite portando um instrumento de combate. Fique perto do menino e mantenha as mãos onde eu possa ver.' },
     { speaker: 'Pippo', voice: 'pippo', text: 'Eu sou Pippo. Mirella vai saber o que fazer. Você consegue caminhar?', choices: [
       { label: 'Mostre o caminho.', reply: 'Consigo. Mas vá devagar — ainda não confio nas minhas próprias pernas.' },
       { label: 'Por que confiar em você?', reply: 'Não sei se devo confiar em você... mas os Ecos confiaram.' },
@@ -99,6 +102,7 @@ const OPENING_LINES: Record<OpeningPhase, OpeningLine[]> = {
     { speaker: 'Mirella', voice: 'mirella', text: 'Pippo, você trouxe um desconhecido da floresta a esta hora?' },
     { speaker: 'Pippo', voice: 'pippo', text: 'Não foi só eu. Dó, Mi e Sol trouxeram ele até o portão.' },
     { speaker: 'Akles', voice: 'akles', text: 'Eu não lembro do meu nome... mas reconheci as notas.' },
+    { speaker: 'Mirella', voice: 'mirella', text: 'Aqui, até uma lamparina acende por ressonância. Esquecer o próprio nome e ainda ouvir a energia harmônica... isso não é comum.' },
     { speaker: 'Mirella', voice: 'mirella', text: 'Então as perguntas podem esperar o amanhecer. Esta noite, você descansa sob nosso teto.', choices: [
       { label: 'Obrigado pela confiança.', reply: 'Obrigado. Não tenho como pagar essa gentileza.' },
       { label: 'E se eu for perigoso?', reply: 'E se houver uma razão para eu ter acordado sozinho?' },
@@ -126,6 +130,7 @@ const OPENING_LINES: Record<OpeningPhase, OpeningLine[]> = {
     { speaker: 'Akles', voice: 'akles', text: 'Eu não sei o que significa.' },
     { speaker: 'Mirella', voice: 'mirella', text: 'Não conheço essa palavra.' },
     { speaker: 'Narração', voice: 'narrator', text: 'Ela responde rápido demais e evita olhar para Pippo.' },
+    { speaker: 'Pippo', voice: 'pippo', text: 'Não se assusta com as ruas cantando. A gente usa música para iluminar casas, curar feridas, cultivar e lutar. Quase tudo, na verdade.' },
     { speaker: 'Mirella', voice: 'mirella', text: 'Bom dia. O caminho até o centro de Acordelot é longo, mas você precisa falar com quem pode ajudá-lo.' },
     { speaker: 'Mirella', voice: 'mirella', text: 'Vá ao centro da cidade e procure o Sr. Antony. Ele é o líder de Acordelot.' },
     { speaker: 'Pippo', voice: 'pippo', text: 'Eu mostro o caminho pela avenida. Você anda por conta própria e eu espero sempre que precisar.', choices: [
@@ -143,6 +148,10 @@ const OPENING_LINES: Record<OpeningPhase, OpeningLine[]> = {
       { label: 'Meu corpo se lembrou.', reply: 'Meu corpo sabia antes de mim. Como se eu já tivesse vivido aquilo.' },
       { label: 'Foram os Ecos.', reply: 'Talvez os Ecos tenham colocado a resposta na minha cabeça.' },
     ] },
+    { speaker: 'Sr. Antony', voice: 'sr_antony', text: 'Em nosso mundo, a Energia Harmônica é a matéria da magia. Notas dão altura; escalas abrem caminhos; acordes determinam intenção.' },
+    { speaker: 'Sr. Antony', voice: 'sr_antony', text: 'Instrumentos dão forma a essa energia. Nas mãos certas, podem ser ferramenta, abrigo, cura ou arma. O músico decide o que sua magia diz.' },
+    { speaker: 'Akles', voice: 'akles', text: 'Então por que a minha arma decidiu antes de mim?' },
+    { speaker: 'Sr. Antony', voice: 'sr_antony', text: 'Essa é precisamente a pergunta que me preocupa.' },
     { speaker: 'Sr. Antony', voice: 'sr_antony', text: 'Fique em Acordelot por enquanto. Aqui aprenderemos o que sua memória decidiu esconder.' },
     { speaker: 'Sr. Antony', voice: 'sr_antony', text: 'Abra seu Diário de Missões e aceite sua nova tarefa. Primeiro, apresente-se aos nossos cidadãos.' },
     { speaker: 'Narração', voice: 'narrator', text: 'Por um instante, o líder parece reconhecer Akles. Então esconde a reação atrás de um sorriso cauteloso.' },
@@ -153,7 +162,7 @@ const DIALOGUE_PORTRAITS: Record<string, { src: string; sheet?: 'npc' | 'guard' 
   akles: { src: CHARACTER_PORTRAITS.akles },
   pippo: { src: '/assets/characters/npcs/seminima.png', sheet: 'npc' },
   mirella: { src: '/assets/characters/npcs/cadencia.png', sheet: 'npc' },
-  guard_muralha: { src: '/assets/characters/knight_idle.png', sheet: 'guard' },
+  guard_muralha: { src: '/assets/characters/npcs/guard_male_idle.png', sheet: 'npc' },
   sr_antony: { src: '/assets/characters/npcs/sr_antony.png', sheet: 'npc' },
   lucian: { src: '/assets/characters/npcs/lucian_portrait.png' },
   miro: { src: '/assets/characters/npcs/tonico.png', sheet: 'npc' },
@@ -165,7 +174,11 @@ const NPC_PORTRAIT_SOURCES: Record<string, { src: string; sheet?: 'npc' | 'guard
   setimo: { src: '/assets/characters/npcs/setimo.png', sheet: 'npc' },
   seminima: { src: '/assets/characters/npcs/seminima.png', sheet: 'npc' },
   diapasao: { src: '/assets/characters/npcs/diapasao.png', sheet: 'npc' },
-  guard: { src: '/assets/characters/knight_idle.png', sheet: 'guard' },
+  guard_male: { src: '/assets/characters/npcs/guard_male_idle.png', sheet: 'npc' },
+  guard_female: { src: '/assets/characters/npcs/guard_female_idle.png', sheet: 'npc' },
+  villager_lina: { src: '/assets/characters/npcs/villager_lina_idle.png', sheet: 'npc' },
+  traveler_tomas: { src: '/assets/characters/npcs/traveler_tomas_idle.png', sheet: 'npc' },
+  herbalist_flora: { src: '/assets/characters/npcs/herbalist_flora_idle.png', sheet: 'npc' },
   merchant: { src: '/assets/ancient-ruins/Characters/NPC Merchant-idle.png', sheet: 'npc' },
   antony: { src: '/assets/characters/npcs/sr_antony.png', sheet: 'npc' },
   lucian: { src: '/assets/characters/npcs/lucian_portrait.png', sheet: 'portrait' },

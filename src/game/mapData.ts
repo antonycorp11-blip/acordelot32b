@@ -771,24 +771,18 @@ export function buildMap(): MapGrid {
     barks: ['Martelo no tempo forte!', 'O metal também canta — às vezes desafinado.'],
   });
 
-  // Guarda fixo das muralhas e patrulheiros urbanos. Usa a arte de cavaleiro
-  // já existente no jogo, sem manter o mercador da coleção antiga.
+  // Sentinelas reais. A antiga arte genérica de cavaleiro foi removida daqui:
+  // ela repetia o mesmo personagem em quatro pontos e parecia um Akles clonado.
   addNpc({
-    id: 'guard_muralha', name: 'Sentinela Forte', title: 'Guarda das Muralhas', sprite: 'guard', accent: '#60a5fa', speed: 0,
+    id: 'guard_muralha', name: 'Sentinela Cael', title: 'Guarda das Muralhas', sprite: 'guard_male', accent: '#60a5fa', speed: 0,
     route: [[32, 69]], dialogue: ['As muralhas de Acordelot permanecem sob vigilância.', 'Além do portão, mantenha sua arma pronta.'],
     barks: ['Portão seguro.', 'Tudo tranquilo nas muralhas.'],
   });
   addNpc({
-    id: 'guard_portao_leste', name: 'Guarda Leste', title: 'Patrulha da Cidade', sprite: 'guard', accent: '#93c5fd', speed: 34,
-    route: [[45, 21], [55, 21], [55, 30], [45, 30]], dialogue: ['Patrulhamos a avenida para manter o mercado seguro.'],
-  });
-  addNpc({
-    id: 'guard_portao_oeste', name: 'Guarda Oeste', title: 'Patrulha da Cidade', sprite: 'guard', accent: '#93c5fd', speed: 34,
-    route: [[18, 21], [27, 21], [27, 31], [18, 31]], dialogue: ['A floresta está inquieta. Viaje com cuidado.'],
-  });
-  addNpc({
-    id: 'guard_praca', name: 'Guarda da Praça', title: 'Patrulha da Cidade', sprite: 'guard', accent: '#facc15', speed: 30,
-    route: [[33, 24], [40, 24], [40, 32], [33, 32]], dialogue: ['A praça e o mercado estão protegidos.'],
+    id: 'guard_capita_aria', name: 'Capitã Ária', title: 'Patrulha de Acordelot', sprite: 'guard_female', accent: '#facc15', speed: 36,
+    route: [[26, 22], [39, 22], [39, 27], [26, 27]],
+    dialogue: ['Em Acordelot, uma patrulha protege pessoas e também escuta quando a cidade desafina.', 'Se uma rua ficar silenciosa demais, avise. Silêncio natural repousa; silêncio imposto ameaça.'],
+    barks: ['Patrulha em compasso.', 'A cidade está afinada.'],
   });
 
   addNpc({
@@ -928,44 +922,44 @@ export function buildMap(): MapGrid {
   });
   addNpc({
     id: 'npc_bordao',
-    name: 'Bordão do Sul',
-    title: 'Tocador de Zanfona',
-    sprite: 'tonico',
+    name: 'Tomás',
+    title: 'Cartógrafo das Estradas Sonoras',
+    sprite: 'traveler_tomas',
     accent: '#84cc16',
     speed: 30,
     route: [[36, 104], [36, 88], [34, 96], [38, 100]],
     dialogue: [
-      'A nota que segura tudo embaixo chamam de bordão. Eu também seguro.',
-      'Ao sul o rio é fundo. Use a ponte, a não ser que saiba respirar água.',
-      'Traga claves e eu afino sua espada com elas — um dia desses.',
+      'Eu desenho caminhos pelo som dos passos. Estrada de pedra responde seco; ponte de madeira canta oca.',
+      'Ao sul o rio é fundo. Use a ponte, a não ser que tenha aprendido a respirar em compasso aquático.',
+      'Mapa nenhum mostra tudo. Os lugares importantes costumam mudar quando ninguém está olhando.',
     ],
   });
   addNpc({
     id: 'npc_contralto',
-    name: 'Contralto Leste',
-    title: 'Voz Grave do Bosque',
-    sprite: 'setimo',
+    name: 'Flora',
+    title: 'Herborista das Frequências',
+    sprite: 'herbalist_flora',
     accent: '#c084fc',
     speed: 46,
     route: [[118, 26], [136, 26], [136, 29], [122, 29]],
     dialogue: [
-      'Contralto: baixo pra mulher, alto pra floresta. Aqui todo mundo canta.',
-      'A Aranha da Pauta tece com fio de nylon dó. Corta feito faca.',
-      'Se ouvir um zumbido em terça menor... corre.',
+      'Plantas também ressoam. Cura é descobrir a nota que lembra ao corpo como ele era antes da ferida.',
+      'A Aranha da Pauta tece em ré menor. Bonito de ouvir, péssimo de encostar.',
+      'Se ouvir um zumbido em terça menor entre as folhas... não é o vento. Corra.',
     ],
   });
   addNpc({
     id: 'npc_colcheia',
-    name: 'Colcheia',
-    title: 'Menina do Balde Furado',
-    sprite: 'cadencia',
+    name: 'Lina',
+    title: 'Costureira de Fios Harmônicos',
+    sprite: 'villager_lina',
     accent: '#38bdf8',
     speed: 40,
     route: [[6, 26], [22, 26], [14, 28], [10, 25]],
     dialogue: [
-      'Eu ligo duas colcheias e viro uma semínima. Truque de gente grande.',
-      'A oeste tem uma clareira cheia de fragmentos azuis. E de dentes.',
-      'Você é o Akles de verdade? Achei que fosse mais... alto.',
+      'Minha linha recebe um acorde antes de tocar o tecido. É assim que uma capa aguenta chuva — e certas magias mal-educadas.',
+      'A oeste há uma clareira cheia de fragmentos azuis. E de dentes. Sempre esquecem de mencionar os dentes.',
+      'Você é o Akles de verdade? Pippo descreveu alguém mais alto. Pippo também mede tudo errado.',
     ],
   });
   addNpc({

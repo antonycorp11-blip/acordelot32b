@@ -78,6 +78,7 @@ export interface LoadedAssets {
   wallGate: HTMLImageElement;
 
   // Nós de extração
+  spotOre: HTMLImageElement;
   spotWood: HTMLImageElement;
   spotMineral: HTMLImageElement;
   spotGold: HTMLImageElement;
@@ -261,6 +262,7 @@ const ASSET_PATHS: Record<keyof LoadedAssets, string> = {
   wallGate: '/assets/props/wall_gate.png',
 
   // Nós de extração (spots)
+  spotOre: '/assets/props/ore_spot.png',
   spotWood: '/assets/props/wood2_spot.png',
   spotMineral: '/assets/props/mineral_spot.png',
   spotGold: '/assets/props/gold_spot.png',

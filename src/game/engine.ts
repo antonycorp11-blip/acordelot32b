@@ -234,7 +234,7 @@ export const FRAGMENTS_PER_NOTE = 30;
 export const ITEM_META: Record<string, ItemMeta> = {
   wood: { name: 'Madeira', icon: '🪵', weight: 1.0, img: '/assets/items/market/wood.png', desc: 'Madeira bruta cortada de árvores.' },
   stone: { name: 'Pedra', icon: '🪨', weight: 1.6, img: '/assets/items/market/stone.png', desc: 'Rocha bruta extraída de pedreiras.' },
-  ore: { name: 'Minério', icon: '🪙', weight: 2.2, desc: 'Minério bruto com veios ressonantes.' },
+  ore: { name: 'Minério Ressonante', icon: '🪙', weight: 2.2, img: '/assets/props/ore_spot.png', desc: 'Minério comum de forja, extraído com Picareta Básica nos filões próximos à pedreira.' },
   berry: { name: 'Frutinha Harmônica', icon: '🍓', weight: 0.2, heal: 8, img: '/assets/items/market/berry.png', desc: 'Colhida de arbustos. Restaura um pouco de vida.' },
   bread: { name: 'Pão de Compasso', icon: '🥖', weight: 0.3, heal: 18, img: '/assets/items/market/bread.png', desc: 'Receita da vila que restaura 18 de vida.' },
   potion_heal: { name: 'Poção de Cura', icon: '🧪', weight: 0.25, heal: 45, img: '/assets/items/market/potion_heal.png', desc: 'Restaura 45 de vida.' },
@@ -467,6 +467,7 @@ export const HARVEST_DEFS: Record<string, HarvestDef> = {
   rockPair: { kind: 'rock', minTier: 'wood', maxHp: 3, drop: 'stone', dropMin: 2, dropMax: 3, respawnSecs: 24 },
   rockMonolith: { kind: 'rock', minTier: 'wood', maxHp: 4, drop: 'stone', dropMin: 2, dropMax: 4, respawnSecs: 28 },
   rockFlatSlab: { kind: 'rock', minTier: 'wood', maxHp: 2, drop: 'stone', dropMin: 1, dropMax: 2, respawnSecs: 18 },
+  spot_ore: { kind: 'rock', minTier: 'wood', maxHp: 5, drop: 'ore', dropMin: 2, dropMax: 4, respawnSecs: 30 },
   spot_wood: { kind: 'tree', minTier: 'gold', maxHp: 4, drop: 'wood2_raw', dropMin: 2, dropMax: 4, respawnSecs: 40 },
   spot_mineral: { kind: 'rock', minTier: 'gold', maxHp: 6, drop: 'mineral_raw', dropMin: 2, dropMax: 4, respawnSecs: 45 },
   spot_gold: { kind: 'rock', minTier: 'gold', maxHp: 7, drop: 'gold_raw', dropMin: 1, dropMax: 3, respawnSecs: 55 },
@@ -1129,6 +1130,7 @@ export const EDITABLE_PROP_METAS: Record<
 
   // 8. NÓS DE EXTRAÇÃO (spots — coletáveis, movíveis no editor)
   spot_wood: { category: 'rock', name: 'Toco Melódico (Madeira)', baseW: 60, baseH: 52, colOffXRatio: 0.18, colOffYRatio: 0.5, colWRatio: 0.64, colHRatio: 0.4, sortYOffset: 48, canDelete: true, canDuplicate: true },
+  spot_ore: { category: 'rock', name: 'Filão de Minério Ressonante', baseW: 64, baseH: 54, colOffXRatio: 0.16, colOffYRatio: 0.58, colWRatio: 0.68, colHRatio: 0.34, sortYOffset: 50, canDelete: true, canDuplicate: true },
   spot_mineral: { category: 'rock', name: 'Veio Ressonante (Minério)', baseW: 62, baseH: 52, colOffXRatio: 0.18, colOffYRatio: 0.5, colWRatio: 0.64, colHRatio: 0.4, sortYOffset: 48, canDelete: true, canDuplicate: true },
   spot_gold: { category: 'rock', name: 'Filão Dourado', baseW: 60, baseH: 44, colOffXRatio: 0.18, colOffYRatio: 0.4, colWRatio: 0.64, colHRatio: 0.5, sortYOffset: 40, canDelete: true, canDuplicate: true },
   spot_crystal_blue: { category: 'rock', name: 'Cristal de Eco Azul', baseW: 56, baseH: 60, colOffXRatio: 0.22, colOffYRatio: 0.62, colWRatio: 0.56, colHRatio: 0.32, sortYOffset: 56, canDelete: true, canDuplicate: true },
@@ -2200,7 +2202,16 @@ export class GameEngine {
     if (this.postEchoStage === 'completed') {
       if (this.regionQuestStage === 'antony_invitation' || this.regionQuestStage === 'return_antony') return npcPoint('story_sr_antony');
       if (this.regionQuestStage === 'meet_flora') return npcPoint('npc_contralto');
-      if (this.regionQuestStage === 'forge_gold_pick') return npcPoint('npc_ferreiro') ?? propPoint('b_blacksmith');
+      if (this.regionQuestStage === 'forge_gold_pick') {
+        if ((this.inventory.ore || 0) < 6) {
+          const ores = this.props.filter((prop) => prop.type === 'spot_ore' && (!prop.harvest || prop.harvest.downUntil <= 0));
+          if (ores.length) {
+            const nearest = ores.sort((a, b) => Math.hypot(a.x - this.player.x, a.y - this.player.y) - Math.hypot(b.x - this.player.x, b.y - this.player.y))[0];
+            return { x: nearest.x + nearest.w / 2, y: nearest.y + nearest.h / 2 };
+          }
+        }
+        return npcPoint('npc_ferreiro') ?? propPoint('b_blacksmith');
+      }
       if (this.regionQuestStage === 'visit_sanctuary') return propPoint('region_echo_sanctuary');
       if (this.regionQuestStage === 'enter_cavern') return propPoint('region_crystal_cavern_entrance');
       if (this.regionQuestStage === 'defeat_guardian') {
@@ -2449,7 +2460,7 @@ export class GameEngine {
         id: 'MQ_C1_008_SANTUARIO_RESPONDEU', chapter: 'Capítulo I', title: 'O Santuário que Respondeu',
         description: 'Uma herborista ouviu o Santuário dos Ecos responder a uma palavra proibida.',
         status: this.postEchoStage !== 'completed' ? ('locked' as const) : ['gather_crystals', 'enter_cavern', 'defeat_guardian', 'return_antony', 'completed'].includes(this.regionQuestStage) ? ('completed' as const) : ('active' as const),
-        objective: this.regionQuestStage === 'meet_flora' ? 'Encontre Flora, a herborista, no caminho leste.' : this.regionQuestStage === 'forge_gold_pick' ? 'Forje uma Picareta Dourada com Dório.' : this.regionQuestStage === 'visit_sanctuary' ? 'Caminhe com suas próprias pernas até o Santuário dos Ecos.' : 'Fale novamente com o Sr. Antony.',
+        objective: this.regionQuestStage === 'meet_flora' ? 'Encontre Flora, a herborista, no caminho leste.' : this.regionQuestStage === 'forge_gold_pick' ? `Reúna Minério Ressonante (${Math.min(6, this.inventory.ore || 0)}/6) e forje uma Picareta Dourada.` : this.regionQuestStage === 'visit_sanctuary' ? 'Caminhe com suas próprias pernas até o Santuário dos Ecos.' : 'Fale novamente com o Sr. Antony.',
       },
       {
         id: 'MQ_C1_009_DOZE_LUZES', chapter: 'Capítulo I', title: 'Doze Luzes, Uma Ausência',
@@ -4588,9 +4599,9 @@ export class GameEngine {
 
       if (!Array.isArray(parsed)) return;
 
-      const staticProps = this.props.filter((p) => !EDITABLE_PROP_METAS[p.type]);
+      const staticProps = this.props.filter((p) => !EDITABLE_PROP_METAS[p.type] || p.id.startsWith('ore_progression_') || p.id.startsWith('east_region_') || p.id.startsWith('east_blossom_'));
       const rebuiltProps: WorldProp[] = [...staticProps];
-      const savedIds = new Set<string>();
+      const savedIds = new Set<string>(staticProps.map((prop) => prop.id));
 
       // Props procedurais da Floresta Sombria (buildMap). O snapshot salvo pelo
       // usuário foi criado antes dessa região existir, então nunca contém props
@@ -4605,6 +4616,7 @@ export class GameEngine {
       for (const item of parsed) {
         const meta = EDITABLE_PROP_METAS[item.type];
         if (!meta) continue;
+        if (savedIds.has(item.id)) continue;
         // O antigo cinturão sul (bS_*) foi congelado no snapshot na borda do mapa
         // pré-expansão (linha ~105) e agora forma uma "fila de árvores" no meio do
         // caminho para a Floresta Sombria. Descarta — buildMap recria a borda sul
@@ -6498,6 +6510,17 @@ export class GameEngine {
         : { title: 'Doze Luzes, Uma Ausência', text: 'Extraia 5 Cristais de Eco nas redondezas do santuário', progress: this.regionCrystalProgress, target: 5, ready: false };
       this.onQuestsChange?.();
     }
+    if (item === 'ore' && this.regionQuestStage === 'forge_gold_pick') {
+      const oreCount = Math.min(6, this.inventory.ore || 0);
+      this.storyObjective = {
+        title: 'O Santuário que Respondeu',
+        text: oreCount >= 6 ? 'Minério suficiente. Volte a Dório e forje a Picareta Dourada' : 'Extraia 6 Minérios Ressonantes na pedreira',
+        progress: oreCount,
+        target: 6,
+        ready: oreCount >= 6,
+      };
+      this.onQuestsChange?.();
+    }
 
     if (this.marketIntroStage === 'collecting' && (item === 'wood' || item === 'stone')) {
       const woodCount = Math.min(3, this.inventory['wood'] || 0);
@@ -8388,7 +8411,9 @@ export class GameEngine {
       ctx.drawImage(this.assets.rockFlatSlab, px, py, prop.w, prop.h);
     }
     // 6. Nós de extração (spots)
-    else if (prop.type === 'spot_wood' && this.assets?.spotWood) {
+    else if (prop.type === 'spot_ore' && this.assets?.spotOre) {
+      ctx.drawImage(this.assets.spotOre, px, py, prop.w, prop.h);
+    } else if (prop.type === 'spot_wood' && this.assets?.spotWood) {
       ctx.drawImage(this.assets.spotWood, px, py, prop.w, prop.h);
     } else if (prop.type === 'spot_mineral' && this.assets?.spotMineral) {
       ctx.drawImage(this.assets.spotMineral, px, py, prop.w, prop.h);
@@ -8448,6 +8473,7 @@ export class GameEngine {
       spot_wood: '250,204,120',
       spot_mineral: '190,200,215',
       spot_gold: '255,215,110',
+      spot_ore: '155,205,255',
     };
     const fxCol = spotFx[prop.type];
     if (fxCol) {

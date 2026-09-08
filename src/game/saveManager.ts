@@ -501,7 +501,7 @@ export function applySaveToEngine(engine: GameEngine, save: Partial<AcordelotSav
       const regionObjectives: Record<string, { title: string; text: string; progress: number; target: number; ready: boolean }> = {
         antony_invitation: { title: 'O Santuário que Respondeu', text: 'Fale com o Sr. Antony sobre Klassíkia', progress: 0, target: 2, ready: false },
         meet_flora: { title: 'O Santuário que Respondeu', text: 'Encontre Flora no caminho leste', progress: 0, target: 2, ready: false },
-        forge_gold_pick: { title: 'O Santuário que Respondeu', text: 'Fale com Dório e forje uma Picareta Dourada', progress: 1, target: 3, ready: false },
+        forge_gold_pick: { title: 'O Santuário que Respondeu', text: (engine.inventory.ore || 0) >= 6 ? 'Minério suficiente. Volte a Dório e forje a Picareta Dourada' : 'Extraia 6 Minérios Ressonantes na pedreira', progress: Math.min(6, engine.inventory.ore || 0), target: 6, ready: (engine.inventory.ore || 0) >= 6 },
         visit_sanctuary: { title: 'O Santuário que Respondeu', text: 'Siga a estrada leste até o Santuário dos Ecos', progress: 1, target: 2, ready: false },
         gather_crystals: { title: 'Doze Luzes, Uma Ausência', text: 'Extraia 5 Cristais de Eco nas redondezas', progress: engine.regionCrystalProgress, target: 5, ready: false },
         enter_cavern: { title: 'A Caverna sob a Escala', text: 'Siga a estrada sul até a Caverna de Cristal', progress: 0, target: 2, ready: false },

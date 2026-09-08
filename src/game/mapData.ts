@@ -289,6 +289,16 @@ export function buildMap(): MapGrid {
     h: 22,
     sortY: 8 * TILE_SIZE + 20,
   });
+  // Minério comum para a primeira Picareta Dourada. Estes filões ficam na
+  // pedreira da cidade e aceitam a Picareta Básica, evitando bloqueio de progressão.
+  [[51,10],[55,17],[64,7],[68,12],[58,20],[70,18]].forEach(([c, r], i) => {
+    const x = c * TILE_SIZE, y = r * TILE_SIZE;
+    props.push({
+      id: `ore_progression_${i}`, type: 'spot_ore', x, y, w: 64, h: 54,
+      sortY: y + 50,
+      collider: { x: x + 10, y: y + 31, w: 44, h: 18 },
+    });
+  });
   props.push({
     id: 'rock_monolith_1',
     type: 'rockMonolith',

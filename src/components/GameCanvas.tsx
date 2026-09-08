@@ -648,6 +648,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
   const [showWorldMap, setShowWorldMap] = useState(false);
   const [showDungeonGate, setShowDungeonGate] = useState(false);
   const [inDungeon,setInDungeon] = useState(false);
+  const [activeMapId, setActiveMapId] = useState<string>('overworld');
   const [, setQuestTick] = useState(0);
   const [, setCharacterTick] = useState(0);
   // Skills agora é uma aba dentro da Ficha — abrir com esse atalho já cai nela
@@ -880,7 +881,11 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
 
     engine.onQuestsChange = () => {setQuestTick((t) => t + 1);scheduleSave();};
     engine.onDungeonGate = () => setShowDungeonGate(true);
-    engine.onSceneChange = (inside) => {setInDungeon(inside);scheduleSave();};
+    engine.onSceneChange = (inside) => {
+      setInDungeon(inside);
+      setActiveMapId(engineRef.current?.activeMapId ?? 'overworld');
+      scheduleSave();
+    };
     engine.onCharacterChange = () => setCharacterTick((t) => t + 1);
     engine.onStoryVoice = (text, voice) => speakMusically(text, voice, Math.max(.12, bgmVolume * .34));
     engine.onStoryBeat = (beat) => {
@@ -2386,8 +2391,18 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
             </button>
           )}
 
-          {!inDungeon && <DayCycleIndicator engine={engineRef.current} />}
-          {inDungeon && <button type="button" onClick={()=>engineRef.current?.leaveCrystalDungeon()} className="rounded-xl border border-violet-300/50 bg-slate-950/95 px-3 py-2 text-xs font-bold text-violet-100">Sair da caverna</button>}
+          {(activeMapId === 'overworld' || activeMapId === 'floresta_ecos' || activeMapId === 'cavernas_cristal') && <DayCycleIndicator engine={engineRef.current} />}
+          {inDungeon && (
+            <button
+              type="button"
+              onClick={() => engineRef.current?.leaveCrystalDungeon()}
+              className="rounded-xl border border-violet-300/50 bg-slate-950/95 px-3 py-2 text-xs font-bold text-violet-100"
+            >
+              {activeMapId === 'dg_cristal_profundo' ? 'Sair da caverna'
+                : activeMapId === 'floresta_ecos' ? 'Voltar a Acordelot'
+                : 'Voltar'}
+            </button>
+          )}
 
           <button
             id="hud-settings-btn"

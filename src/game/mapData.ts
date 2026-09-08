@@ -12,10 +12,11 @@
  *  - Distrito da pedreira ao nordeste.
  */
 import { Rect, WorldProp, NPC } from './types';
-import { buildEasternRegions } from './easternRegions';
 
 // Mapa: bloco norte (vila + terras editadas) + bloco sul (FLORESTA SOMBRIA).
-export const MAP_COLS = 440; // cidade, bosque, desfiladeiro e oito câmaras subterrâneas
+// As regiões orientais (Santuário, Cavernas) viraram mapas próprios — ver
+// src/game/maps/. O overworld termina na coluna 330.
+export const MAP_COLS = 330;
 export const OLD_ROWS = 108; // fim do bloco norte — nada acima disso muda
 export const DARK_START = 110; // início da Floresta Sombria
 export const MAP_ROWS = 208; // maior profundidade da Floresta Sombria
@@ -53,6 +54,7 @@ export const TERRAIN_TILES = {
   DUNGEON_VOID: 9009, // vazio rochoso que recorta as salas da DG
   ECHO_PATH: 9010,
   FRONTIER_PATH: 9011,
+  SINGING_WOODS: 9012, // chão de mata cantante (Floresta dos Ecos)
 };
 
 // Faixa de transição (em linhas) entre o mapa antigo e a Floresta Sombria.
@@ -643,8 +645,9 @@ export function buildMap(): MapGrid {
   let did = 0;
 
   // clareiras (círculos onde a floresta rareia — abrigam cristais e chefes)
-  const glades: Array<[number, number, number]> = [];
-  for (let i = 0; i < 13; i++) {
+  // A primeira é FIXA: clareira da boca de caverna → Cavernas de Cristal.
+  const glades: Array<[number, number, number]> = [[60, 168, 7]];
+  for (let i = 0; i < 12; i++) {
     glades.push([
       8 + Math.floor(rnd() * (MAP_COLS - 16)),
       DARK_START + 5 + Math.floor(rnd() * (MAP_ROWS - DARK_START - 10)),
@@ -707,8 +710,20 @@ export function buildMap(): MapGrid {
     else dprop(`dr${did++}`, 'stoneQuarry', x, y, 140, 140);
   }
 
-  buildEasternRegions(ground, props, solidColliders, TERRAIN_TILES);
-
+  // Boca de caverna → bioma Cavernas de Cristal (portal plantado em maps/overworld.ts).
+  // A clareira fixa (col 60, row 168) já foi reservada no array `glades` acima.
+  {
+    const cgc = 60, cgr = 168;
+    props.push({
+      id: 'region_crystal_cavern_entrance',
+      type: 'crystalCaveGate',
+      x: cgc * TILE_SIZE - 119,
+      y: cgr * TILE_SIZE - 150,
+      w: 238,
+      h: 212,
+      sortY: cgr * TILE_SIZE - 8,
+    });
+  }
 
   // 10. NPCs COM ROTA (tema musical de Acordelot)
   const T = TILE_SIZE;

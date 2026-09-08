@@ -31,7 +31,6 @@ import {
   Point,
 } from './types';
 import {
-  buildMap,
   MAP_COLS,
   MAP_ROWS,
   TILE_SIZE,
@@ -41,6 +40,7 @@ import {
   FADE_ROWS,
   TERRAIN_TILES,
 } from './mapData';
+import { MAP_DEFS, type MapId } from './maps';
 import { loadGameAssets, LoadedAssets } from './assetLoader';
 import { RegionalTerrain } from './regionalTerrain';
 import { CRYSTAL_GATE, CRYSTAL_ROOMS, DUNGEON_LAYOUT_VERSION, DUNGEON_BOSS_ID, isDungeonEnemy, dungeonEnemyId, dungeonChestId, DUNGEON_DIFFICULTIES, type DungeonRunSave } from './crystalDungeon';
@@ -1188,6 +1188,7 @@ export const EDITABLE_PROP_METAS: Record<
   frontierBridge: { category: 'street', name: 'Ponte da Fronteira', baseW: 278, baseH: 150, sortYOffset: 145, canDelete: true, canDuplicate: true },
   frontierTree: { category: 'tree', name: 'Árvore da Fronteira', baseW: 154, baseH: 150, colOffXRatio: 0.35, colOffYRatio: 0.79, colWRatio: 0.30, colHRatio: 0.16, sortYOffset: 144, canDelete: true, canDuplicate: true },
   crystalCaveGate: { category: 'building', name: 'Entrada da Caverna de Cristal', baseW: 238, baseH: 212, sortYOffset: 204, canDelete: true, canDuplicate: true },
+  portal: { category: 'building', name: 'Portal de Região', baseW: 84, baseH: 104, sortYOffset: 96, canDelete: false, canDuplicate: false },
   dungeonChest: { category: 'street', name: 'Baú da Caverna', baseW: 76, baseH: 68, colOffXRatio: 0.13, colOffYRatio: 0.63, colWRatio: 0.74, colHRatio: 0.29, sortYOffset: 64, canDelete: true, canDuplicate: true },
 
   // 10. MURALHAS MUSICAIS (para construir os muros da cidade)
@@ -1522,7 +1523,19 @@ export class GameEngine {
   private dungeonDefeated = new Set<string>();
   private dungeonChestNoticeAt = 0;
   private dungeonRoomVisited = -1;
-  isDungeon = false;
+
+  // ---- Regiões zoneadas (mapas separados ligados por portais) ----
+  activeMapId: MapId = 'overworld';
+  activeMap = MAP_DEFS.overworld;
+  /** estado mutável por mapa (inimigos mortos, baús) pra restaurar ao voltar */
+  private mapState = new Map<MapId, { defeated: Set<string>; chests: Set<string> }>();
+  private portalCooldownUntil = 0;
+  get mapCols() { return this.activeMap.cols; }
+  get mapRows() { return this.activeMap.rows; }
+  get worldW() { return this.activeMap.cols * TILE_SIZE; }
+  get worldH() { return this.activeMap.rows * TILE_SIZE; }
+  /** "caverna escura" — DGs instanciadas. O bioma Cavernas de Cristal é claro. */
+  get isDungeon() { return this.activeMap.ambient.lighting === 'cave'; }
   onSceneChange?: (dungeon: boolean) => void;
   private sceneFadeUntil = 0;
   playerSlowUntil = 0;
@@ -1541,88 +1554,200 @@ export class GameEngine {
     return {version:DUNGEON_LAYOUT_VERSION,difficulty:this.activeDungeonDifficulty,defeated:[...this.dungeonDefeated],chests:[...this.dungeonClaimedChests],inside:this.isDungeon};
   }
 
+  /** Viagem entre regiões (mapas separados ligados por portais). */
+  travelTo(to: MapId, spawn?: { col: number; row: number }) {
+    const def = MAP_DEFS[to];
+    if (!def) return;
+    const sp = spawn ?? def.defaultSpawn;
+
+    // guarda o estado mutável do mapa que estou deixando
+    if (this.activeMapId === 'dg_cristal_profundo') {
+      this.mapState.set('dg_cristal_profundo', {
+        defeated: new Set(this.dungeonDefeated),
+        chests: new Set(this.dungeonClaimedChests),
+      });
+    }
+    if (this.activeMapId === 'overworld') {
+      this.overworldFragments = this.fragmentPickups;
+    }
+
+    this.activeMapId = to;
+    this.activeMap = def;
+    const g = def.build();
+    this.ground = g.ground;
+    this.regionalTerrain = undefined;
+    this.props = g.props;
+    this.npcs = g.npcs;
+    this.staticColliders = g.solidColliders.filter((col) => !g.props.some((p) => p.collider === col));
+    this.propScales = {};
+    for (const p of this.props) {
+      this.propScales[p.id] = 1.0;
+      this.syncPropAutoCollider(p);
+    }
+
+    if (to === 'overworld') {
+      this.loadMapFromStorage(true);
+      this.ensureBossArena();
+    }
+
+    // restaura estado salvo da DG
+    if (to === 'dg_cristal_profundo') {
+      const st = this.mapState.get('dg_cristal_profundo');
+      if (st) {
+        this.dungeonDefeated = new Set(st.defeated);
+        this.dungeonClaimedChests = new Set(st.chests);
+      }
+      this.props = this.props.filter((p) => !this.dungeonClaimedChests.has(p.id));
+    }
+
+    this.gridDirty = true;
+    this.rebuildColliderGrid();
+    this.initHarvestables();
+    if (to === 'overworld') {
+      this.fragmentPickups = this.overworldFragments ?? this.fragmentPickups;
+      if (!this.fragmentPickups.length) this.initFragments();
+    } else {
+      this.fragmentPickups = [];
+    }
+    this.spawnEnemiesForActiveMap();
+
+    this.player.x = sp.col * TILE_SIZE;
+    this.player.y = sp.row * TILE_SIZE;
+    this.companion.x = this.player.x - 30;
+    this.companion.y = this.player.y + 16;
+    this.playerPoisonUntil = 0;
+    this.playerSlowUntil = 0;
+    this.playerSilenceUntil = 0;
+    this.lightBeams = [];
+    this.combatZones = [];
+    this.dungeonRoomVisited = -1;
+    this.portalCooldownUntil = this.timeElapsed + 1.4;
+    this.sceneFadeUntil = this.timeElapsed + 0.9;
+    this.storyControlLocked = false;
+    this.clearInputState();
+    this.camX = this.player.x - this.viewportW / 2;
+    this.camY = this.player.y - this.viewportH / 2;
+    this.clampCamera();
+    this.onSceneChange?.(to !== 'overworld');
+    this.onQuestsChange?.();
+  }
+
+  private overworldFragments: FragmentPickup[] | null = null;
+
+  /** Chama o spawn de inimigos certo pro mapa ativo. */
+  private spawnEnemiesForActiveMap() {
+    this.enemies = [];
+    switch (this.activeMapId) {
+      case 'overworld': this.initEnemies(); break;
+      case 'floresta_ecos': this.spawnFlorestaEcosEnemies(); break;
+      case 'cavernas_cristal': this.spawnCavernasBiomeEnemies(); break;
+      case 'dg_cristal_profundo': {
+        const diff = CRYSTAL_DUNGEON_DIFFICULTIES.find((d) => d.id === this.activeDungeonDifficulty)
+          ?? CRYSTAL_DUNGEON_DIFFICULTIES[0];
+        this.spawnCrystalDungeonEnemies(diff);
+        break;
+      }
+    }
+  }
+
   restoreDungeonRun(saved: unknown) {
-    const run=saved as Partial<DungeonRunSave> | undefined;
-    const difficulty=DUNGEON_DIFFICULTIES.find(d=>d.id===run?.difficulty);
-    if(run?.version!==DUNGEON_LAYOUT_VERSION || !difficulty) {
-      if(this.regionQuestStage==='defeat_guardian') this.regionQuestStage='enter_cavern';
-      if(this.player.x>=330*TILE_SIZE) {this.player.x=CRYSTAL_GATE.col*TILE_SIZE;this.player.y=CRYSTAL_GATE.row*TILE_SIZE;}
+    const run = saved as Partial<DungeonRunSave> | undefined;
+    const difficulty = DUNGEON_DIFFICULTIES.find((d) => d.id === run?.difficulty);
+    if (run?.version !== DUNGEON_LAYOUT_VERSION || !difficulty) {
+      if (this.regionQuestStage === 'defeat_guardian') this.regionQuestStage = 'enter_cavern';
       return;
     }
-    this.activeDungeonDifficulty=difficulty.id;
-    this.isDungeon=run.inside===true;
-    this.onSceneChange?.(this.isDungeon);
-    this.dungeonAccessGranted=true;
-    this.dungeonDefeated=new Set(Array.isArray(run.defeated)?run.defeated.filter(id=>typeof id==='string'&&isDungeonEnemy(id)):[]);
-    this.dungeonClaimedChests=new Set(Array.isArray(run.chests)?run.chests.filter(id=>typeof id==='string'&&id.startsWith('east_dungeon_chest_')):[]);
-    this.props=this.props.filter(p=>p.id!=='crystal_dungeon_barrier'&&!this.dungeonClaimedChests.has(p.id));
-    this.rebuildColliderGrid();
-    this.spawnCrystalDungeonEnemies(difficulty);
-    if(this.ground[Math.floor(this.player.y/TILE_SIZE)]?.[Math.floor(this.player.x/TILE_SIZE)]===TERRAIN_TILES.DUNGEON_VOID) {
-      this.player.x=(this.isDungeon?CRYSTAL_ROOMS[0].col:CRYSTAL_GATE.col)*TILE_SIZE;
-      this.player.y=(this.isDungeon?CRYSTAL_ROOMS[0].row:CRYSTAL_GATE.row)*TILE_SIZE;
-    }
-    if(this.isDungeon&&this.player.x<331*TILE_SIZE){this.player.x=CRYSTAL_ROOMS[0].col*TILE_SIZE;this.player.y=CRYSTAL_ROOMS[0].row*TILE_SIZE;}
-    this.camX=this.player.x-this.viewportW/2;this.camY=this.player.y-this.viewportH/2;this.clampCamera();
+    this.activeDungeonDifficulty = difficulty.id;
+    this.dungeonAccessGranted = true;
+    this.dungeonDefeated = new Set(Array.isArray(run.defeated) ? run.defeated.filter((id) => typeof id === 'string' && isDungeonEnemy(id)) : []);
+    this.dungeonClaimedChests = new Set(Array.isArray(run.chests) ? run.chests.filter((id) => typeof id === 'string' && id.startsWith('east_dungeon_chest_')) : []);
+    this.mapState.set('dg_cristal_profundo', {
+      defeated: new Set(this.dungeonDefeated),
+      chests: new Set(this.dungeonClaimedChests),
+    });
   }
 
   cancelDungeonEntry() {
-    // Do not reopen until the player leaves the approach and deliberately returns.
-    this.dungeonGatePrompted = true;
     this.storyControlLocked = false;
     this.clearInputState();
+    this.pendingScreenPortal = null;
+    this.portalCooldownUntil = this.timeElapsed + 1.2;
   }
 
   enterCrystalDungeon(difficultyId: number): { ok: boolean; message: string } {
-    const difficulty = CRYSTAL_DUNGEON_DIFFICULTIES.find(candidate=>candidate.id===difficultyId);
-    if (!difficulty) return {ok:false,message:'Dificuldade inválida.'};
-    if(Math.hypot(this.player.x/TILE_SIZE-CRYSTAL_GATE.col,this.player.y/TILE_SIZE-CRYSTAL_GATE.row)>12)
-      return {ok:false,message:'Aproxime-se da entrada da caverna.'};
-    if(this.inCombat) return {ok:false,message:'Termine o combate antes de preparar a expedição.'};
+    const difficulty = CRYSTAL_DUNGEON_DIFFICULTIES.find((candidate) => candidate.id === difficultyId);
+    if (!difficulty) return { ok: false, message: 'Dificuldade inválida.' };
+    if (this.inCombat) return { ok: false, message: 'Termine o combate antes de preparar a expedição.' };
     if (this.combatPower < difficulty.requiredPower)
-      return {ok:false,message:`Poder ${difficulty.requiredPower} necessário. Seu poder atual é ${this.combatPower}.`};
-    const newRun=this.activeDungeonDifficulty!==difficulty.id || this.dungeonClaimedChests.size===CRYSTAL_ROOMS.length;
-    if(newRun) {
-      this.dungeonDefeated.clear();this.dungeonClaimedChests.clear();
-      this.props=this.props.filter(p=>p.type!=='dungeonChest');
-      this.props.push(...buildMap().props.filter(p=>p.type==='dungeonChest'));
+      return { ok: false, message: `Poder ${difficulty.requiredPower} necessário. Seu poder atual é ${this.combatPower}.` };
+
+    const newRun = this.activeDungeonDifficulty !== difficulty.id || this.dungeonClaimedChests.size === CRYSTAL_ROOMS.length;
+    if (newRun) {
+      this.dungeonDefeated.clear();
+      this.dungeonClaimedChests.clear();
+      this.mapState.delete('dg_cristal_profundo');
     }
-    this.activeDungeonDifficulty=difficulty.id;
-    this.dungeonAccessGranted=true;
-    this.dungeonGatePrompted=true;
-    this.storyControlLocked=false;
-    this.props=this.props.filter(p=>p.id!=='crystal_dungeon_barrier');
-    this.rebuildColliderGrid();
-    if(newRun || !this.enemies.some(e=>isDungeonEnemy(e.id))) this.spawnCrystalDungeonEnemies(difficulty);
-    if(this.regionQuestStage==='enter_cavern') {
-      this.regionQuestStage=this.dungeonDefeated.has(DUNGEON_BOSS_ID)?'return_antony':'defeat_guardian';
-      this.storyObjective={title:'A Caverna sob a Escala',text:'Explore as oito câmaras e alcance o Guardião Cristalino',progress:0,target:1,ready:false};
+    this.activeDungeonDifficulty = difficulty.id;
+    this.dungeonAccessGranted = true;
+
+    if (this.regionQuestStage === 'enter_cavern') {
+      this.regionQuestStage = this.dungeonDefeated.has(DUNGEON_BOSS_ID) ? 'return_antony' : 'defeat_guardian';
+      this.storyObjective = { title: 'A Caverna sob a Escala', text: 'Explore as oito câmaras e alcance o Guardião Cristalino', progress: 0, target: 1, ready: false };
     }
-    this.onQuestsChange?.();
-    this.clearInputState();
-    this.isDungeon=true;
-    this.player.x=CRYSTAL_ROOMS[0].col*TILE_SIZE;
-    this.player.y=CRYSTAL_ROOMS[0].row*TILE_SIZE;
-    this.companion.x=this.player.x-30;this.companion.y=this.player.y+16;
-    this.playerPoisonUntil=0;this.playerSlowUntil=0;this.playerSilenceUntil=0;
-    this.dungeonRoomVisited=-1;
-    this.sceneFadeUntil=this.timeElapsed+.9;
-    this.camX=this.player.x-this.viewportW/2;this.camY=this.player.y-this.viewportH/2;this.clampCamera();
-    this.onSceneChange?.(true);
-    return {ok:true,message:'Expedição iniciada.'};
+
+    this.travelTo('dg_cristal_profundo', { col: CRYSTAL_ROOMS[0].col, row: CRYSTAL_ROOMS[0].row });
+    return { ok: true, message: 'Expedição iniciada.' };
   }
 
+  /** Botão "sair" do HUD — volta pro mapa-pai da região atual. */
   leaveCrystalDungeon() {
-    if(!this.isDungeon)return;
-    this.isDungeon=false;
-    this.player.x=CRYSTAL_GATE.col*TILE_SIZE;this.player.y=CRYSTAL_GATE.row*TILE_SIZE;
-    this.companion.x=this.player.x-30;this.companion.y=this.player.y+16;
-    this.dungeonGatePrompted=true;this.storyControlLocked=false;
-    this.clearInputState();this.sceneFadeUntil=this.timeElapsed+.9;
-    this.playerPoisonUntil=0;this.playerSlowUntil=0;this.playerSilenceUntil=0;
-    this.lightBeams=[];this.combatZones=[];
-    this.camX=this.player.x-this.viewportW/2;this.camY=this.player.y-this.viewportH/2;this.clampCamera();
-    this.onSceneChange?.(false);this.onQuestsChange?.();
+    switch (this.activeMapId) {
+      case 'dg_cristal_profundo':
+        this.travelTo('cavernas_cristal', { col: 214, row: 84 });
+        break;
+      case 'cavernas_cristal':
+        this.travelTo('overworld', { col: 60, row: 172 });
+        break;
+      case 'floresta_ecos':
+        this.travelTo('overworld', { col: 37, row: 8 });
+        break;
+      default:
+        break;
+    }
+  }
+
+  /** dados do portal `kind:'screen'` que abriu a tela de preparação */
+  pendingScreenPortal: { to: MapId; spawn: { col: number; row: number } } | null = null;
+  /** id do portal ativo agora (pra não re-disparar enquanto o player está em cima) */
+  private portalOn: string | null = null;
+
+  private updatePortals(_playerCol: number, _playerRow: number) {
+    if (this.storyControlLocked || this.timeElapsed < this.portalCooldownUntil) return;
+    // caixa dos "pés" do jogador
+    const feet = { x: this.player.x + 2, y: this.player.y + 10, w: 20, h: 26 };
+    let touching: WorldProp | null = null;
+    for (const p of this.props) {
+      if (p.type !== 'portal') continue;
+      // zona de passagem: da metade do arco até ~um tile abaixo da base
+      const door = { x: p.x - 4, y: p.y + p.h * 0.4, w: p.w + 8, h: p.h * 0.9 };
+      if (feet.x < door.x + door.w && feet.x + feet.w > door.x && feet.y < door.y + door.h && feet.y + feet.h > door.y) {
+        touching = p;
+        break;
+      }
+    }
+    if (!touching) { this.portalOn = null; return; }
+    if (this.portalOn === touching.id) return;
+    this.portalOn = touching.id;
+    const data = touching.data as { to: MapId; spawn: { col: number; row: number }; kind: 'walk' | 'screen'; label?: string } | undefined;
+    if (!data) return;
+    if (data.kind === 'screen') {
+      this.pendingScreenPortal = { to: data.to, spawn: data.spawn };
+      this.storyControlLocked = true;
+      this.clearInputState();
+      this.onDungeonGate?.();
+    } else {
+      this.travelTo(data.to, data.spawn);
+    }
   }
 
   private scaleTonic(scaleKey: string): number {
@@ -1813,7 +1938,7 @@ export class GameEngine {
     }
     if (kind === 'pick' && tier === 'gold' && this.regionQuestStage === 'forge_gold_pick') {
       this.regionQuestStage = 'visit_sanctuary';
-      this.storyObjective = { title: 'O Santuário que Respondeu', text: 'Picareta pronta. Siga a estrada leste até o Santuário dos Ecos', progress: 2, target: 3, ready: false };
+      this.storyObjective = { title: 'O Santuário que Respondeu', text: 'Picareta pronta. Cruze o portal do Santuário, na praça ao norte de Acordelot', progress: 2, target: 3, ready: false };
       this.onHarvestPopup?.('✦ Picareta Dourada afinada: cristais e ouro liberados', this.player.x, this.player.y - 20);
       this.onQuestsChange?.();
     }
@@ -2611,7 +2736,7 @@ export class GameEngine {
         id: 'MQ_C1_008_SANTUARIO_RESPONDEU', chapter: 'Capítulo I', title: 'O Santuário que Respondeu',
         description: 'Uma herborista ouviu o Santuário dos Ecos responder a uma palavra proibida.',
         status: this.postEchoStage !== 'completed' ? ('locked' as const) : ['gather_crystals', 'enter_cavern', 'defeat_guardian', 'return_antony', 'completed'].includes(this.regionQuestStage) ? ('completed' as const) : ('active' as const),
-        objective: this.regionQuestStage === 'meet_flora' ? 'Encontre Flora, a herborista, no caminho leste.' : this.regionQuestStage === 'forge_gold_pick' ? `Reúna Minério Ressonante (${Math.min(6, this.inventory.ore || 0)}/6) e forje uma Picareta Dourada.` : this.regionQuestStage === 'visit_sanctuary' ? 'Caminhe com suas próprias pernas até o Santuário dos Ecos.' : 'Fale novamente com o Sr. Antony.',
+        objective: this.regionQuestStage === 'meet_flora' ? 'Encontre Flora, a herborista, no caminho leste.' : this.regionQuestStage === 'forge_gold_pick' ? `Reúna Minério Ressonante (${Math.min(6, this.inventory.ore || 0)}/6) e forje uma Picareta Dourada.` : this.regionQuestStage === 'visit_sanctuary' ? 'Cruze o portal do Santuário, na praça ao norte da vila.' : 'Fale novamente com o Sr. Antony.',
       },
       {
         id: 'MQ_C1_009_DOZE_LUZES', chapter: 'Capítulo I', title: 'Doze Luzes, Uma Ausência',
@@ -2623,7 +2748,7 @@ export class GameEngine {
         id: 'MQ_C1_010_CAVERNA_SOB_ESCALA', chapter: 'Capítulo I', title: 'A Caverna sob a Escala',
         description: 'A trilha cristalina desce a uma dungeon onde algo tenta imitar a voz de Akles.',
         status: !['enter_cavern', 'defeat_guardian', 'return_antony', 'completed'].includes(this.regionQuestStage) ? ('locked' as const) : this.regionQuestStage === 'completed' ? ('completed' as const) : ('active' as const),
-        objective: this.regionQuestStage === 'enter_cavern' ? 'Siga a estrada e entre na Caverna de Cristal.' : this.regionQuestStage === 'defeat_guardian' ? 'Derrote o Guardião Cristalino no fundo da dungeon.' : this.regionQuestStage === 'return_antony' ? 'Leve o fragmento de mensagem ao Sr. Antony.' : 'A caverna revelou que alguém conhece o nome de Akles.',
+        objective: this.regionQuestStage === 'enter_cavern' ? 'Desça à Floresta Sombria e cruze a boca da caverna.' : this.regionQuestStage === 'defeat_guardian' ? 'Derrote o Guardião Cristalino no fundo da dungeon.' : this.regionQuestStage === 'return_antony' ? 'Leve o fragmento de mensagem ao Sr. Antony.' : 'A caverna revelou que alguém conhece o nome de Akles.',
       },
     ];
   }
@@ -2824,7 +2949,8 @@ export class GameEngine {
     this.trees = generateTrees();
     this.houses = generateHouses();
 
-    const map = buildMap();
+    this.activeMap = MAP_DEFS.overworld;
+    const map = MAP_DEFS.overworld.build();
     this.ground = map.ground;
     this.regionalTerrain = undefined;
     this.props = map.props;
@@ -3769,6 +3895,7 @@ export class GameEngine {
   // A Floresta Sombria é sempre noite e quase sempre chuva.
   // darkT: 0 = mapa normal, 1 = fundo da floresta. Faixa de transição suave.
   get darkT() {
+    if (this.activeMapId !== 'overworld') return 0; // Floresta Sombria só existe no overworld
     const y0 = (DARK_START - FADE_ROWS) * TILE_SIZE;
     const y1 = (DARK_START + 6) * TILE_SIZE;
     const t = (this.player.y - y0) / (y1 - y0);
@@ -3890,9 +4017,9 @@ export class GameEngine {
         'Sou Flora. Cuido de plantas que cantam, Ecos que espirram e aventureiros que confundem ambos com ingredientes.',
         'Na noite em que o sino perdeu o Fá, o Santuário dos Ecos respondeu com uma décima terceira vibração. Não era nota. Parecia uma palavra tentando lembrar como se fala.',
         'Disse "Klassíkia". Depois todas as flores se viraram para o leste, em direção à Caverna de Cristal.',
-        'Não temos teleporte e isso é uma sorte: caminhos revelam coisas que portais escondem. Siga a estrada leste até o santuário.',
+        'O arco do santuário voltou a abrir. O portal fica na praça ao norte da vila — cruze e escute o que os Ecos guardam.',
         'Se Pippo perguntar, eu não disse que cristais cantam quando são lambidos. E você também não vai descobrir.',
-      ] : ['A estrada leste termina no santuário. Escute antes de colher: algumas plantas só florescem para quem chega sem pressa.'];
+      ] : ['O portal ao norte leva ao santuário. Escute antes de colher: algumas plantas só florescem para quem chega sem pressa.'];
       return { id: n.id, name: n.name, title: n.title, accent: n.accent ?? '#86efac', dialogue, isMerchant: false, spriteType: n.spriteType };
     }
     if (n.id === 'npc_mercador_cidade') {
@@ -4208,7 +4335,7 @@ export class GameEngine {
         const alreadyHasGoldenPick = this.ownedPicks.includes('gold');
         this.regionQuestStage = alreadyHasGoldenPick ? 'visit_sanctuary' : 'forge_gold_pick';
         this.storyObjective = alreadyHasGoldenPick
-          ? { title: 'O Santuário que Respondeu', text: 'Siga a estrada leste até o Santuário dos Ecos', progress: 1, target: 2, ready: false }
+          ? { title: 'O Santuário que Respondeu', text: 'Cruze o portal do Santuário, ao norte de Acordelot', progress: 1, target: 2, ready: false }
           : { title: 'O Santuário que Respondeu', text: 'Fale com Dório e forje uma Picareta Dourada', progress: 1, target: 3, ready: false };
         this.onQuestsChange?.();
       }
@@ -4699,7 +4826,7 @@ export class GameEngine {
   // Layout editável do mapa (usado no localStorage e ao publicar no código)
   serializeMap() {
     return this.props
-      .filter((p) => EDITABLE_PROP_METAS[p.type])
+      .filter((p) => EDITABLE_PROP_METAS[p.type] && p.type !== 'portal')
       .map((p) => ({
         id: p.id,
         type: p.type,
@@ -4710,6 +4837,7 @@ export class GameEngine {
   }
 
   saveMapToStorage() {
+    if (this.activeMapId !== 'overworld') return; // editor só no overworld
     try {
       const savedProps = this.serializeMap();
 
@@ -4734,6 +4862,7 @@ export class GameEngine {
   }
 
   loadMapFromStorage(preferBundled = false) {
+    if (this.activeMapId !== 'overworld') return; // editor só no overworld
     try {
       let parsed: Array<{ id: string; type: string; x: number; y: number; scale: number }> | null = null;
       const bundled = initialCustomMap as Array<{ id: string; type: string; x: number; y: number; scale: number }>;
@@ -4755,7 +4884,7 @@ export class GameEngine {
 
       if (!Array.isArray(parsed)) return;
 
-      const staticProps = this.props.filter((p) => !EDITABLE_PROP_METAS[p.type] || p.id.startsWith('ore_progression_') || p.id.startsWith('east_') || p.id === 'region_echo_sanctuary' || p.id === 'region_crystal_cavern_entrance');
+      const staticProps = this.props.filter((p) => !EDITABLE_PROP_METAS[p.type] || p.type === 'portal' || p.id.startsWith('ore_progression_') || p.id.startsWith('east_') || p.id === 'region_echo_sanctuary' || p.id === 'region_crystal_cavern_entrance');
       const rebuiltProps: WorldProp[] = [...staticProps];
       const savedIds = new Set<string>(staticProps.map((prop) => prop.id));
 
@@ -4923,7 +5052,7 @@ export class GameEngine {
       localStorage.removeItem('vila_encantada_buildings_v1');
     } catch (e) {}
 
-    const map = buildMap();
+    const map = MAP_DEFS.overworld.build();
     this.ground = map.ground;
     this.props = map.props;
     this.npcs = map.npcs;
@@ -5332,16 +5461,7 @@ export class GameEngine {
 
     // Boss da ascensão de Teclas, sozinho no centro da arena nordeste.
     this.spawnEnemy('organ_sentinel', 168, 13, id++, 12);
-    // Twelve live, capturable chromatic Echoes inhabit the sanctuary.
-    for(let note=0;note<12;note++) {
-      for(let attempt=0;attempt<30;attempt++) {
-        const a=note*Math.PI/6+attempt*.12;
-        const c=Math.round(202+Math.cos(a)*(8+attempt%5)),r=Math.round(24+Math.sin(a)*(7+attempt%5));
-        if(this.spawnEnemy('eco_'+NOTE_KEY[note],c,r,98000+note,1)) {
-          this.enemies[this.enemies.length-1].id='sanctuary_echo_'+note;break;
-        }
-      }
-    }
+    // (os 12 Ecos capturáveis do Santuário agora vivem no mapa Floresta dos Ecos)
 
     // FLORESTA SOMBRIA — MUITOS monstros espalhados por toda a região
     const darkStartRow = DARK_START + 3;
@@ -5377,6 +5497,55 @@ export class GameEngine {
     if(!this.dungeonDefeated.has(DUNGEON_BOSS_ID)) {
       const room=CRYSTAL_ROOMS[7];
       this.spawnDungeonMember('crystal_guardian',room.col,room.row,DUNGEON_BOSS_ID,7,difficulty);
+    }
+  }
+
+  private spawnFlorestaEcosEnemies() {
+    this.enemyRngState = 0x5eed77;
+    let id = 700000;
+    // 12 Ecos capturáveis na Clareira do Santuário (col 150, row 118)
+    for (let note = 0; note < 12; note++) {
+      for (let attempt = 0; attempt < 30; attempt++) {
+        const a = note * (Math.PI / 6) + attempt * 0.12;
+        const c = Math.round(150 + Math.cos(a) * (8 + (attempt % 5)));
+        const r = Math.round(118 + Math.sin(a) * (7 + (attempt % 5)));
+        if (this.spawnEnemy('eco_' + NOTE_KEY[note], c, r, 98000 + note, 1)) {
+          this.enemies[this.enemies.length - 1].id = 'sanctuary_echo_' + note;
+          break;
+        }
+      }
+    }
+    // Ecos selvagens espalhados pelo Bosque Cantante (col ~150, row ~44)
+    for (let i = 0; i < 22; i++) {
+      for (let tries = 0; tries < 20; tries++) {
+        const c = 20 + Math.floor(this.enemyRandom() * 260);
+        const r = 8 + Math.floor(this.enemyRandom() * 70);
+        if (this.spawnEnemy('eco_' + NOTE_KEY[i % 12], c, r, id++)) break;
+      }
+    }
+    // mini-chefe nas Ruínas do Conservatório
+    this.spawnEnemy('organ_sentinel', 242, 120, id++, 10);
+  }
+
+  private spawnCavernasBiomeEnemies() {
+    this.enemyRngState = 0xc4ee77;
+    let id = 720000;
+    // bioma calmo — poucos guardiões de cristal fracos + alguns Ecos
+    const kinds = ['aranha', 'nocturno', 'dama'];
+    for (let i = 0; i < 14; i++) {
+      for (let tries = 0; tries < 20; tries++) {
+        const c = 30 + Math.floor(this.enemyRandom() * 220);
+        const r = 30 + Math.floor(this.enemyRandom() * 150);
+        if (this.ground[r]?.[c] !== TERRAIN_TILES.CRYSTAL_FLOOR && this.ground[r]?.[c] !== TERRAIN_TILES.ECHO_PATH) continue;
+        if (this.spawnEnemy(kinds[i % kinds.length], c, r, id++, 8 + Math.floor(this.enemyRandom() * 4))) break;
+      }
+    }
+    for (let i = 0; i < 6; i++) {
+      for (let tries = 0; tries < 20; tries++) {
+        const c = 40 + Math.floor(this.enemyRandom() * 200);
+        const r = 40 + Math.floor(this.enemyRandom() * 130);
+        if (this.spawnEnemy('eco_' + NOTE_KEY[i * 2], c, r, id++)) break;
+      }
     }
   }
 
@@ -7138,20 +7307,16 @@ export class GameEngine {
     if (this.companionVisible) this.updateCompanion(dt);
     this.updateRemotePlayers(dt);
     this.updateNpcs(dt);
-    // Surface travel is continuous; the cave gate opens a separate expedition.
     const playerCol = this.player.x / TILE_SIZE;
     const playerRow = this.player.y / TILE_SIZE;
-    if (this.regionQuestStage === 'visit_sanctuary' && playerCol >= 187 && playerCol <= 214 && playerRow <= 40) {
+    this.updatePortals(playerCol, playerRow);
+    // Santuário respondendo ao nome (agora dispara ao chegar na Floresta dos Ecos)
+    if (this.regionQuestStage === 'visit_sanctuary' && this.activeMapId === 'floresta_ecos') {
       this.regionQuestStage = 'gather_crystals';
       this.regionCrystalProgress = 0;
       this.storyObjective = { title: 'Doze Luzes, Uma Ausência', text: 'Extraia 5 Cristais de Eco nas redondezas do santuário', progress: 0, target: 5, ready: false };
       this.onHarvestPopup?.('✦ O Santuário respondeu ao nome Klassíkia', this.player.x, this.player.y - 28);
       this.onQuestsChange?.();
-    }
-    const nearGate=!this.isDungeon && Math.hypot(playerCol-CRYSTAL_GATE.col,playerRow-CRYSTAL_GATE.row)<8;
-    if(!nearGate)this.dungeonGatePrompted=false;
-    if(nearGate && this.storyStage==='complete' && !this.isTalkingToMerchant && !this.dungeonGatePrompted && this.onDungeonGate) {
-      this.dungeonGatePrompted=true;this.storyControlLocked=true;this.clearInputState();this.onDungeonGate();
     }
     if(this.isDungeon){
       const room=CRYSTAL_ROOMS.findIndex(r=>Math.hypot((playerCol-r.col)/r.rx,(playerRow-r.row)/r.ry)<.85);
@@ -7377,10 +7542,9 @@ export class GameEngine {
   }
 
   clampCamera() {
-    const minX = this.isDungeon ? 330*TILE_SIZE : 0;
-    const maxX = Math.max(minX, (this.isDungeon ? WORLD_WIDTH : 330*TILE_SIZE) - this.viewportW);
-    const maxY = Math.max(0, WORLD_HEIGHT - this.viewportH);
-    this.camX = Math.max(minX, Math.min(this.camX, maxX));
+    const maxX = Math.max(0, this.worldW - this.viewportW);
+    const maxY = Math.max(0, this.worldH - this.viewportH);
+    this.camX = Math.max(0, Math.min(this.camX, maxX));
     this.camY = Math.max(0, Math.min(this.camY, maxY));
   }
 
@@ -7414,7 +7578,10 @@ export class GameEngine {
     } else {
       char.vy = 0;
     }
-    if(char===this.player)char.x=this.isDungeon?Math.max(331*TILE_SIZE,char.x):Math.min(330*TILE_SIZE-32,char.x);
+    if (char === this.player) {
+      char.x = Math.max(16, Math.min(this.worldW - 48, char.x));
+      char.y = Math.max(16, Math.min(this.worldH - 48, char.y));
+    }
   }
 
   // Grade espacial de colisores (128px) — evita varrer milhares de props
@@ -7586,9 +7753,13 @@ export class GameEngine {
   private drawRegionalAtmosphere(camX: number, camY: number) {
     const ctx = this.ctx;
     const t = this.timeElapsed;
-    const sanctuaryX = 201 * TILE_SIZE + 16 - camX;
-    const sanctuaryY = 21 * TILE_SIZE + 16 - camY;
-    if (sanctuaryX > -520 && sanctuaryX < this.viewportW + 520 && sanctuaryY > -520 && sanctuaryY < this.viewportH + 520) {
+    // brilho do Santuário: no mapa Floresta dos Ecos fica na Clareira central
+    const sanct = this.activeMapId === 'floresta_ecos' ? { c: 150, r: 118 }
+      : this.activeMapId === 'cavernas_cristal' ? { c: 140, r: 100 }
+      : null;
+    const sanctuaryX = sanct ? sanct.c * TILE_SIZE + 16 - camX : -99999;
+    const sanctuaryY = sanct ? sanct.r * TILE_SIZE + 16 - camY : -99999;
+    if (sanct && sanctuaryX > -520 && sanctuaryX < this.viewportW + 520 && sanctuaryY > -520 && sanctuaryY < this.viewportH + 520) {
       ctx.save();
       ctx.globalCompositeOperation = 'screen';
       const glow = ctx.createRadialGradient(sanctuaryX, sanctuaryY, 18, sanctuaryX, sanctuaryY, 265);
@@ -7643,9 +7814,9 @@ export class GameEngine {
     const terrainImg = this.assets?.terrain;
 
     const startCol = Math.max(0, Math.floor(camX / TILE_SIZE));
-    const endCol = Math.min(MAP_COLS - 1, Math.ceil((camX + this.viewportW) / TILE_SIZE));
+    const endCol = Math.min(this.mapCols - 1, Math.ceil((camX + this.viewportW) / TILE_SIZE));
     const startRow = Math.max(0, Math.floor(camY / TILE_SIZE));
-    const endRow = Math.min(MAP_ROWS - 1, Math.ceil((camY + this.viewportH) / TILE_SIZE));
+    const endRow = Math.min(this.mapRows - 1, Math.ceil((camY + this.viewportH) / TILE_SIZE));
 
     // 1. Ground Tiles (+ água "shader" para os sentinelas 9000/9001)
     const wt = this.timeElapsed;
@@ -7681,8 +7852,17 @@ export class GameEngine {
       }
     }
     if (this.assetsLoaded && this.assets) {
-      this.regionalTerrain ??= new RegionalTerrain(this.ground, this.assets);
+      this.regionalTerrain ??= new RegionalTerrain(this.ground, this.assets, this.activeMapId === 'overworld' ? 11 : 0);
       this.regionalTerrain.draw(ctx,camX,camY,this.viewportW,this.viewportH);
+    }
+    // Bioma de cristal: banho ciano/lavanda suave, luz de gruta iluminada.
+    if (this.activeMap.ambient.lighting === 'crystal-glow') {
+      const gw = ctx.createLinearGradient(0, 0, 0, this.viewportH);
+      gw.addColorStop(0, 'rgba(120,180,255,0.10)');
+      gw.addColorStop(0.5, 'rgba(150,130,220,0.06)');
+      gw.addColorStop(1, 'rgba(90,120,200,0.12)');
+      ctx.fillStyle = gw;
+      ctx.fillRect(0, 0, this.viewportW, this.viewportH);
     }
     this.drawRegionalAtmosphere(camX, camY);
 
@@ -8044,11 +8224,44 @@ export class GameEngine {
       ctx.fillRect(0, 0, this.viewportW, this.viewportH);
     }
 
+    // 5.5 Vinhete de borda do mundo — em vez do corte reto no colisor, a
+    // margem do mapa some num degradê pra névoa da região.
+    this.renderWorldEdgeFog(camX, camY);
+
     // 6. Editor Gizmos
     if (this.isEditMode) {
       this.renderEditorGizmos(ctx, camX, camY);
     }
     if(this.sceneFadeUntil>this.timeElapsed){ctx.fillStyle=`rgba(0,0,0,${Math.min(1,(this.sceneFadeUntil-this.timeElapsed)/.75)})`;ctx.fillRect(0,0,this.viewportW,this.viewportH);}
+  }
+
+  private renderWorldEdgeFog(camX: number, camY: number) {
+    const fog = this.activeMap.ambient.edgeFog;
+    if (!fog) return;
+    const ctx = this.ctx;
+    const band = 3 * TILE_SIZE; // 3 tiles
+    const vw = this.viewportW;
+    const vh = this.viewportH;
+    const leftGap = band - camX;
+    const rightGap = band - (this.worldW - (camX + vw));
+    const topGap = band - camY;
+    const botGap = band - (this.worldH - (camY + vh));
+    ctx.save();
+    const edge = (x0: number, y0: number, x1: number, y1: number, w: number, h: number, dir: 'l' | 'r' | 't' | 'b') => {
+      const g = dir === 'l' ? ctx.createLinearGradient(x0, 0, x0 + w, 0)
+        : dir === 'r' ? ctx.createLinearGradient(x0 + w, 0, x0, 0)
+        : dir === 't' ? ctx.createLinearGradient(0, y0, 0, y0 + h)
+        : ctx.createLinearGradient(0, y0 + h, 0, y0);
+      g.addColorStop(0, fog);
+      g.addColorStop(1, fog.length === 7 ? fog + '00' : 'rgba(0,0,0,0)');
+      ctx.fillStyle = g;
+      ctx.fillRect(x0, y0, w, h);
+    };
+    if (leftGap > 0) edge(0, 0, 0, 0, Math.min(vw, leftGap + 40), vh, 'l');
+    if (rightGap > 0) edge(vw - Math.min(vw, rightGap + 40), 0, 0, 0, Math.min(vw, rightGap + 40), vh, 'r');
+    if (topGap > 0) edge(0, 0, 0, 0, vw, Math.min(vh, topGap + 40), 't');
+    if (botGap > 0) edge(0, vh - Math.min(vh, botGap + 40), 0, 0, vw, Math.min(vh, botGap + 40), 'b');
+    ctx.restore();
   }
 
   private drawQuestGuidance(camX: number, camY: number) {
@@ -8788,6 +9001,8 @@ export class GameEngine {
       ctx.drawImage(this.assets.crystalCaveGate, px, py, prop.w, prop.h);
     } else if (prop.type === 'dungeonChest' && this.assets?.dungeonChest) {
       ctx.drawImage(this.assets.dungeonChest, px, py, prop.w, prop.h);
+    } else if (prop.type === 'portal') {
+      this.drawPortal(prop, px, py);
     }
     // 9. Muralhas musicais
     else if (prop.type === 'wallMusical1' && this.assets?.wallMusical1) {
@@ -8884,6 +9099,66 @@ export class GameEngine {
 
   // "Shader" de água em canvas — teal da Fonte Sagrada, com profundidade,
   // rede de cáusticas em 2 camadas e espuma de margem.
+  private drawPortal(prop: WorldProp, px: number, py: number) {
+    const ctx = this.ctx;
+    const t = this.timeElapsed;
+    const w = prop.w;
+    const h = prop.h;
+    const cx = px + w / 2;
+    const archTop = py + h * 0.12;
+    const baseY = py + h - 4;
+    const data = prop.data as { label?: string } | undefined;
+    const tint = this.activeMapId === 'dg_cristal_profundo' || (data?.label ?? '').includes('Fenda')
+      ? [180, 90, 255] : [110, 230, 255];
+    ctx.save();
+    // pilares de pedra
+    ctx.fillStyle = '#3b3550';
+    ctx.fillRect(px + 2, archTop, 12, baseY - archTop);
+    ctx.fillRect(px + w - 14, archTop, 12, baseY - archTop);
+    ctx.fillStyle = '#4b4568';
+    ctx.fillRect(px - 2, archTop - 8, w + 4, 12);
+    // véu luminoso
+    const rx = w / 2 - 12;
+    const ry = (baseY - archTop) / 2;
+    const gcy = archTop + ry;
+    const pulse = 0.72 + Math.sin(t * 2.2) * 0.14;
+    const g = ctx.createRadialGradient(cx, gcy, 4, cx, gcy, Math.max(rx, ry));
+    g.addColorStop(0, `rgba(${tint[0]},${tint[1]},${tint[2]},${0.85 * pulse})`);
+    g.addColorStop(0.6, `rgba(${tint[0]},${tint[1]},${tint[2]},${0.32 * pulse})`);
+    g.addColorStop(1, `rgba(${tint[0]},${tint[1]},${tint[2]},0)`);
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.ellipse(cx, gcy, rx, ry, 0, 0, Math.PI * 2);
+    ctx.fill();
+    // redemoinho
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.strokeStyle = `rgba(255,255,255,${0.5 * pulse})`;
+    ctx.lineWidth = 1.5;
+    for (let a = 0; a < 3; a++) {
+      ctx.beginPath();
+      for (let s = 0; s <= 24; s++) {
+        const th = (s / 24) * Math.PI * 2 + t * 1.3 + a * 2.1;
+        const rr = (s / 24) * 0.92;
+        const ex = cx + Math.cos(th) * rx * rr;
+        const ey = gcy + Math.sin(th) * ry * rr;
+        s === 0 ? ctx.moveTo(ex, ey) : ctx.lineTo(ex, ey);
+      }
+      ctx.stroke();
+    }
+    ctx.restore();
+    if (data?.label) {
+      ctx.save();
+      ctx.font = 'bold 11px system-ui';
+      ctx.textAlign = 'center';
+      ctx.lineWidth = 3;
+      ctx.strokeStyle = 'rgba(0,0,0,0.8)';
+      ctx.strokeText(data.label, cx, archTop - 14);
+      ctx.fillStyle = '#f8fafc';
+      ctx.fillText(data.label, cx, archTop - 14);
+      ctx.restore();
+    }
+  }
+
   drawWaterTile(
     ctx: CanvasRenderingContext2D,
     x: number,
@@ -8898,6 +9173,35 @@ export class GameEngine {
       const v = g[rr]?.[cc];
       return v !== undefined && v < 9000;
     };
+    const lN = land(c, r - 1), lS = land(c, r + 1), lW = land(c - 1, r), lE = land(c + 1, r);
+    const edgeTile = lN || lS || lW || lE;
+
+    // Contorno de água ORGÂNICO: nas bordas com terra, recua a água por uma
+    // curva de ruído em vez do quadrado cheio (mata a "escada de 32px").
+    const wob = (p: number, seed: number) =>
+      4 + 6.5 * Math.abs(Math.sin(p * 0.9 + (c * 1.3 + r * 0.7) + seed));
+    ctx.save();
+    if (edgeTile) {
+      ctx.beginPath();
+      const N = lN, S = lS, W = lW, E = lE;
+      ctx.moveTo(x + (W ? wob(0, 0) : 0), y + (N ? wob(0, 1) : 0));
+      // topo
+      if (N) for (let i = 1; i <= 3; i++) ctx.lineTo(x + i * 10.66, y + wob(i * 8, 1));
+      else ctx.lineTo(x + 32, y);
+      ctx.lineTo(x + 32 - (E ? wob(0, 2) : 0), y + (N ? wob(24, 1) : 0));
+      // direita
+      if (E) for (let i = 1; i <= 3; i++) ctx.lineTo(x + 32 - wob(i * 8, 2), y + i * 10.66);
+      else ctx.lineTo(x + 32, y + 32);
+      ctx.lineTo(x + 32 - (E ? wob(24, 2) : 0), y + 32 - (S ? wob(24, 3) : 0));
+      // baixo
+      if (S) for (let i = 1; i <= 3; i++) ctx.lineTo(x + 32 - i * 10.66, y + 32 - wob(i * 8, 3));
+      else ctx.lineTo(x, y + 32);
+      ctx.lineTo(x + (W ? wob(24, 0) : 0), y + 32 - (S ? wob(0, 3) : 0));
+      // esquerda
+      if (W) for (let i = 1; i <= 3; i++) ctx.lineTo(x + wob(i * 8, 0), y + 32 - i * 10.66);
+      ctx.closePath();
+      ctx.clip();
+    }
 
     // 1. base com gradiente de profundidade (mais escuro no meio do rio)
     const grad = ctx.createLinearGradient(x, y, x, y + 32);
@@ -8910,14 +9214,14 @@ export class GameEngine {
       grad.addColorStop(1, '#2f8f92');
     }
     ctx.fillStyle = grad;
-    ctx.fillRect(x, y, 32, 32);
+    ctx.fillRect(x - 2, y - 2, 36, 36);
 
     // 2. "respiração" lenta de profundidade
     const breathe = 0.5 + Math.sin(c * 0.4 + r * 0.4 + t * 0.4) * 0.5;
     ctx.fillStyle = shallow
       ? `rgba(170, 230, 220, ${0.10 * breathe})`
       : `rgba(8, 40, 52, ${0.24 * breathe})`;
-    ctx.fillRect(x, y, 32, 32);
+    ctx.fillRect(x - 2, y - 2, 36, 36);
 
     // 3. rede de cáusticas — 2 camadas em velocidades opostas
     const wind = this.windX * 0.9;
@@ -8942,15 +9246,25 @@ export class GameEngine {
       }
     }
 
-    // 4. espuma viva nas margens
+    // 4. espuma viva na linha d'água (segue o recorte irregular, não a borda do tile)
     const foam = Math.sin(t * 3 + c + r) * 0.3 + 0.7;
-    ctx.fillStyle = `rgba(240, 252, 250, ${0.55 * foam})`;
-    if (land(c, r - 1)) ctx.fillRect(x, y, 32, 2 + (foam > 0.9 ? 1 : 0));
-    if (land(c, r + 1)) ctx.fillRect(x, y + 30 - (foam > 0.9 ? 1 : 0), 32, 2 + (foam > 0.9 ? 1 : 0));
-    if (land(c - 1, r)) ctx.fillRect(x, y, 2, 32);
-    if (land(c + 1, r)) ctx.fillRect(x + 30, y, 2, 32);
+    ctx.strokeStyle = `rgba(240, 252, 250, ${0.5 * foam})`;
+    ctx.lineWidth = 2.4;
+    if (edgeTile) ctx.stroke(); // traça o path recortado
+    ctx.restore(); // sai do clip
 
-    // 5. lampejo especular pontual
+    // 5. banda "molhada" macia na terra, seguindo a mesma curva
+    if (edgeTile) {
+      ctx.save();
+      ctx.globalAlpha = 0.5;
+      if (lN) { const gg = ctx.createLinearGradient(x, y - 7, x, y + 6); gg.addColorStop(0, 'rgba(40,60,55,0)'); gg.addColorStop(1, 'rgba(24,40,38,0.55)'); ctx.fillStyle = gg; ctx.fillRect(x, y - 7, 32, 13); }
+      if (lS) { const gg = ctx.createLinearGradient(x, y + 38, x, y + 26); gg.addColorStop(0, 'rgba(40,60,55,0)'); gg.addColorStop(1, 'rgba(24,40,38,0.55)'); ctx.fillStyle = gg; ctx.fillRect(x, y + 26, 32, 12); }
+      if (lW) { const gg = ctx.createLinearGradient(x - 7, y, x + 6, y); gg.addColorStop(0, 'rgba(40,60,55,0)'); gg.addColorStop(1, 'rgba(24,40,38,0.55)'); ctx.fillStyle = gg; ctx.fillRect(x - 7, y, 13, 32); }
+      if (lE) { const gg = ctx.createLinearGradient(x + 38, y, x + 26, y); gg.addColorStop(0, 'rgba(40,60,55,0)'); gg.addColorStop(1, 'rgba(24,40,38,0.55)'); ctx.fillStyle = gg; ctx.fillRect(x + 26, y, 12, 32); }
+      ctx.restore();
+    }
+
+    // 6. lampejo especular pontual
     const spec = Math.sin(c * 1.7 + r * 1.1 + t * 2.1);
     if (spec > 0.9) {
       ctx.fillStyle = `rgba(255,255,255,${(spec - 0.9) * 4})`;

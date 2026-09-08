@@ -5,11 +5,12 @@ const canvas=()=>Object.assign(document.createElement('canvas'),{width:EXT,heigh
 /** Coherent world-space texture sampling, feathered biome edges, bounded cache. */
 export class RegionalTerrain {
   private chunks=new Map<string,HTMLCanvasElement>();
-  constructor(private ground:number[][], private assets:LoadedAssets) {}
+  /** startChunkX: pula chunks a oeste (11 = só regiões orientais do overworld; 0 = mapa todo). */
+  constructor(private ground:number[][], private assets:LoadedAssets, private startChunkX=0) {}
   clear(){this.chunks.clear();}
   draw(ctx:CanvasRenderingContext2D,camX:number,camY:number,w:number,h:number){
     for(let y=Math.max(0,Math.floor(camY/SIZE));y<=Math.floor((camY+h)/SIZE);y++)
-      for(let x=Math.max(11,Math.floor(camX/SIZE));x<=Math.floor((camX+w)/SIZE);x++){
+      for(let x=Math.max(this.startChunkX,Math.floor(camX/SIZE));x<=Math.floor((camX+w)/SIZE);x++){
         if(x*SIZE>=this.ground[0].length*32) continue;
         const key=`${x},${y}`;
         let chunk=this.chunks.get(key);
@@ -20,14 +21,16 @@ export class RegionalTerrain {
   private build(cx:number,cy:number){
     const output=canvas(),out=output.getContext('2d')!;
     const wx=cx*SIZE-PAD,wy=cy*SIZE-PAD;
+    // blur ALTO em todas as camadas: dissolve a escada de 32px das fronteiras
+    // de bioma / margem de rio (o usuário reclamou da "quadratização").
     const layers=[
-      {id:9007,img:this.assets.echoGrass,blur:23,tint:'rgba(65,85,45,.30)'},
-      {id:9012,img:this.assets.echoGrass,blur:35,tint:'rgba(48,54,36,.68)'},
-      {id:9008,img:this.assets.frontierGround,blur:40,tint:'rgba(22,24,29,.36)'},
-      {id:9010,img:this.assets.crystalFloor,blur:19,tint:'rgba(170,160,120,.60)'},
-      {id:9011,img:this.assets.frontierGround,blur:18,tint:'rgba(118,105,84,.66)'},
-      {id:9009,img:null,blur:26,tint:'#03040a'},
-      {id:9006,img:this.assets.crystalFloor,blur:13,tint:'rgba(20,24,35,.14)'},
+      {id:9007,img:this.assets.echoGrass,blur:40,tint:'rgba(70,92,50,.34)'},
+      {id:9012,img:this.assets.echoGrass,blur:46,tint:'rgba(46,58,38,.70)'},
+      {id:9008,img:this.assets.frontierGround,blur:50,tint:'rgba(22,24,29,.40)'},
+      {id:9010,img:this.assets.crystalFloor,blur:34,tint:'rgba(170,160,120,.58)'},
+      {id:9011,img:this.assets.frontierGround,blur:34,tint:'rgba(118,105,84,.64)'},
+      {id:9009,img:null,blur:32,tint:'#04060f'},
+      {id:9006,img:this.assets.crystalFloor,blur:26,tint:'rgba(20,24,35,.16)'},
     ];
     for(const layer of layers){
       const mask=canvas(),mc=mask.getContext('2d')!;

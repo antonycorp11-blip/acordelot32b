@@ -196,7 +196,7 @@ export function serializeEngineSave(engine: GameEngine, userId: string): Omit<Ac
     pos_x: Math.round(engine.player.x),
     pos_y: Math.round(engine.player.y),
     direction: engine.player.direction || 'down',
-    current_map: 'overworld',
+    current_map: engine.activeMapId || 'overworld',
     level: engine.stats.level || 1,
     xp: engine.stats.xp || 0,
     coins: engine.coins || 0,
@@ -503,7 +503,7 @@ export function applySaveToEngine(engine: GameEngine, save: Partial<AcordelotSav
         antony_invitation: { title: 'O Santuário que Respondeu', text: 'Fale com o Sr. Antony sobre Klassíkia', progress: 0, target: 2, ready: false },
         meet_flora: { title: 'O Santuário que Respondeu', text: 'Encontre Flora no caminho leste', progress: 0, target: 2, ready: false },
         forge_gold_pick: { title: 'O Santuário que Respondeu', text: (engine.inventory.ore || 0) >= 6 ? 'Minério suficiente. Volte a Dório e forje a Picareta Dourada' : 'Extraia 6 Minérios Ressonantes na pedreira', progress: Math.min(6, engine.inventory.ore || 0), target: 6, ready: (engine.inventory.ore || 0) >= 6 },
-        visit_sanctuary: { title: 'O Santuário que Respondeu', text: 'Siga a estrada leste até o Santuário dos Ecos', progress: 1, target: 2, ready: false },
+        visit_sanctuary: { title: 'O Santuário que Respondeu', text: 'Cruze o portal do Santuário, ao norte de Acordelot', progress: 1, target: 2, ready: false },
         gather_crystals: { title: 'Doze Luzes, Uma Ausência', text: 'Extraia 5 Cristais de Eco nas redondezas', progress: engine.regionCrystalProgress, target: 5, ready: false },
         enter_cavern: { title: 'A Caverna sob a Escala', text: 'Atravesse o bosque e a ponte na fronteira leste', progress: 0, target: 2, ready: false },
         defeat_guardian: { title: 'A Caverna sob a Escala', text: 'Derrote o Guardião Cristalino', progress: 0, target: 1, ready: false },
@@ -524,6 +524,15 @@ export function applySaveToEngine(engine: GameEngine, save: Partial<AcordelotSav
     if (typeof s.bag_level === 'number') engine.bagLevel = Math.max(0, Math.min(5, Math.floor(s.bag_level)));
     engine.repairHarmonyMissionAfterForge(false);
     engine.restoreDungeonRun(s.crystal_dungeon_run);
+
+    // Região salva: se o jogador desconectou fora do overworld, viaja pra lá.
+    const savedMap = s.current_map as string | undefined;
+    const KNOWN_MAPS = ['floresta_ecos', 'cavernas_cristal', 'dg_cristal_profundo'];
+    if (savedMap && KNOWN_MAPS.includes(savedMap) && typeof (engine as any).travelTo === 'function') {
+      const spawnCol = Math.round((save.pos_x ?? 0) / 32);
+      const spawnRow = Math.round((save.pos_y ?? 0) / 32);
+      (engine as any).travelTo(savedMap, { col: spawnCol, row: spawnRow });
+    }
     try {
       if (s.hud_layout) {
         localStorage.setItem('acordelot_hud_layout_v3', JSON.stringify(s.hud_layout));

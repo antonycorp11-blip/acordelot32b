@@ -76,8 +76,16 @@ for (const cfg of SHEETS) {
   chroma(png);
   despeckle(png);
   const { width, height, data } = png;
-  const exact = height / ROWS;
-  const bounds = Array.from({ length: ROWS + 1 }, (_, i) => Math.round(i * exact));
+  // The source rows are NOT quarters of the image. Equal quarters captured
+  // the next row's hair beneath boots and cut off the back-facing head.
+  const rowBands=[];let start=-1;
+  for(let y=0;y<=height;y++){
+    let count=0;
+    if(y<height)for(let x=0;x<width;x++)if(data[(y*width+x)*4+3]>40)count++;
+    if(count>8&&start<0)start=y;
+    if(count<=8&&start>=0){if(y-start>12)rowBands.push([Math.max(0,start-2),Math.min(height,y+2)]);start=-1;}
+  }
+  if(rowBands.length!==ROWS)throw new Error(`${cfg.file}: expected four separate source rows, found ${rowBands.length}`);
 
   // Célula de saída FIXA em todas as folhas. GUTTER transparente entre frames
   // (senão o filtro bilinear "vaza" o frame vizinho — meio de um, meio do outro).
@@ -106,8 +114,7 @@ for (const cfg of SHEETS) {
   const out = new PNG({ width: CW * COLS, height: CH * ROWS });
   for (let ri = 0; ri < ROWS; ri++) {
     const sr = ROW_MAP[ri];
-    const ry0 = bounds[sr];
-    const ry1 = bounds[sr + 1];
+    const [ry0,ry1] = rowBands[sr];
     let bands = colBands(ry0, ry1);
     if (bands.length !== COLS) {
       // fallback: divisão uniforme

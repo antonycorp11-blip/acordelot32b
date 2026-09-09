@@ -20,6 +20,31 @@ try{
     };
   });
   await page.waitForFunction(()=>window.qaEngine.assetsLoaded,{timeout:90000});
+  const scope=await page.evaluate(()=>{
+    // Inspect the live prototypes: Vite HMR may give a dynamic import a separate
+    // module instance from the one already imported by the engine.
+    window.place('floresta_ecos',150,118);
+    const terrainPrototype=Object.getPrototypeOf(window.qaEngine.regionalTerrain);
+    const waterPrototype=Object.getPrototypeOf(window.qaEngine.waterSurface);
+    const originalTerrain=terrainPrototype.draw,originalWater=waterPrototype.draw;
+    let terrainPasses=0,waterPasses=0;
+    terrainPrototype.draw=function(...args){terrainPasses++;return originalTerrain.apply(this,args);};
+    waterPrototype.draw=function(...args){waterPasses++;return originalWater.apply(this,args);};
+    const sample=(map,c,r)=>{
+      terrainPasses=0;waterPasses=0;window.place(map,c,r);
+      return {terrainPasses,waterPasses};
+    };
+    try{return {
+      town:sample('overworld',36,30),
+      forest:sample('floresta_ecos',150,118),
+      returnToTown:sample('overworld',36,30),
+    };}finally{terrainPrototype.draw=originalTerrain;waterPrototype.draw=originalWater;}
+  });
+  assert.equal(scope.town.terrainPasses,0,'Regional textures must not repaint original town tiles');
+  assert.equal(scope.returnToTown.terrainPasses,0,'Returning from a biome must not leak its textures into town');
+  assert(scope.forest.terrainPasses>0,'New region retains its own terrain renderer');
+  assert(Object.values(scope).every(s=>s.waterPasses>0),'Water remains independent of region terrain');
+  console.log('PASS: original overworld terrain preserved; water remains active.');
   const checks=await page.evaluate(async()=>{
     const e=window.qaEngine;
     const report=[];

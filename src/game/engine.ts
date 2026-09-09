@@ -7860,7 +7860,9 @@ export class GameEngine {
         }
       }
     }
-    if (this.assetsLoaded && this.assets) {
+    // New biome textures must never repaint the original/editor-authored city
+    // and surroundings. Water is an independent pass below, including in town.
+    if (this.activeMapId !== 'overworld' && this.assetsLoaded && this.assets) {
       this.regionalTerrain ??= new RegionalTerrain(this.ground, this.assets, 0, this.activeMap.ambient.lighting !== 'day-cycle');
       this.regionalTerrain.draw(ctx,camX,camY,this.viewportW,this.viewportH);
     }

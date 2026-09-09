@@ -12,8 +12,8 @@ export interface PortalData {
 
 /** Cria um prop `portal` centrado no tile (col,row). ~2.5x3 tiles de arco. */
 export function portal(id: string, col: number, row: number, data: PortalData): WorldProp {
-  const w = 84;
-  const h = 104;
+  const w = 144;
+  const h = 154;
   const x = Math.round(col * TILE_SIZE - w / 2);
   const y = Math.round(row * TILE_SIZE - h);
   return {

@@ -556,6 +556,16 @@ interface EnemyDef {
   boss?: boolean;
 }
 export const ENEMY_DEFS: Record<string, EnemyDef> = {
+  moss_boar: {
+    sheet:'woodlandFauna',name:'Javali de Musgo',hostile:true,cols:4,cw:384,ch:512,disp:.15,
+    hp:32,speed:46,aggro:105,attackRange:30,touchDamage:6,attackCd:1.7,
+    xp:18,claveMin:1,claveMax:2,fragMin:0,fragMax:0,respawnSecs:75,
+  },
+  grove_mushroom: {
+    sheet:'woodlandFauna',name:'Cogumelo Guardião',hostile:true,cols:4,cw:384,ch:512,disp:.14,
+    hp:26,speed:30,aggro:80,attackRange:28,touchDamage:5,attackCd:2.1,
+    xp:14,claveMin:1,claveMax:2,fragMin:0,fragMax:0,respawnSecs:65,
+  },
   aranha: {
     sheet: 'monAranha', name: 'Aranha da Pauta', hostile: true, cols: 5, cw: 128, ch: 108, disp: 0.5,
     hp: 30, speed: 62, aggro: 200, attackRange: 34, touchDamage: 12, attackCd: 1.3,
@@ -1185,6 +1195,8 @@ export const EDITABLE_PROP_METAS: Record<
   echoArch: { category: 'building', name: 'Arco do Santuário', baseW: 180, baseH: 172, colOffXRatio: 0.08, colOffYRatio: 0.82, colWRatio: 0.20, colHRatio: 0.12, sortYOffset: 166, canDelete: true, canDuplicate: true },
   sanctuaryTree: { category: 'tree', name: 'Árvore Ancestral do Santuário', baseW: 310, baseH: 326, colOffXRatio: .32, colOffYRatio: .79, colWRatio: .37, colHRatio: .15, sortYOffset: 322, canDelete: true, canDuplicate: false },
   sanctuaryBridge: { category: 'street', name: 'Ponte do Santuário', baseW: 176, baseH: 288, sortYOffset: 0, canDelete: false, canDuplicate: false },
+  grassTerrace: { category:'street',name:'Escadaria de Pedra e Grama',baseW:768,baseH:256,sortYOffset:0,canDelete:false,canDuplicate:false },
+  forestWaterfall: { category:'rock',name:'Cachoeira do Bosque',baseW:330,baseH:396,colOffXRatio:.23,colOffYRatio:.22,colWRatio:.52,colHRatio:.55,sortYOffset:390,canDelete:true,canDuplicate:false },
   singingTree: { category: 'tree', name: 'Árvore Cantante', baseW: 150, baseH: 156, colOffXRatio: 0.42, colOffYRatio: 0.82, colWRatio: 0.16, colHRatio: 0.13, sortYOffset: 150, canDelete: true, canDuplicate: true },
   silverWillow: { category: 'tree', name: 'Salgueiro Prateado', baseW: 142, baseH: 166, colOffXRatio: 0.43, colOffYRatio: 0.84, colWRatio: 0.14, colHRatio: 0.10, sortYOffset: 160, canDelete: true, canDuplicate: true },
   forestOak: { category: 'tree', name: 'Carvalho do Bosque', baseW: 130, baseH: 148, colOffXRatio: 0.40, colOffYRatio: 0.84, colWRatio: 0.18, colHRatio: 0.10, sortYOffset: 142, canDelete: true, canDuplicate: true },
@@ -5471,8 +5483,7 @@ export class GameEngine {
       }
     }
 
-    // Boss da ascensão de Teclas, sozinho no centro da arena nordeste.
-    this.spawnEnemy('organ_sentinel', 168, 13, id++, 12);
+    // O guardião da ascensão de Teclas agora vive apenas no conservatório da floresta.
     // (os 12 Ecos capturáveis do Santuário agora vivem no mapa Floresta dos Ecos)
 
     // FLORESTA SOMBRIA — MUITOS monstros espalhados por toda a região
@@ -5515,7 +5526,7 @@ export class GameEngine {
   private spawnFlorestaEcosEnemies() {
     this.enemyRngState = 0x5eed77;
     let id = 700000;
-    // 12 Ecos capturáveis na Clareira do Santuário (col 150, row 118)
+    // 12 tipos de Ecos capturáveis, distribuídos pelos seus habitats musicais.
     for (let note = 0; note < 12; note++) {
       for (let attempt = 0; attempt < 30; attempt++) {
         const home = SANCTUARY_ECHO_HOMES[note];
@@ -5528,16 +5539,26 @@ export class GameEngine {
         }
       }
     }
-    // Ecos selvagens espalhados pelo Bosque Cantante (col ~150, row ~44)
+    // Keep the additional wild echoes in their own note's habitat, too.
     for (let i = 0; i < 22; i++) {
       for (let tries = 0; tries < 20; tries++) {
-        const c = 20 + Math.floor(this.enemyRandom() * 260);
-        const r = 8 + Math.floor(this.enemyRandom() * 70);
+        const home=SANCTUARY_ECHO_HOMES[i%12];
+        const c = Math.round(home[0]+(this.enemyRandom()-.5)*5);
+        const r = Math.round(home[1]+(this.enemyRandom()-.5)*5);
         if (this.spawnEnemy('eco_' + NOTE_KEY[i % 12], c, r, id++)) break;
       }
     }
     // mini-chefe nas Ruínas do Conservatório
-    this.spawnEnemy('organ_sentinel', 242, 120, id++, 10);
+    this.spawnEnemy('organ_sentinel', 242, 120, id++, 12);
+    // Woodland creatures defend their patches at short range; they do not
+    // populate the peaceful sanctuary or Seu Tônico's tutorial clearing.
+    const patches=[[122,89],[185,103],[208,143],[175,188],[248,163],[45,136]];
+    patches.forEach(([c,r],i)=>{
+      for(let n=0;n<3;n++)for(let attempt=0;attempt<15;attempt++){
+        const x=c+n*2+(this.enemyRandom()-.5)*4,y=r+(this.enemyRandom()-.5)*6;
+        if(this.spawnEnemy(i%2?'grove_mushroom':'moss_boar',Math.round(x),Math.round(y),id++,2+i%3))break;
+      }
+    });
   }
 
   private spawnCavernasBiomeEnemies() {
@@ -7901,7 +7922,7 @@ export class GameEngine {
         // A ponte é um tabuleiro que se atravessa: precisa ficar SEMPRE atrás
         // de quem anda sobre ela (senão o auto-sortY pelo rodapé cobria o
         // personagem no meio da travessia).
-        const sortY = ['frontierBridge','sanctuaryBridge'].includes(prop.type) ? prop.y - 4 : prop.sortY;
+        const sortY = ['frontierBridge','sanctuaryBridge','grassTerrace','forestSinkhole'].includes(prop.type) ? prop.y - 4 : prop.sortY;
         renderables.push({
           sortY,
           draw: () => this.drawProp(prop, camX, camY),
@@ -8994,7 +9015,24 @@ export class GameEngine {
       ctx.drawImage(this.assets.darkThorn, px, py, prop.w, prop.h);
     }
     // 8. Regiões do leste — elementos separados sobre terreno realmente caminhável
-    else if (prop.type === 'sanctuaryTree' && this.assets?.sanctuaryTree) {
+    else if (prop.type === 'grassTerrace' && this.assets?.grassTerrace) {
+      ctx.drawImage(this.assets.grassTerrace,px,py,prop.w,prop.h);
+    } else if (prop.type === 'forestMountain' && this.assets?.forestMountain) {
+      ctx.drawImage(this.assets.forestMountain,px,py,prop.w,prop.h);
+    } else if (prop.type === 'forestWaterfall' && this.assets?.forestWaterfall) {
+      ctx.drawImage(this.assets.forestWaterfall,px,py,prop.w,prop.h);
+      ctx.save();ctx.globalCompositeOperation='screen';
+      for(let i=0;i<8;i++){
+        const t=(this.timeElapsed*.35+i*.125)%1;
+        ctx.fillStyle=`rgba(210,245,239,${.22*(1-t)})`;
+        ctx.beginPath();ctx.ellipse(px+prop.w*.61+Math.sin(i*2.4)*prop.w*.12,py+prop.h*.92-t*18,3+t*8,2+t*3,0,0,Math.PI*2);ctx.fill();
+      }ctx.restore();
+    } else if (prop.type === 'forestSinkhole') {
+      ctx.save();ctx.translate(px+prop.w/2,py+prop.h*.58);ctx.scale(1,prop.h/prop.w);
+      const g=ctx.createRadialGradient(0,0,3,0,0,prop.w*.5);
+      g.addColorStop(0,'#111c1a');g.addColorStop(.65,'#24352b');g.addColorStop(.83,'#52654a');g.addColorStop(1,'rgba(63,84,45,0)');
+      ctx.fillStyle=g;ctx.beginPath();ctx.arc(0,0,prop.w*.5,0,Math.PI*2);ctx.fill();ctx.restore();
+    } else if (prop.type === 'sanctuaryTree' && this.assets?.sanctuaryTree) {
       ctx.save();
       // The crown becomes translucent only when it covers the player. The root
       // base stays opaque; the trunk retains its foot-level solid collider.
@@ -9144,6 +9182,21 @@ export class GameEngine {
   private drawPortal(prop: WorldProp, px: number, py: number) {
     const ctx = this.ctx;
     const t = this.timeElapsed;
+    if(this.assets?.regionArch?.naturalWidth){
+      const cx=px+prop.w/2,cy=py+prop.h*.60;
+      ctx.save();
+      const glow=ctx.createRadialGradient(cx,cy,2,cx,cy,prop.w*.42);
+      glow.addColorStop(0,'rgba(132,220,197,.16)');glow.addColorStop(1,'rgba(132,220,197,0)');
+      ctx.fillStyle=glow;ctx.fillRect(px,py,prop.w,prop.h);
+      ctx.drawImage(this.assets.regionArch,px,py,prop.w,prop.h);
+      for(let i=0;i<5;i++){
+        ctx.fillStyle=`rgba(235,220,149,${.3+Math.sin(t*1.5+i)*.16})`;
+        ctx.beginPath();ctx.arc(cx+Math.sin(i*2.399+t*.2)*prop.w*.22,py+prop.h*(.4+((i*.17+t*.035)% .5)),1.1,0,Math.PI*2);ctx.fill();
+      }
+      const label=prop.data?.label as string|undefined;
+      if(label){ctx.font='600 11px system-ui';ctx.textAlign='center';ctx.lineWidth=3;ctx.strokeStyle='#15231c';ctx.strokeText(label,cx,py-8);ctx.fillStyle='#f2ead3';ctx.fillText(label,cx,py-8);}
+      ctx.restore();return;
+    }
     const w = prop.w;
     const h = prop.h;
     const cx = px + w / 2;
@@ -9202,6 +9255,20 @@ export class GameEngine {
   }
 
 
+  private faunaFrames?:{x:number;y:number;w:number;h:number}[];
+  private getFaunaFrame(sheet:HTMLImageElement,index:number){
+    if(!this.faunaFrames){
+      const c=document.createElement('canvas');c.width=sheet.naturalWidth;c.height=sheet.naturalHeight;
+      const ctx=c.getContext('2d')!;ctx.drawImage(sheet,0,0);const d=ctx.getImageData(0,0,c.width,c.height).data;
+      this.faunaFrames=Array.from({length:8},(_,i)=>{
+        const left=Math.round(i%4*c.width/4),right=Math.round((i%4+1)*c.width/4),top=Math.round(Math.floor(i/4)*c.height/2),bottom=Math.round((Math.floor(i/4)+1)*c.height/2);
+        let x0=right,y0=bottom,x1=left,y1=top;
+        for(let y=top;y<bottom;y++)for(let x=left;x<right;x++)if(d[(y*c.width+x)*4+3]>64){x0=Math.min(x0,x);x1=Math.max(x1,x);y0=Math.min(y0,y);y1=Math.max(y1,y);}
+        return {x:x0,y:y0,w:Math.max(1,x1-x0+1),h:Math.max(1,y1-y0+1)};
+      });
+    }return this.faunaFrames[index];
+  }
+
   drawEnemy(e: Enemy, camX: number, camY: number) {
     if(isDungeonEnemy(e.id)!==this.isDungeon)return;
     const ctx = this.ctx;
@@ -9217,11 +9284,17 @@ export class GameEngine {
     if (!sheet || !sheet.complete || !sheet.naturalWidth) return;
     const cx = Math.round(e.x - camX);
     const cy = Math.round(e.y - camY);
-    const dispW = def.cw * def.disp;
-    const dispH = def.ch * def.disp;
+    let dispW = def.cw * def.disp;
+    let dispH = def.ch * def.disp;
     const bossDirRow: Record<Direction, number> = { down: 0, left: 1, right: 2, up: 3 };
     const row = e.kind==='organ_sentinel' ? bossDirRow[e.direction ?? 'down'] : ((ENEMY_ROW as Record<string, number>)[e.state] ?? 0);
     const col = Math.min(def.cols - 1, Math.max(0, e.frame));
+    let sourceX=col*def.cw,sourceY=row*def.ch,sourceW=def.cw,sourceH=def.ch;
+    if(e.kind==='moss_boar'||e.kind==='grove_mushroom'){
+      const faunaFrame=e.state==='attack'?2:e.state==='hurt'||e.state==='dead'?3:e.state==='walk'||e.state==='chase'?Math.floor(e.animTimer*6)%2:0;
+      const box=this.getFaunaFrame(sheet,(e.kind==='moss_boar'?0:4)+faunaFrame);
+      sourceX=box.x;sourceY=box.y;sourceW=box.w;sourceH=box.h;dispW=box.w*def.disp;dispH=box.h*def.disp;
+    }
     if(e.kind==='crystal_guardian'&&e.state==='attack'&&e.attackTarget&&e.stateTimer<1.1){
       ctx.save();ctx.strokeStyle='#fda4af';ctx.fillStyle='rgba(244,63,94,.19)';ctx.lineWidth=3;
       ctx.beginPath();ctx.arc(e.attackTarget.x-camX,e.attackTarget.y-camY,e.bossAttackMode==='cast'?105:82,0,Math.PI*2);ctx.fill();ctx.stroke();ctx.restore();
@@ -9247,9 +9320,9 @@ export class GameEngine {
     if (e.facingLeft && !def.boss) {
       ctx.translate(dx + dispW, dy);
       ctx.scale(-1, 1);
-      ctx.drawImage(sheet, col * def.cw, row * def.ch, def.cw, def.ch, 0, 0, dispW, dispH);
+      ctx.drawImage(sheet, sourceX, sourceY, sourceW, sourceH, 0, 0, dispW, dispH);
     } else {
-      ctx.drawImage(sheet, col * def.cw, row * def.ch, def.cw, def.ch, dx, dy, dispW, dispH);
+      ctx.drawImage(sheet, sourceX, sourceY, sourceW, sourceH, dx, dy, dispW, dispH);
     }
     ctx.restore();
 

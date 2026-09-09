@@ -51,7 +51,7 @@ export class RegionalTerrain {
       // puxava amarelo no meio de um bioma verde — a estrada nao pertencia ao
       // cenario. Pedra cinza-esverdeada, e mais fraca, deixa o desenho da
       // pedra aparecer e o musgo casar com a grama em volta.
-      {id:9010,img:this.assets.crystalFloor,size:165,tint:'rgba(104,112,94,.52)',blur:23},
+      {id:9010,img:this.cave?this.assets.crystalFloor:this.assets.oldStonePath,size:this.cave?165:290,tint:this.cave?'rgba(104,112,94,.52)':'rgba(49,67,41,.16)',blur:23},
       {id:9011,img:this.assets.frontierGround,size:270,tint:'rgba(118,105,84,.70)',blur:24},
       {id:9009,img:undefined,size:320,tint:'#04060f',blur:23},
     ];

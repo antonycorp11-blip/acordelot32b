@@ -13,6 +13,7 @@ import { buildOverworld } from './overworld';
 import { buildFlorestaEcos } from './florestaEcos';
 import { buildCavernasCristal } from './cavernasCristal';
 import { buildDgCristalProfundo } from './dgCristalProfundo';
+import {FOREST_LANDFORMS} from './forestLandforms';
 
 export type MapId =
   | 'overworld'
@@ -68,7 +69,6 @@ export const MAP_DEFS: Record<MapId, MapDef> = {
       label: 'Acordelot',
       regions: [
         { name: 'Vila Encantada', col: 36, row: 19 },
-        { name: 'Sentinela do Órgão', col: 168, row: 6 },
         { name: 'Portal do Santuário', col: 37, row: 4 },
         { name: 'Floresta Sombria', col: 72, row: 150 },
         { name: 'Fenda de Cristal', col: 60, row: 172 },
@@ -88,6 +88,8 @@ export const MAP_DEFS: Record<MapId, MapDef> = {
       label: 'Floresta dos Ecos',
       regions: [
         { name: 'Clareira do Santuário', col: 150, row: 118 },
+        ...FOREST_LANDFORMS,
+        { name: 'Guardião das Teclas', col: 242, row: 120 },
         { name: 'Ponte do Santuário', col: 150, row: 135 },
         { name: 'Bosque Cantante', col: 150, row: 46 },
         { name: 'Jardim dos Salgueiros', col: 84, row: 47 },

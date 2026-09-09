@@ -102,6 +102,60 @@ const BUILDING_DIMS: Record<string, [number, number, number]> = {
   bulletinBoard: [30, 34, 30],
 };
 
+/** Descritor de NPC — a forma curta, sem os vinte campos de estado. */
+export interface NpcSpec {
+  id: string;
+  name: string;
+  title: string;
+  sprite: NPC['spriteType'];
+  accent: string;
+  speed: number;
+  route: Array<[number, number]>;
+  dialogue: string[];
+  barks?: string[];
+  isMerchant?: boolean;
+}
+
+/**
+ * Monta um NPC a partir do descritor. Exportado porque NPC deixou de ser
+ * exclusividade de Acordelot: os mapas de bioma tambem povoam os seus, e
+ * copiar os vinte campos de estado em cada arquivo so criaria divergencia.
+ */
+export function makeNpc(o: NpcSpec): NPC {
+  const route = o.route.map(([c, r]) => ({ x: c * TILE_SIZE, y: r * TILE_SIZE }));
+  return {
+    id: o.id,
+    name: o.name,
+    title: o.title,
+    spriteType: o.sprite,
+    accent: o.accent,
+    x: route[0].x,
+    y: route[0].y,
+    vx: 0,
+    vy: 0,
+    direction: 'down',
+    frame: 0,
+    isMoving: false,
+    stepTimer: Math.random() * 4,
+    width: 28,
+    height: 40,
+    homeX: route[0].x,
+    homeY: route[0].y,
+    patrolRadius: 0,
+    wanderTimer: 0,
+    idleTimer: 0,
+    wanderTarget: null,
+    speed: o.speed,
+    collider: { offsetX: 8, offsetY: 28, w: 12, h: 10 },
+    dialogue: o.dialogue,
+    barks: o.barks,
+    isMerchant: o.isMerchant,
+    route,
+    routeIdx: 1 % route.length,
+    routePause: Math.random() * 2,
+  };
+}
+
 export function buildMap(): MapGrid {
   const ground: number[][] = [];
   const solidColliders: Rect[] = [];
@@ -727,50 +781,8 @@ export function buildMap(): MapGrid {
 
   // 10. NPCs COM ROTA (tema musical de Acordelot)
   const T = TILE_SIZE;
-  const addNpc = (o: {
-    id: string;
-    name: string;
-    title: string;
-    sprite: NPC['spriteType'];
-    accent: string;
-    speed: number;
-    route: Array<[number, number]>;
-    dialogue: string[];
-    barks?: string[];
-    isMerchant?: boolean;
-  }) => {
-    const route = o.route.map(([c, r]) => ({ x: c * T, y: r * T }));
-    npcs.push({
-      id: o.id,
-      name: o.name,
-      title: o.title,
-      spriteType: o.sprite,
-      accent: o.accent,
-      x: route[0].x,
-      y: route[0].y,
-      vx: 0,
-      vy: 0,
-      direction: 'down',
-      frame: 0,
-      isMoving: false,
-      stepTimer: Math.random() * 4,
-      width: 28,
-      height: 40,
-      homeX: route[0].x,
-      homeY: route[0].y,
-      patrolRadius: 0,
-      wanderTimer: 0,
-      idleTimer: 0,
-      wanderTarget: null,
-      speed: o.speed,
-      collider: { offsetX: 8, offsetY: 28, w: 12, h: 10 },
-      dialogue: o.dialogue,
-      barks: o.barks,
-      isMerchant: o.isMerchant,
-      route,
-      routeIdx: 1 % route.length,
-      routePause: Math.random() * 2,
-    });
+  const addNpc = (o: NpcSpec) => {
+    npcs.push(makeNpc(o));
   };
 
   // Mercador atual junto ao prédio Padaria & Mercado. A posição definitiva é
@@ -844,29 +856,9 @@ export function buildMap(): MapGrid {
     ],
   });
 
-  addNpc({
-    id: 'npc_tonico',
-    name: 'Seu Tônico',
-    title: 'Lavrador e Guardião da Tônica',
-    sprite: 'tonico',
-    accent: '#22c55e',
-    speed: 40,
-    route: [
-      [10, 44], [10, 50], [20, 50], [20, 44],
-    ],
-    dialogue: [
-      'Toda escala começa e termina em casa, moço. Isso é a tônica.',
-      'Plantei fá sustenido no canteiro do fundo. Ainda não brotou.',
-      'Se achar um fragmento verde por aí, é meu — mas pode ficar. A terra dá mais.',
-    ],
-    barks: [
-      'Dó ré mi fá sol lá si dó — a escala inteira.',
-      'A tônica é o dó da casa. Sempre se volta pra ela.',
-      'Tom e semitom: mi-fá e si-dó são os curtinhos.',
-      'Escala maior: alegre. Menor: saudosa.',
-      'Cantarole a escala subindo e descendo, todo dia.',
-    ],
-  });
+  // Seu Tonico MUDOU-SE para a Floresta dos Ecos (ver `TONICO` em
+  // maps/florestaEcos.ts). Ele guarda a tonica e so falava de escala e de nota
+  // plantada; o lugar dele e onde as doze notas moram, nao a horta da cidade.
 
   addNpc({
     id: 'npc_setimo',

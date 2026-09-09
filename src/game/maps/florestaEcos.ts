@@ -1,6 +1,6 @@
 /** The forest is a set of readable groves and meadows, not a tree-filled grid. */
 import type { MapGrid } from '../mapData';
-import { TERRAIN_TILES as TT, TILE_SIZE as T } from '../mapData';
+import { TERRAIN_TILES as TT, TILE_SIZE as T, makeNpc, type NpcSpec } from '../mapData';
 import type { Rect, WorldProp } from '../types';
 import {makeRng,fillGround,ellipse,path,worldEdgeColliders,waterColliders,type Painter} from './paint';
 import {portal} from './portalProp';
@@ -156,6 +156,38 @@ export function buildFlorestaEcos():MapGrid{
   }
   buildSanctuaryPilot(p);
   solids.push(...worldEdgeColliders(p),...waterColliders(p));
-  return {ground,solidColliders:solids,props,npcs:[]};
+  return {ground,solidColliders:solids,props,npcs:[makeNpc(TONICO)]};
 }
+
+/**
+ * SEU TONICO, o Guardiao da Tonica — veio da horta de Acordelot.
+ *
+ * A tonica e o Do, a nota em que a escala comeca e a que ela volta. Ele ronda a
+ * Clareira do Primeiro Canto, que e justamente onde o Eco de Do mora agora: o
+ * guardiao da tonica no lugar da tonica. Na cidade ele falava de escala e de
+ * "fa sustenido plantado no canteiro" para quem passava indo ao mercado; aqui
+ * ele fala disso para quem esta caçando as doze notas, que e quem precisa ouvir.
+ */
+const TONICO:NpcSpec={
+  id:'npc_tonico',
+  name:'Seu Tônico',
+  title:'Lavrador e Guardião da Tônica',
+  sprite:'tonico',
+  accent:'#22c55e',
+  speed:40,
+  route:[[143,49],[143,55],[156,55],[156,49]],
+  dialogue:[
+    'Toda escala começa e termina em casa, moço. Isso é a tônica.',
+    'Deixei a horta pra vir cuidar daqui. As notas brotam melhor perto de quem as chama pelo nome.',
+    'O Dó mora nesta clareira. Ré e Mi logo ali. Comece por eles — o resto do teclado vem depois.',
+    'Plantei fá sustenido lá pro lado das borboletas. Aquele demora, é dos pretos.',
+  ],
+  barks:[
+    'Dó ré mi fá sol lá si dó — a escala inteira.',
+    'A tônica é o dó da casa. Sempre se volta pra ela.',
+    'Tom e semitom: mi-fá e si-dó são os curtinhos.',
+    'As brancas moram aqui no norte. As pretas, mais longe.',
+    'Cantarole a escala subindo e descendo, todo dia.',
+  ],
+};
 export const FLORESTA_ECOS_SPAWNS={sanctuary:SANCTUARY,woods:WOODS,ruins:RUINS};

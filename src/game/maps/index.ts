@@ -88,6 +88,7 @@ export const MAP_DEFS: Record<MapId, MapDef> = {
       label: 'Floresta dos Ecos',
       regions: [
         { name: 'Clareira do Santuário', col: 150, row: 118 },
+        { name: 'Ponte do Santuário', col: 150, row: 135 },
         { name: 'Bosque Cantante', col: 150, row: 46 },
         { name: 'Jardim dos Salgueiros', col: 84, row: 47 },
         { name: 'Pátio Dourado', col: 217, row: 53 },

@@ -4,6 +4,7 @@ import { TERRAIN_TILES as TT, TILE_SIZE as T } from '../mapData';
 import type { Rect, WorldProp } from '../types';
 import {makeRng,fillGround,ellipse,path,worldEdgeColliders,waterColliders,type Painter} from './paint';
 import {portal} from './portalProp';
+import {buildSanctuaryPilot} from './sanctuaryPilot';
 
 const COLS=300,ROWS=220;
 const SANCTUARY={c:150,r:118},WOODS={c:150,r:44},RUINS={c:242,r:120};
@@ -135,6 +136,7 @@ export function buildFlorestaEcos():MapGrid{
     const r=side===2?4+rng()*3:side===3?ROWS-4-rng()*3:8+rng()*(ROWS-16);
     prop('fe_edge_'+i,i%3===0?'silverWillow':i%3===1?'forestPine':'forestOak',c,r,110,145);
   }
+  buildSanctuaryPilot(p);
   solids.push(...worldEdgeColliders(p),...waterColliders(p));
   return {ground,solidColliders:solids,props,npcs:[]};
 }

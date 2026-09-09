@@ -131,6 +131,9 @@ export interface LoadedAssets {
   silverWillow: HTMLImageElement;
   woodlandTrees: HTMLImageElement;
   forestFloor: HTMLImageElement;
+  sanctuaryTree: HTMLImageElement;
+  sanctuaryDressing: HTMLImageElement;
+  sanctuaryBridge: HTMLImageElement;
   echoAltar: HTMLImageElement;
   echoSteles: HTMLImageElement;
   caveWall: HTMLImageElement;
@@ -330,6 +333,9 @@ const ASSET_PATHS: Record<keyof LoadedAssets, string> = {
   silverWillow: '/assets/regions/echo/silver_willow.png',
   woodlandTrees: '/assets/regions/echo/woodland_species.png',
   forestFloor: '/assets/regions/echo/forest_floor_v3.png',
+  sanctuaryTree: '/assets/regions/echo/sanctuary_tree_v1.png',
+  sanctuaryDressing: '/assets/regions/echo/sanctuary_dressing_v1.png',
+  sanctuaryBridge: '/assets/regions/echo/sanctuary_bridge_v1.png',
   echoAltar: '/assets/regions/echo/echo_altar.png',
   echoSteles: '/assets/regions/echo/echo_steles.png',
   caveWall: '/assets/regions/crystal/cave_wall.png',

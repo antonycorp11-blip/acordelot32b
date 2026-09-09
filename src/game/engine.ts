@@ -44,6 +44,7 @@ import { MAP_DEFS, type MapId } from './maps';
 import { loadGameAssets, LoadedAssets } from './assetLoader';
 import { RegionalTerrain } from './regionalTerrain';
 import { WaterSurface } from './waterSurface';
+import { SANCTUARY_ECHO_HOMES } from './maps/sanctuaryPilot';
 import { CRYSTAL_GATE, CRYSTAL_ROOMS, DUNGEON_LAYOUT_VERSION, DUNGEON_BOSS_ID, isDungeonEnemy, dungeonEnemyId, dungeonChestId, DUNGEON_DIFFICULTIES, type DungeonRunSave } from './crystalDungeon';
 import { generateCharacterSprites, generateTrees, generateHouses } from './pixelArt';
 import initialCustomMap from './customMapLayout.json';
@@ -1182,6 +1183,8 @@ export const EDITABLE_PROP_METAS: Record<
 
   // 9b. Santuário dos Ecos e Caverna de Cristal
   echoArch: { category: 'building', name: 'Arco do Santuário', baseW: 180, baseH: 172, colOffXRatio: 0.08, colOffYRatio: 0.82, colWRatio: 0.20, colHRatio: 0.12, sortYOffset: 166, canDelete: true, canDuplicate: true },
+  sanctuaryTree: { category: 'tree', name: 'Árvore Ancestral do Santuário', baseW: 310, baseH: 326, colOffXRatio: .32, colOffYRatio: .79, colWRatio: .37, colHRatio: .15, sortYOffset: 322, canDelete: true, canDuplicate: false },
+  sanctuaryBridge: { category: 'street', name: 'Ponte do Santuário', baseW: 176, baseH: 288, sortYOffset: 0, canDelete: false, canDuplicate: false },
   singingTree: { category: 'tree', name: 'Árvore Cantante', baseW: 150, baseH: 156, colOffXRatio: 0.42, colOffYRatio: 0.82, colWRatio: 0.16, colHRatio: 0.13, sortYOffset: 150, canDelete: true, canDuplicate: true },
   silverWillow: { category: 'tree', name: 'Salgueiro Prateado', baseW: 142, baseH: 166, colOffXRatio: 0.43, colOffYRatio: 0.84, colWRatio: 0.14, colHRatio: 0.10, sortYOffset: 160, canDelete: true, canDuplicate: true },
   forestOak: { category: 'tree', name: 'Carvalho do Bosque', baseW: 130, baseH: 148, colOffXRatio: 0.40, colOffYRatio: 0.84, colWRatio: 0.18, colHRatio: 0.10, sortYOffset: 142, canDelete: true, canDuplicate: true },
@@ -5515,9 +5518,10 @@ export class GameEngine {
     // 12 Ecos capturáveis na Clareira do Santuário (col 150, row 118)
     for (let note = 0; note < 12; note++) {
       for (let attempt = 0; attempt < 30; attempt++) {
-        const a = note * (Math.PI / 6) + attempt * 0.12;
-        const c = Math.round(150 + Math.cos(a) * (8 + (attempt % 5)));
-        const r = Math.round(118 + Math.sin(a) * (7 + (attempt % 5)));
+        const home = SANCTUARY_ECHO_HOMES[note];
+        const a = attempt * 2.399;
+        const c = Math.round(home[0] + Math.cos(a) * Math.floor(attempt / 6));
+        const r = Math.round(home[1] + Math.sin(a) * Math.floor(attempt / 6));
         if (this.spawnEnemy('eco_' + NOTE_KEY[note], c, r, 98000 + note, 1)) {
           this.enemies[this.enemies.length - 1].id = 'sanctuary_echo_' + note;
           break;
@@ -7867,7 +7871,7 @@ export class GameEngine {
       this.regionalTerrain.draw(ctx,camX,camY,this.viewportW,this.viewportH);
     }
     this.waterSurface ??= new WaterSurface();
-    this.waterSurface.draw(ctx,this.ground,camX,camY,this.viewportW,this.viewportH,this.timeElapsed,this.activeMap.ambient.lighting!=='day-cycle');
+    this.waterSurface.draw(ctx,this.ground,camX,camY,this.viewportW,this.viewportH,this.timeElapsed,this.activeMap.ambient.lighting!=='day-cycle',this.activeMapId==='floresta_ecos');
     // Bioma de cristal: banho ciano/lavanda suave, luz de gruta iluminada.
     if (this.activeMap.ambient.lighting === 'crystal-glow') {
       const gw = ctx.createLinearGradient(0, 0, 0, this.viewportH);
@@ -7897,7 +7901,7 @@ export class GameEngine {
         // A ponte é um tabuleiro que se atravessa: precisa ficar SEMPRE atrás
         // de quem anda sobre ela (senão o auto-sortY pelo rodapé cobria o
         // personagem no meio da travessia).
-        const sortY = prop.type === 'frontierBridge' ? prop.y - 4 : prop.sortY;
+        const sortY = ['frontierBridge','sanctuaryBridge'].includes(prop.type) ? prop.y - 4 : prop.sortY;
         renderables.push({
           sortY,
           draw: () => this.drawProp(prop, camX, camY),
@@ -8990,7 +8994,25 @@ export class GameEngine {
       ctx.drawImage(this.assets.darkThorn, px, py, prop.w, prop.h);
     }
     // 8. Regiões do leste — elementos separados sobre terreno realmente caminhável
-    else if (prop.type === 'echoArch' && this.assets?.echoArch) {
+    else if (prop.type === 'sanctuaryTree' && this.assets?.sanctuaryTree) {
+      ctx.save();
+      // The crown becomes translucent only when it covers the player. The root
+      // base stays opaque; the trunk retains its foot-level solid collider.
+      const behind = this.player.x > prop.x && this.player.x < prop.x + prop.w
+        && this.player.y > prop.y && this.player.y < prop.y + prop.h * .79;
+      const img=this.assets.sanctuaryTree,split=.74;
+      ctx.globalAlpha=behind?.38:1;
+      ctx.drawImage(img,0,0,img.naturalWidth,img.naturalHeight*split,px,py,prop.w,prop.h*split);
+      ctx.globalAlpha=1;
+      ctx.drawImage(img,0,img.naturalHeight*split,img.naturalWidth,img.naturalHeight*(1-split),px,py+prop.h*split,prop.w,prop.h*(1-split));
+      ctx.restore();
+    } else if (prop.type === 'sanctuaryBridge' && this.assets?.sanctuaryBridge) {
+      const img=this.assets.sanctuaryBridge;
+      ctx.drawImage(img,img.naturalWidth*.16,img.naturalHeight*.05,img.naturalWidth*.68,img.naturalHeight*.88,px,py,prop.w,prop.h);
+    } else if (prop.type.startsWith('sanctuaryBed') && this.assets?.sanctuaryDressing) {
+      const img=this.assets.sanctuaryDressing,frame=Number(prop.type.slice(-1));
+      ctx.drawImage(img,(frame%2)*img.naturalWidth/2,Math.floor(frame/2)*img.naturalHeight/2,img.naturalWidth/2,img.naturalHeight/2,px,py,prop.w,prop.h);
+    } else if (prop.type === 'echoArch' && this.assets?.echoArch) {
       ctx.drawImage(this.assets.echoArch, px, py, prop.w, prop.h);
     } else if (['forestOak','forestPine','forestBlossom'].includes(prop.type) && this.assets?.woodlandTrees) {
       const atlas=this.assets.woodlandTrees,frame=['forestOak','forestPine','forestBlossom'].indexOf(prop.type);

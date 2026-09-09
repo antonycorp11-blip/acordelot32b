@@ -5,7 +5,7 @@ const FRAGMENT = `
 precision highp float;
 uniform sampler2D uShore;
 uniform vec2 uMapSize,uCamera,uViewport,uResolution;
-uniform float uTime,uCave;
+uniform float uTime,uCave,uCalm;
 float hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
 float noise(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);return mix(mix(hash(i),hash(i+vec2(1,0)),f.x),mix(hash(i+vec2(0,1)),hash(i+1.),f.x),f.y);}
 float field(vec2 uv){
@@ -40,6 +40,15 @@ void main(){
   color+=mix(vec3(.75,.87,.79),vec3(.46,.75,1.),uCave)*glint*.55;
   float foam=(1.-smoothstep(.04,.36,abs(edge-.12)))*(.4+.6*noise(q*1.8-t*.4));
   color=mix(color,vec3(.66,.81,.71),foam*.50);
+  // Sheltered sanctuary stream: muted reflections, no tiled-looking caustic net.
+  // Local profile leaves the original city and cave water unchanged.
+  vec3 calm=mix(vec3(.22,.40,.32),vec3(.045,.21,.22),depth);
+  calm+=noise(p*.008+vec2(t*.06,0.))*.035;
+  calm+=ripple*vec3(.009,.017,.018);
+  float streak=pow(max(0.,sin(p.y*.14+p.x*.018+n*2.-t*1.1)),24.);
+  calm+=vec3(.12,.19,.16)*streak*noise(p*.06)*.25;
+  calm=mix(calm,vec3(.50,.62,.48),foam*.19);
+  color=mix(color,calm,uCalm);
   // A transparent wet shore blends into the land, rather than a square border.
   color=mix(vec3(.17,.26,.22),color,alpha);
   float wet=(1.-smoothstep(.10,.65,-shore))*.24;
@@ -102,7 +111,7 @@ export class WaterSurface {
       this.texture=gl.createTexture()!;gl.bindTexture(gl.TEXTURE_2D,this.texture);
       for(const p of [gl.TEXTURE_WRAP_S,gl.TEXTURE_WRAP_T])gl.texParameteri(gl.TEXTURE_2D,p,gl.CLAMP_TO_EDGE);
       for(const p of [gl.TEXTURE_MIN_FILTER,gl.TEXTURE_MAG_FILTER])gl.texParameteri(gl.TEXTURE_2D,p,gl.LINEAR);
-      for(const name of ['uMapSize','uCamera','uViewport','uResolution','uTime','uCave','uShore'])this.locations[name]=gl.getUniformLocation(program,name);
+      for(const name of ['uMapSize','uCamera','uViewport','uResolution','uTime','uCave','uCalm','uShore'])this.locations[name]=gl.getUniformLocation(program,name);
     }catch(error){console.warn('Using continuous Canvas water fallback',error);this.program=undefined;}
   }
   private setGround(ground:number[][]){
@@ -127,7 +136,7 @@ export class WaterSurface {
     if(this.gpuReady){const gl=this.gl!;gl.bindTexture(gl.TEXTURE_2D,this.texture!);gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,this.cols,this.rows,0,gl.RGBA,gl.UNSIGNED_BYTE,data);}
     this.fallbackMask=undefined;
   }
-  draw(ctx:CanvasRenderingContext2D,ground:number[][],camX:number,camY:number,w:number,h:number,time:number,cave:boolean){
+  draw(ctx:CanvasRenderingContext2D,ground:number[][],camX:number,camY:number,w:number,h:number,time:number,cave:boolean,calm=false){
     this.setGround(ground);
     if(!this.waterCells.some(p=>p.x>camX-64&&p.x<camX+w+64&&p.y>camY-64&&p.y<camY+h+64))return;
     if(!this.gpuReady){this.drawFallback(ctx,camX,camY,w,h,time);return;}
@@ -139,6 +148,7 @@ export class WaterSurface {
     gl.uniform2f(u.uMapSize,this.cols,this.rows);gl.uniform2f(u.uCamera,camX,camY);
     gl.uniform2f(u.uViewport,w,h);gl.uniform2f(u.uResolution,rw,rh);
     gl.uniform1f(u.uTime,time%10000);gl.uniform1f(u.uCave,cave?1:0);gl.uniform1i(u.uShore,0);
+    gl.uniform1f(u.uCalm,calm?1:0);
     gl.clearColor(0,0,0,0);gl.clear(gl.COLOR_BUFFER_BIT);gl.drawArrays(gl.TRIANGLE_STRIP,0,4);
     ctx.save();ctx.imageSmoothingEnabled=true;ctx.drawImage(this.canvas,0,0,w,h);ctx.restore();
   }

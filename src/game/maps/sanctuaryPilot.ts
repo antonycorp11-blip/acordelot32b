@@ -5,7 +5,57 @@ import { ellipse, path, makeRng, type Painter } from './paint';
 export const SANCTUARY_PILOT = { left:126, top:102, right:174, bottom:150 };
 export const SANCTUARY_WALK = [[150,148],[155,144],[150,139],[150,131],[146,127],[146,120],[143,114],[145,108],[153,102]];
 export const SANCTUARY_BRIDGE = { x:147.25*32, y:130.5*32, w:5.5*32, h:9*32 };
-export const SANCTUARY_ECHO_HOMES = [[147,119],[150,121],[155,122],[159,120],[161,116],[158,111],[150,112],[141,119],[140,124],[153,126],[160,125],[145,123]];
+/**
+ * ONDE MORA CADA UM DOS DOZE ECOS.
+ *
+ * Antes os doze ficavam empilhados num raio de dez tiles em volta do altar: o
+ * mapa inteiro dos Ecos servia de moldura para um amontoado no meio dele. Agora
+ * cada familia mora na sua clareira, e o mapa vira o percurso.
+ *
+ * A divisao e a do teclado, nao sorteio. As NATURAIS — as teclas brancas —
+ * ficam nas duas clareiras do norte, na ordem em que se aprendem: Do Re Mi na
+ * primeira, Fa Sol La na segunda. As ALTERADAS — as teclas pretas — ficam mais
+ * longe, no leste e no oeste, porque vem depois na aprendizagem e o caminho ate
+ * la e mais duro. O Si fecha as naturais junto dos dois primeiros sustenidos,
+ * que e como a escala vira e recomeca.
+ *
+ * Indice = semitom a partir do Do (ver NOTE_KEY), entao a ordem do vetor e
+ * cromatica e nao pode ser embaralhada.
+ */
+const CLAREIRA = {
+  primeiroCanto: [150, 44],   // Do  Re  Mi
+  salgueiros:    [84, 47],    // Fa  Sol La
+  folhasDouradas:[217, 53],   // Si  Do# Re#
+  borboletas:    [54, 102],   // Fa# Sol# La#
+} as const;
+
+/** Tres poleiros em torno do centro da clareira, longe da trilha. */
+function trio(centro: readonly [number, number] | number[]): number[][] {
+  const [c, r] = centro;
+  return [[c - 6, r + 4], [c + 6, r + 3], [c, r - 5]];
+}
+
+const [doRe, faSol, siDo, faSolLa] = [
+  trio(CLAREIRA.primeiroCanto),
+  trio(CLAREIRA.salgueiros),
+  trio(CLAREIRA.folhasDouradas),
+  trio(CLAREIRA.borboletas),
+];
+
+export const SANCTUARY_ECHO_HOMES = [
+  doRe[0],    // 0  Do
+  siDo[1],    // 1  Do#
+  doRe[1],    // 2  Re
+  siDo[2],    // 3  Re#
+  doRe[2],    // 4  Mi
+  faSol[0],   // 5  Fa
+  faSolLa[0], // 6  Fa#
+  faSol[1],   // 7  Sol
+  faSolLa[1], // 8  Sol#
+  faSol[2],   // 9  La
+  faSolLa[2], // 10 La#
+  siDo[0],    // 11 Si
+];
 
 export function buildSanctuaryPilot(p:Painter){
   const b=SANCTUARY_PILOT, rng=makeRng(0x99173);

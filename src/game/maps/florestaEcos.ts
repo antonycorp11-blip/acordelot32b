@@ -58,6 +58,24 @@ export function buildFlorestaEcos():MapGrid{
     const v=ground[Math.floor(r)]?.[Math.floor(c)];
     return v!==undefined&&v!==TT.WATER_DEEP&&v!==TT.WATER_SHALLOW;
   };
+  // RESTOS DE CALCADA. A trilha era so uma faixa de terra pintada; lajes soltas
+  // ao longo dela contam que aqui houve estrada antes de a mata voltar. Ficam
+  // sempre DE LADO, nunca no miolo — no caminho elas viravam obstaculo.
+  for(const line of FOREST_TRAILS)for(let j=1;j<line.length;j++){
+    const [x0,y0]=line[j-1],[x1,y1]=line[j];
+    const comp=Math.hypot(x1-x0,y1-y0),passos=Math.max(1,Math.floor(comp/2.4));
+    for(let i=0;i<=passos;i++){
+      if(rng()<.42)continue;
+      const t=i/passos,px=x0+(x1-x0)*t,py=y0+(y1-y0)*t;
+      const nx=-(y1-y0)/comp,ny=(x1-x0)/comp,lado=rng()<.5?-1:1;
+      const dist=2.2+rng()*1.4;
+      const c=px+nx*dist*lado,r=py+ny*dist*lado;
+      if(!dry(c,r))continue;
+      const grande=rng()<.3,w=grande?46:32,h=grande?30:21;
+      props.push({id:`fe_calcada_${j}_${i}_${lado}`,type:'rockFlatSlab',
+        x:c*T-w/2,y:r*T-h,w,h,sortY:r*T-3});
+    }
+  }
   const open=(c:number,r:number)=>{
     if(roadDistance(c,r)<4.2)return true;
     if(Math.hypot((c-150)/24,(r-118)/21)<1)return true;

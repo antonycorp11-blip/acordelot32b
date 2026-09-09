@@ -1,4 +1,5 @@
 import type { LoadedAssets } from './assetLoader';
+import { feather, releaseFeather } from './canvasBlur';
 const SIZE=512, PAD=112, EXT=SIZE+PAD*2;
 const canvas=()=>Object.assign(document.createElement('canvas'),{width:EXT,height:EXT});
 const natural=(id:number)=>id>=9000||id===56||id===92||id===128;
@@ -46,7 +47,11 @@ export class RegionalTerrain {
       {id:9012,img:forest,size:480,tint:'rgba(20,48,37,.36)',blur:32},
       {id:9008,img:this.assets.frontierGround,size:470,tint:'rgba(22,24,29,.40)',blur:32},
       {id:9006,img:this.assets.crystalFloor,size:320,tint:'rgba(20,24,35,.24)',blur:30},
-      {id:9010,img:this.assets.crystalFloor,size:165,tint:'rgba(166,155,119,.75)',blur:23},
+      // Trilha: era bege areia a 75% (166,155,119), que lavava a textura e
+      // puxava amarelo no meio de um bioma verde — a estrada nao pertencia ao
+      // cenario. Pedra cinza-esverdeada, e mais fraca, deixa o desenho da
+      // pedra aparecer e o musgo casar com a grama em volta.
+      {id:9010,img:this.assets.crystalFloor,size:165,tint:'rgba(104,112,94,.52)',blur:23},
       {id:9011,img:this.assets.frontierGround,size:270,tint:'rgba(118,105,84,.70)',blur:24},
       {id:9009,img:undefined,size:320,tint:'#04060f',blur:23},
     ];
@@ -61,10 +66,13 @@ export class RegionalTerrain {
       if(!maskFor(id=>id===l.id))continue;
       pc.globalCompositeOperation='source-over';pc.clearRect(0,0,EXT,EXT);
       this.texture(pc,l.img,x,y,l.size,l.tint);
-      pc.globalCompositeOperation='destination-in';pc.filter=`blur(${l.blur}px)`;pc.drawImage(mask,0,0);pc.filter='none';out.drawImage(paint,0,0);
+      const soft=feather(mask,l.blur);
+      pc.globalCompositeOperation='destination-in';pc.drawImage(soft,0,0);releaseFeather(soft);
+      out.drawImage(paint,0,0);
     }
     maskFor(natural);
-    out.globalCompositeOperation='destination-in';out.filter='blur(3px)';out.drawImage(mask,0,0);out.filter='none';
+    const borda=feather(mask,3);
+    out.globalCompositeOperation='destination-in';out.drawImage(borda,0,0);releaseFeather(borda);
     return output;
   }
 }

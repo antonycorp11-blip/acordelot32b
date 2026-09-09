@@ -1,5 +1,6 @@
 /** One continuous GPU surface, in world coordinates. The grid is only a shoreline
  * distance texture; it never controls the phase or color of individual waves. */
+import { feather, releaseFeather } from './canvasBlur';
 const VERTEX = `attribute vec2 aPosition;void main(){gl_Position=vec4(aPosition,0.,1.);}`;
 const FRAGMENT = `
 precision highp float;
@@ -158,7 +159,9 @@ export class WaterSurface {
       const c=mask.getContext('2d')!;c.fillStyle='#fff';
       const raw=document.createElement('canvas');raw.width=mask.width;raw.height=mask.height;
       const r=raw.getContext('2d')!;r.fillStyle='#fff';for(const p of this.waterCells)r.fillRect(p.x/8,p.y/8,4,4);
-      c.filter='blur(2px)';c.drawImage(raw,0,0);
+      // Mesmo motivo do terreno: `ctx.filter` nao existe no Safari antigo e a
+      // margem da agua ficava serrilhada justamente onde nao ha WebGL.
+      const soft=feather(raw,2);c.drawImage(soft,0,0);releaseFeather(soft);
     }
     const canvas=this.fallbackCanvas;
     if(canvas.width!==Math.round(w)||canvas.height!==Math.round(h)){canvas.width=Math.round(w);canvas.height=Math.round(h);}

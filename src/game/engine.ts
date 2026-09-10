@@ -1195,7 +1195,7 @@ export const EDITABLE_PROP_METAS: Record<
   echoArch: { category: 'building', name: 'Arco do Santuário', baseW: 180, baseH: 172, colOffXRatio: 0.08, colOffYRatio: 0.82, colWRatio: 0.20, colHRatio: 0.12, sortYOffset: 166, canDelete: true, canDuplicate: true },
   sanctuaryTree: { category: 'tree', name: 'Árvore Ancestral do Santuário', baseW: 310, baseH: 326, colOffXRatio: .32, colOffYRatio: .79, colWRatio: .37, colHRatio: .15, sortYOffset: 322, canDelete: true, canDuplicate: false },
   sanctuaryBridge: { category: 'street', name: 'Ponte do Santuário', baseW: 176, baseH: 288, sortYOffset: 0, canDelete: false, canDuplicate: false },
-  grassTerrace: { category:'street',name:'Escadaria de Pedra e Grama',baseW:768,baseH:256,sortYOffset:0,canDelete:false,canDuplicate:false },
+  grassTerrace: { category:'street',name:'Patamar de Terra — Escada Lateral',baseW:768,baseH:768/1.75,sortYOffset:0,canDelete:false,canDuplicate:false },
   forestWaterfall: { category:'rock',name:'Cachoeira do Bosque',baseW:330,baseH:396,colOffXRatio:.23,colOffYRatio:.22,colWRatio:.52,colHRatio:.55,sortYOffset:390,canDelete:true,canDuplicate:false },
   singingTree: { category: 'tree', name: 'Árvore Cantante', baseW: 150, baseH: 156, colOffXRatio: 0.42, colOffYRatio: 0.82, colWRatio: 0.16, colHRatio: 0.13, sortYOffset: 150, canDelete: true, canDuplicate: true },
   silverWillow: { category: 'tree', name: 'Salgueiro Prateado', baseW: 142, baseH: 166, colOffXRatio: 0.43, colOffYRatio: 0.84, colWRatio: 0.14, colHRatio: 0.10, sortYOffset: 160, canDelete: true, canDuplicate: true },

@@ -1,5 +1,6 @@
 import {TERRAIN_TILES as TT} from '../mapData';
 import {ellipse,path,type Painter} from './paint';
+import {forestTerraceGeometry} from './forestTerrace';
 
 export const FOREST_LANDFORMS = [
   {name:'Cascata dos Salgueiros',col:103,row:86},
@@ -55,22 +56,31 @@ export function buildForestLandforms(p:Painter){
   }
   prop('forest_falls_west','forestWaterfall',103,88,330,396);
   prop('forest_falls_east','forestWaterfall',202,153,270,324);
-  // Solid ledges force traversal through the stairs. The upper terrace is
-  // walkable; bridges/stairs render beneath actors, walls remain solid.
+  // Raised lawns with a continuous exposed soil wall and a lateral stair.
   for(const [i,c,r,w] of [[0,149,80,768],[1,235,104,640],[2,74,136,576]]){
-    // Remove prior dressing from the stair corridor before installing the
-    // ledge. Old tree trunks/ruin columns otherwise block an apparently open stair.
+    const h=w/1.75,x=c*32-w/2,y=r*32-h;
+    // Clear the entire lawn and lateral access, not just the old centre stair.
+    // Resource IDs are preserved on a dry bank outside this landform.
     for(let j=p.props.length-1;j>=0;j--){
       const q=p.props[j];
       if(q.type==='portal'||q.type==='grassTerrace')continue;
-      if(q.x+q.w*.8<(c-2)*32||q.x+q.w*.2>(c+2)*32||q.y+q.h<(r-9)*32||q.y+q.h*.65>(r+2)*32)continue;
-      if(q.type.startsWith('spot_'))q.x+=5*32;
+      if(q.x+q.w<x-32||q.x>x+w+48||q.y+q.h<y-32||q.y>y+h+32)continue;
+      if(q.type.startsWith('spot_')){
+        for(let d=0;d<30;d++){
+          const nc=Math.floor((x-80)/32)-d,nr=Math.floor((q.y+q.h)/32);
+          if(nc>2&&nr>2&&!wet(nc,nr)){q.x=nc*32-q.w/2;break;}
+        }
+      }
       else p.props.splice(j,1);
     }
-    prop('forest_terrace_'+i,'grassTerrace',c,r,w,w/3);
-    const l=c*32-w/2,wallY=r*32-w/3*.48,gap=w*.19;
-    p.solids.push({x:l,y:wallY,w:w/2-gap/2,h:44},{x:c*32+gap/2,y:wallY,w:w/2-gap/2,h:44});
-    path(p,[[c,r+3],[c,r-7]],1.8,TT.ECHO_PATH);
+    // Remove the former straight road that pointed into the front cliff.
+    for(let row=Math.floor(y/32)-1;row<=r+2;row++)for(let col=Math.floor(x/32)-1;col<=(x+w)/32+1;col++){
+      if(p.ground[row]?.[col]===TT.ECHO_PATH)p.ground[row][col]=TT.ECHO_MEADOW;
+    }
+    prop('forest_terrace_'+i,'grassTerrace',c,r,w,h);
+    const geometry=forestTerraceGeometry(x,y,w,h);
+    p.solids.push(...geometry.walls);
+    path(p,[[c,r+4],...geometry.route.map(([px,py])=>[px/32,py/32])],1.2,TT.ECHO_PATH);
   }
   // Visible sinkholes have matching collision; grass never remains walkable
   // over the hole. Their rendering is a local shaded depression, not a portal.

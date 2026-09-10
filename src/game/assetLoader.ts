@@ -344,7 +344,7 @@ const ASSET_PATHS: Record<keyof LoadedAssets, string> = {
   sanctuaryBridge: '/assets/regions/echo/sanctuary_bridge_v1.png',
   oldStonePath: '/assets/regions/echo/old_stone_path_v1.png',
   forestWaterfall: '/assets/regions/echo/forest_waterfall_v1.png',
-  grassTerrace: '/assets/regions/echo/grass_terrace_v1.png',
+  grassTerrace: '/assets/regions/echo/grass_terrace_v2.png',
   regionArch: '/assets/regions/echo/region_arch_v1.png',
   woodlandFauna: '/assets/regions/echo/woodland_fauna_v1.png',
   forestMountain: '/assets/regions/echo/forest_mountain_v1.png',

@@ -31,22 +31,39 @@ try{
     const cityBoss=e.enemies.filter(n=>n.kind==='organ_sentinel').length;
     e.travelTo('floresta_ecos');
     const {SANCTUARY_ECHO_HOMES}=await import('/src/game/maps/sanctuaryPilot.ts');
+    const {forestTerraceGeometry}=await import('/src/game/maps/forestTerrace.ts');
     const notes=['c','cs','d','ds','e','f','fs','g','gs','a','as','b'];
     const echoes=e.enemies.filter(n=>n.kind.startsWith('eco_'));
     const grouped=echoes.every(n=>{const home=SANCTUARY_ECHO_HOMES[notes.indexOf(n.kind.slice(4))];return home&&Math.hypot(n.homeX/32-home[0],n.homeY/32-home[1])<7;});
     const stairs=e.props.filter(p=>p.type==='grassTerrace').map(p=>{
-      const x=p.x+p.w/2;let clear=true;
-      for(let y=p.y;y<p.y+p.h;y+=8)if(e.checkSolidCollision({x:x-8,y,w:16,h:12}))clear=false;
-      return {id:p.id,clear};
+      const {route}=forestTerraceGeometry(p.x,p.y,p.w,p.h);let clear=true;
+      const blocked=[];
+      for(let i=1;i<route.length;i++){
+        const a=route[i-1],b=route[i],n=Math.ceil(Math.hypot(b[0]-a[0],b[1]-a[1])/8);
+        for(let j=0;j<=n;j++){
+          const x=a[0]+(b[0]-a[0])*j/n,y=a[1]+(b[1]-a[1])*j/n;
+          if(e.checkSolidCollision({x:x-8,y:y-6,w:16,h:12})){clear=false;blocked.push([x,y]);}
+        }
+      }
+      const frontBlocked=e.checkSolidCollision({x:p.x+p.w*.5-8,y:p.y+p.h*.75,w:16,h:12});
+      return {id:p.id,clear,frontBlocked,blocked};
     });
     return {cityBoss,forestBoss:e.enemies.filter(n=>n.kind==='organ_sentinel').length,echoes:echoes.length,grouped,stairs,
       fauna:e.enemies.filter(n=>['moss_boar','grove_mushroom'].includes(n.kind)).length,
       falls:e.props.filter(p=>p.type==='forestWaterfall').length,
       water:e.ground.flat().filter(t=>t===9000||t===9001).length};
   });
-  console.log(result);assert.equal(result.cityBoss,0);assert.equal(result.forestBoss,1);assert(result.grouped);assert.equal(result.echoes,34);assert.equal(result.fauna,18);assert.equal(result.falls,2);assert(result.stairs.every(s=>s.clear));
+  console.log(result);assert.equal(result.cityBoss,0);assert.equal(result.forestBoss,1);assert(result.grouped);assert.equal(result.echoes,34);assert.equal(result.fauna,18);assert.equal(result.falls,2);assert(result.stairs.every(s=>s.clear&&s.frontBlocked));
   for(const [name,c,r] of [['waterfall',103,85],['stairs',149,77],['portal',150,149],['forest-road',150,90],['mountain',249,29],['fauna',122,89]]){
     await page.evaluate(([c,r])=>{const e=window.qaEngine;e.player.x=c*32;e.player.y=r*32;e.camX=e.player.x-e.viewportW/2;e.camY=e.player.y-e.viewportH/2;e.sceneFadeUntil=0;e.setTimeOfDay('day');e.timeElapsed=10;e.render();},[c,r]);
+    await page.screenshot({path:out+'/'+name+'.png'});
+  }
+  for(const [name,u,v] of [['terrace-top',.50,.35],['terrace-side',.89,.67],['terrace-foot',.94,.90]]){
+    await page.evaluate(([u,v])=>{
+      const e=window.qaEngine,p=e.props.find(p=>p.id==='forest_terrace_0');
+      e.player.x=p.x+p.w*u;e.player.y=p.y+p.h*v;
+      e.camX=p.x+p.w*.5-e.viewportW/2;e.camY=p.y+p.h*.60-e.viewportH/2;e.render();
+    },[u,v]);
     await page.screenshot({path:out+'/'+name+'.png'});
   }
   assert.deepEqual(errors,[]);console.log('PASS: Akles baseline, note habitats, guardian relocation, woodland fauna, water and stairs. '+out);

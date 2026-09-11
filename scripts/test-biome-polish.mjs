@@ -1,13 +1,15 @@
 import assert from 'node:assert/strict';
 import {mkdir} from 'node:fs/promises';
 const {chromium}=await import(process.env.PLAYWRIGHT_MODULE||'playwright');
+// A porta pode mudar quando ha outro vite aberto na maquina; 3000 e so o padrao.
+const PORTA = process.env.PORTA || '3000';
 const browser=await chromium.launch({channel:'chrome',headless:true});
 const page=await browser.newPage({viewport:{width:844,height:390},deviceScaleFactor:1});
 const output=process.env.TEST_OUTPUT||'/tmp/acordelot-biome-qa';
 await mkdir(output,{recursive:true});
 const errors=[];page.on('pageerror',e=>errors.push(e.message));
 try{
-  await page.goto('http://localhost:3000');
+  await page.goto(`http://localhost:${PORTA}`);
   await page.evaluate(async()=>{
     const {GameEngine}=await import('/src/game/engine.ts');
     const c=document.createElement('canvas');c.style.cssText='width:844px;height:390px';

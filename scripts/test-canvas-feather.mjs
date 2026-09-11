@@ -12,13 +12,15 @@
  */
 import assert from 'node:assert/strict';
 const {chromium} = await import(process.env.PLAYWRIGHT_MODULE || 'playwright');
+// A porta pode mudar quando ha outro vite aberto na maquina; 3000 e so o padrao.
+const PORTA = process.env.PORTA || '3000';
 const browser = await chromium.launch({channel: 'chrome', headless: true});
 const page = await browser.newPage();
 const errors = [];
 page.on('pageerror', e => errors.push(e.message));
 
 try {
-  await page.goto('http://localhost:3000');
+  await page.goto(`http://localhost:${PORTA}`);
 
   const r = await page.evaluate(async () => {
     // Safari sem suporte: some com a propriedade antes de qualquer desenho.

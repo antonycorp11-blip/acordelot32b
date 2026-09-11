@@ -45,6 +45,7 @@ import { loadGameAssets, LoadedAssets } from './assetLoader';
 import { RegionalTerrain } from './regionalTerrain';
 import { WaterSurface } from './waterSurface';
 import { SANCTUARY_ECHO_HOMES } from './maps/sanctuaryPilot';
+import * as Campanha from './campaign';
 import { CRYSTAL_GATE, CRYSTAL_ROOMS, DUNGEON_LAYOUT_VERSION, DUNGEON_BOSS_ID, isDungeonEnemy, dungeonEnemyId, dungeonChestId, DUNGEON_DIFFICULTIES, type DungeonRunSave } from './crystalDungeon';
 import { generateCharacterSprites, generateTrees, generateHouses } from './pixelArt';
 import initialCustomMap from './customMapLayout.json';
@@ -1550,6 +1551,16 @@ export class GameEngine {
 
   // ---- Regiões zoneadas (mapas separados ligados por portais) ----
   activeMapId: MapId = 'overworld';
+
+  // ---- CAMPANHA DECLARATIVA (ver campaign.ts) ----
+  // Guarda a ULTIMA ETAPA CONCLUIDA, nao a corrente: assim `null` significa
+  // "nada feito ainda" e a ultima etapa da lista significa "acabou", sem
+  // precisar de um valor especial para o fim.
+  campanhaConcluida: string | null = null;
+  /** Abates contados desde que a etapa corrente abriu. */
+  campanhaAbates = 0;
+  campanhaAbatesPorEspecie: Record<string, number> = {};
+
   activeMap = MAP_DEFS.overworld;
   /** estado mutável por mapa (inimigos mortos, baús) pra restaurar ao voltar */
   private mapState = new Map<MapId, { defeated: Set<string>; chests: Set<string> }>();
@@ -2774,7 +2785,141 @@ export class GameEngine {
         status: !['enter_cavern', 'defeat_guardian', 'return_antony', 'completed'].includes(this.regionQuestStage) ? ('locked' as const) : this.regionQuestStage === 'completed' ? ('completed' as const) : ('active' as const),
         objective: this.regionQuestStage === 'enter_cavern' ? 'Desça à Floresta Sombria e cruze a boca da caverna.' : this.regionQuestStage === 'defeat_guardian' ? 'Derrote o Guardião Cristalino no fundo da dungeon.' : this.regionQuestStage === 'return_antony' ? 'Leve o fragmento de mensagem ao Sr. Antony.' : 'A caverna revelou que alguém conhece o nome de Akles.',
       },
+      ...this.missoesDaCampanha(),
     ];
+  }
+
+
+  // ------------------------------------------------------------- campanha
+
+  /** Retrato do mundo para a campanha julgar. So leitura. */
+  private retratoDaCampanha(npcFalado: string | null): Campanha.Mundo {
+    const acordes = Object.values(this.equippedChordsByScale).flat().length;
+    let pecas = 0;
+    for (const slot of EQUIP_SLOT_ORDER) if (this.equippedPieces[slot]) pecas++;
+    return {
+      npcFalado,
+      inventario: this.inventory,
+      abatidos: this.campanhaAbatesPorEspecie,
+      abatidosTotal: this.campanhaAbates,
+      mapa: this.activeMapId,
+      col: this.player.x / TILE_SIZE,
+      linha: this.player.y / TILE_SIZE,
+      notasSintetizadas: this.notesBuilt.filter((n) => n > 0).length,
+      acordesEquipados: acordes,
+      nivel: this.stats.level,
+      nivelDaArma: this.weaponLevels[this.equippedWeaponKey] ?? 1,
+      pecasVestidas: pecas,
+    };
+  }
+
+  /**
+   * Avanca a campanha enquanto houver etapa satisfeita.
+   *
+   * O laco existe porque uma etapa pode abrir outra que ja esta cumprida — o
+   * jogador que junta trinta fragmentos ANTES de falar com Pippo nao deve ficar
+   * preso relendo o mesmo objetivo. O limite de guarda impede que um gatilho
+   * mal escrito, satisfeito para sempre, rode a campanha inteira num quadro.
+   */
+  /**
+   * Pippo MORA em Acordelot depois do tutorial.
+   *
+   * Ele so existia dentro de cenas: aparecia ao lado do Lucian ou do Antony
+   * durante uma etapa e sumia depois. Metade da campanha e com ele, e o Ato IV
+   * inteiro so funciona se o jogador tiver convivido com o menino — um NPC que
+   * so aparece quando e util nao gera apego nenhum. Entao ele fica na porta da
+   * oficina do pai, onde um filho de luthier ficaria.
+   */
+  private garantirPippo() {
+    if (this.activeMapId !== 'overworld') return;
+    if (this.npcs.some((n) => n.id === 'story_pippo')) return;
+    const lucian = this.ensureLucian();
+    const pippo = this.ensureStoryNpc('story_pippo', 'Pippo', 'seminima', lucian.x - 38, lucian.y + 10, '#fbbf24');
+    pippo.title = 'Filho de Lucian';
+    pippo.direction = 'down';
+    pippo.dialogue = [
+      'Meu pai diz que madeira boa canta por gerações. Eu acho que ela só repete o que ouviu.',
+      'Tenho uma coleção. Doze lugares, e faltava um desde antes de você chegar.',
+      'Se eu sumir um dia, procura pelo som. É o que menos se apaga.',
+    ];
+    pippo.barks = [
+      'Escuta! Essa é um lá.',
+      'Meio tom é um passo. Tom são dois.',
+      'Meu pingente bate na mesa e afina sozinho.',
+    ];
+  }
+
+  avancarCampanha(npcFalado: string | null = null): boolean {
+    if (this.regionQuestStage !== 'completed') return false;
+    this.garantirPippo();
+    let mudou = false;
+    for (let guarda = 0; guarda < 4; guarda++) {
+      const etapa = Campanha.proximaEtapa(this.campanhaConcluida);
+      if (!etapa || !Campanha.estaSatisfeita(etapa.gatilho, this.retratoDaCampanha(npcFalado))) break;
+      this.campanhaConcluida = etapa.id;
+      this.campanhaAbates = 0;
+      this.campanhaAbatesPorEspecie = {};
+      mudou = true;
+      const r = etapa.recompensa;
+      if (r) {
+        if (r.xp) this.gainXp(r.xp);
+        if (r.claves) this.addCoins(r.claves);
+        for (const it of r.itens ?? []) this.addToInventory(it.item, it.quantidade);
+      }
+      if (etapa.fala) {
+        this.onHarvestPopup?.(`${etapa.fala.quem}: ${etapa.fala.linhas[0]}`, this.player.x, this.player.y - 54);
+      }
+      // Uma etapa que fecha por conversa nao pode encadear com a seguinte pela
+      // MESMA conversa: cada fala vale uma etapa.
+      npcFalado = null;
+    }
+    if (mudou) {
+      this.atualizarObjetivoDaCampanha();
+      this.onQuestsChange?.();
+    }
+    return mudou;
+  }
+
+  private atualizarObjetivoDaCampanha() {
+    const etapa = Campanha.proximaEtapa(this.campanhaConcluida);
+    if (!etapa) {
+      this.storyObjective = { title: 'Capítulo I', text: 'O capítulo chegou ao fim.', progress: 1, target: 1, ready: true };
+      return;
+    }
+    const missao = Campanha.CAMPANHA.find((m) => m.etapas.some((e) => e.id === etapa.id));
+    const p = Campanha.progresso(etapa.gatilho, this.retratoDaCampanha(null));
+    this.storyObjective = {
+      title: missao?.titulo ?? 'Capítulo I',
+      text: etapa.objetivo,
+      progress: p.feito,
+      target: p.alvo,
+      ready: p.feito >= p.alvo,
+    };
+  }
+
+  /** As missoes da campanha declarativa, no formato que o diario espera. */
+  private missoesDaCampanha() {
+    if (this.regionQuestStage !== 'completed') return [];
+    const mundo = this.retratoDaCampanha(null);
+    const aberta = Campanha.proximaEtapa(this.campanhaConcluida);
+    return Campanha.CAMPANHA.map((missao) => {
+      const status = Campanha.estadoDaMissao(missao, this.campanhaConcluida);
+      const minha = aberta && missao.etapas.some((e) => e.id === aberta.id) ? aberta : null;
+      let objetivo = missao.etapas[missao.etapas.length - 1].objetivo;
+      if (status === 'completed') objetivo = 'Concluída.';
+      else if (minha) {
+        const p = Campanha.progresso(minha.gatilho, mundo);
+        objetivo = p.alvo > 1 ? `${minha.objetivo} (${p.feito}/${p.alvo})` : minha.objetivo;
+      }
+      return {
+        id: missao.id,
+        chapter: missao.capitulo,
+        title: missao.titulo,
+        description: missao.descricao,
+        status,
+        objective: objetivo,
+      };
+    });
   }
 
   // ---- multiplicadores derivados das passivas ----
@@ -4419,6 +4564,9 @@ export class GameEngine {
       }
     }
 
+    // A campanha declarativa ouve a MESMA conversa, depois da corrente antiga.
+    if (talking?.id) this.avancarCampanha(talking.id);
+
     this.talkingNpcId = null;
     this.isTalkingToMerchant = false;
     this.clearInputState();
@@ -5704,6 +5852,9 @@ export class GameEngine {
       e.frame = 0;
       e.stateTimer = 0;
       this.bumpQuestProgress('kill');
+      this.campanhaAbates++;
+      this.campanhaAbatesPorEspecie[e.kind] = (this.campanhaAbatesPorEspecie[e.kind] ?? 0) + 1;
+      this.avancarCampanha();
       if(isDungeonEnemy(e.id)) { this.dungeonDefeated.add(e.id); this.onQuestsChange?.(); }
       if (e.id === DUNGEON_BOSS_ID && this.regionQuestStage === 'defeat_guardian') {
         this.regionQuestStage = 'return_antony';
@@ -6559,6 +6710,7 @@ export class GameEngine {
     }
     this.inventory[item] = (this.inventory[item] || 0) + add;
     this.onInventoryChange?.({ ...this.inventory });
+    this.avancarCampanha();
     return add;
   }
 
@@ -7170,8 +7322,17 @@ export class GameEngine {
     this.animFrameId = requestAnimationFrame(this.loop);
   };
 
+  /** Proximo instante em que a campanha checa posicao (gatilho "chegar"). */
+  private campanhaProximaChecagem = 0;
+
   update(dt: number) {
     this.timeElapsed += dt;
+    // Posicao muda todo quadro; percorrer a campanha a 60Hz seria desperdicio.
+    // Quatro vezes por segundo e imperceptivel para quem anda.
+    if (this.timeElapsed >= this.campanhaProximaChecagem) {
+      this.campanhaProximaChecagem = this.timeElapsed + 0.25;
+      this.avancarCampanha();
+    }
     if(this.isDungeon && !this.storyControlLocked && this.playerPoisonUntil>this.timeElapsed && this.timeElapsed>=this.playerPoisonTickAt) {
       this.playerPoisonTickAt=this.timeElapsed+1;this.damagePlayer(3+this.activeDungeonDifficulty);
     }

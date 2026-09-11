@@ -1,3 +1,4 @@
+import { indiceDaEtapa } from './campaign';
 import { supabase } from '../lib/supabaseClient';
 import type { GameEngine, PlayerStats } from './engine';
 import type { ToolTier } from './types';
@@ -242,6 +243,7 @@ export function serializeEngineSave(engine: GameEngine, userId: string): Omit<Ac
       echo_tutorial_stage: engine.echoTutorialStage,
       post_echo_stage: engine.postEchoStage,
       region_quest_stage: engine.regionQuestStage,
+      campanha_concluida: engine.campanhaConcluida,
       region_crystal_progress: engine.regionCrystalProgress,
       crystal_dungeon_run: engine.dungeonRun,
       shop_purchases: { ...engine.shopPurchases, counts: { ...engine.shopPurchases.counts } },
@@ -482,6 +484,12 @@ export function applySaveToEngine(engine: GameEngine, save: Partial<AcordelotSav
     } else if (engine.echoTutorialStage === 'completed') engine.postEchoStage = 'antony_riddle';
     if (typeof s.region_quest_stage === 'string' && ['locked', 'antony_invitation', 'meet_flora', 'forge_gold_pick', 'visit_sanctuary', 'gather_crystals', 'enter_cavern', 'defeat_guardian', 'return_antony', 'completed'].includes(s.region_quest_stage)) {
       engine.regionQuestStage = s.region_quest_stage as typeof engine.regionQuestStage;
+    }
+    // Campanha declarativa: so aceita id de etapa que ainda existe. Renomear ou
+    // remover uma etapa nao pode deixar o save apontando para o vazio — seria
+    // uma campanha travada sem objetivo nenhum.
+    if (typeof s.campanha_concluida === 'string' && indiceDaEtapa(s.campanha_concluida) >= 0) {
+      engine.campanhaConcluida = s.campanha_concluida;
     } else if (engine.postEchoStage === 'completed') engine.regionQuestStage = 'antony_invitation';
     if (typeof s.region_crystal_progress === 'number') engine.regionCrystalProgress = Math.max(0, Math.min(5, Math.floor(s.region_crystal_progress)));
     if (engine.echoTutorialStage === 'completed' && engine.postEchoStage !== 'completed') {

@@ -12,12 +12,14 @@ for(const action of ['idle','walk','run']){
   }
 }
 const {chromium}=await import(process.env.PLAYWRIGHT_MODULE||'playwright');
+// A porta pode mudar quando ha outro vite aberto na maquina; 3000 e so o padrao.
+const PORTA = process.env.PORTA || '3000';
 const browser=await chromium.launch({channel:'chrome',headless:true});
 const page=await browser.newPage({viewport:{width:844,height:390}});
 const out='/tmp/acordelot-forest-expansion';await mkdir(out,{recursive:true});
 const errors=[];page.on('pageerror',e=>errors.push(e.message));
 try{
-  await page.goto('http://localhost:3000',{waitUntil:'domcontentloaded',timeout:90000});
+  await page.goto(`http://localhost:${PORTA}`,{waitUntil:'domcontentloaded',timeout:90000});
   await page.evaluate(async()=>{
     // The terrain must still feather with Canvas filter disabled (Safari case).
     Object.defineProperty(CanvasRenderingContext2D.prototype,'filter',{configurable:true,get:()=> 'none',set:()=>{}});

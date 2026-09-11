@@ -1,5 +1,7 @@
 import assert from 'node:assert/strict';
 import { mkdir } from 'node:fs/promises';
+// A porta pode mudar quando ha outro vite aberto na maquina; 3000 e so o padrao.
+const PORTA = process.env.PORTA || '3000';
 const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || 'playwright');
 const out = process.env.TEST_OUTPUT || '/tmp/acordelot-dungeon-qa';
 await mkdir(out, { recursive: true });
@@ -8,7 +10,7 @@ const page = await browser.newPage({ viewport: { width: 844, height: 390 }, devi
 const errors = [];
 page.on('pageerror', (e) => errors.push(e.message));
 try {
-  await page.goto('http://localhost:3000/');
+  await page.goto('http://localhost:${PORTA}/');
   await page.evaluate(async () => {
     const { GameEngine } = await import('/src/game/engine.ts');
     const canvas = document.createElement('canvas');

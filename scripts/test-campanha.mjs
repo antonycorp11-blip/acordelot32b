@@ -15,7 +15,7 @@ const c = await import('../src/game/campaign.ts');
 const MUNDO_VAZIO = {
   npcFalado: null, inventario: {}, abatidos: {}, abatidosTotal: 0,
   mapa: 'overworld', col: 0, linha: 0, notasSintetizadas: 0,
-  acordesEquipados: 0, nivel: 1, nivelDaArma: 0, pecasVestidas: 0,
+  acordesEquipados: 0, nivel: 1, nivelDaArma: 0, pecasVestidas: 0, heroiAtivo: 'akles', maiorSkill: 1,
 };
 
 /** Devolve um mundo em que ESTE gatilho está cumprido, e só ele. */
@@ -33,6 +33,9 @@ function mundoQueCumpre(g) {
     case 'nivel': m.nivel = g.valor; break;
     case 'arma_melhorada': m.nivelDaArma = g.nivel; break;
     case 'vestir': m.pecasVestidas = g.pecas; break;
+    case 'jogar_como': m.heroiAtivo = g.herois[0]; break;
+    case 'skill_no_nivel': m.maiorSkill = g.nivel; break;
+    case 'estar_em': m.mapa = g.mapa; break;
     default: throw new Error('gatilho desconhecido no teste: ' + g.tipo);
   }
   return m;

@@ -36,7 +36,14 @@ export type Gatilho =
   /** Ter uma arma da classe equipada acima de +N. */
   | { tipo: 'arma_melhorada'; nivel: number }
   /** Ter N peças de equipamento vestidas. */
-  | { tipo: 'vestir'; pecas: number };
+  | { tipo: 'vestir'; pecas: number }
+  /** Estar jogando com um dos heróis listados. A missão da escolha diz "Wins
+   *  ou Huans": exigir um só travaria quem preferisse o outro. */
+  | { tipo: 'jogar_como'; herois: Array<'akles' | 'wins' | 'huans'> }
+  /** Ter subido qualquer skill do herói ativo até o nível N. */
+  | { tipo: 'skill_no_nivel'; nivel: number }
+  /** Estar num mapa, sem exigir ponto certo. */
+  | { tipo: 'estar_em'; mapa: string };
 
 export interface Recompensa {
   xp?: number;
@@ -76,6 +83,8 @@ export interface Mundo {
   nivel: number;
   nivelDaArma: number;
   pecasVestidas: number;
+  heroiAtivo: string;
+  maiorSkill: number;
 }
 
 // ---------------------------------------------------------------- as missões
@@ -363,6 +372,157 @@ export const CAMPANHA: Missao[] = [
       },
     ],
   },
+  {
+    id: 'MQ_C1_018_DOMINAR_O_PROPRIO_SOM',
+    capitulo: 'Capítulo I',
+    titulo: 'Dominar o Próprio Som',
+    descricao:
+      'Todo mundo em Acordelot sabe tocar. Poucos sabem o que estão tocando. O Sr. Antony quer saber em qual grupo Akles está.',
+    etapas: [
+      {
+        id: 'som_antony',
+        objetivo: 'Procure o Sr. Antony para a avaliação',
+        gatilho: { tipo: 'falar', npc: 'story_sr_antony' },
+        fala: {
+          quem: 'Sr. Antony',
+          linhas: [
+            'Não quero ver você bater. Quero ver você escolher.',
+            'Toda skill custa alguma coisa e demora alguma coisa. Quem não sabe o custo, gasta na hora errada.',
+            'Suba uma das suas até o terceiro nível e volte. Aí conversamos sobre a passiva dela.',
+          ],
+        },
+      },
+      {
+        id: 'som_upar',
+        objetivo: 'Suba uma das suas skills até o nível 3',
+        gatilho: { tipo: 'skill_no_nivel', nivel: 3 },
+        recompensa: { xp: 170, claves: 90 },
+        fala: {
+          quem: 'Sr. Antony',
+          linhas: ['Agora ela tem passiva. Passiva é o que age quando você não está pensando nela.'],
+        },
+      },
+    ],
+  },
+  {
+    id: 'MQ_C1_019_ESCOLHA_DE_COMPANHEIRO',
+    capitulo: 'Capítulo I',
+    titulo: 'Escolha de Companheiro',
+    descricao:
+      'Uma caravana precisa de escolta por duas rotas ao mesmo tempo. Wins conhece uma; Huans conhece a outra. Akles não pode fazer as duas.',
+    etapas: [
+      {
+        id: 'comp_antony',
+        objetivo: 'Receba a missão de escolta com o Sr. Antony',
+        gatilho: { tipo: 'falar', npc: 'story_sr_antony' },
+        fala: {
+          quem: 'Sr. Antony',
+          linhas: [
+            'Duas rotas, um Akles. A conta não fecha sozinha.',
+            'Wins abre caminho de longe e limpa o campo. Huans chega antes de todo mundo e não deixa ninguém cercar.',
+            'Escolha por quem você é, não por quem bate mais forte. Vocês vão andar juntos um bom tempo.',
+          ],
+        },
+      },
+      {
+        id: 'comp_trocar',
+        objetivo: 'Assuma o controle de Wins ou de Huans na tela de personagens',
+        gatilho: { tipo: 'jogar_como', herois: ['wins', 'huans'] },
+        recompensa: { xp: 150, claves: 70 },
+        fala: {
+          quem: 'Wins',
+          linhas: [
+            'Fico na retaguarda e abro o caminho. Você entra depois que eu limpar.',
+            'Se eu gritar pra recuar, recua. Não é sugestão.',
+          ],
+        },
+      },
+      {
+        id: 'comp_patrulha',
+        objetivo: 'Derrote 8 inimigos com o companheiro escolhido',
+        gatilho: { tipo: 'derrotar', quantidade: 8 },
+        recompensa: { xp: 220, claves: 120, itens: [{ item: 'partitura_prata', quantidade: 1 }] },
+      },
+    ],
+  },
+  {
+    id: 'MQ_C1_020_PRIMEIRO_COMBATE_EM_DUPLA',
+    capitulo: 'Capítulo I',
+    titulo: 'Primeiro Combate em Dupla',
+    descricao:
+      'Duas pessoas batendo no mesmo monstro não é uma dupla. Dupla é quando uma sabe o que a outra vai fazer antes.',
+    etapas: [
+      {
+        id: 'dupla_floresta',
+        objetivo: 'Leve a dupla à Floresta dos Ecos',
+        gatilho: { tipo: 'estar_em', mapa: 'floresta_ecos' },
+      },
+      {
+        id: 'dupla_limpar',
+        objetivo: 'Limpe 12 criaturas hostis da floresta revezando os dois heróis',
+        gatilho: { tipo: 'derrotar', quantidade: 12 },
+        recompensa: { xp: 260, claves: 140 },
+        fala: {
+          quem: 'Akles',
+          linhas: ['A troca não é fuga. É revezamento — quem está fresco entra.'],
+        },
+      },
+    ],
+  },
+  {
+    id: 'MQ_C1_026_SOMBRAS_SEM_VOZ',
+    capitulo: 'Capítulo I',
+    titulo: 'Sombras sem Voz',
+    descricao:
+      'Trechos de Acordelot amanheceram sem som nenhum. Não silêncio de madrugada — silêncio de coisa arrancada.',
+    etapas: [
+      {
+        id: 'sombras_pippo',
+        objetivo: 'Pippo notou primeiro. Ouça o que ele viu',
+        gatilho: { tipo: 'falar', npc: 'story_pippo' },
+        fala: {
+          quem: 'Pippo',
+          linhas: [
+            'A rua do poço está muda. Bati o pingente na pedra e não voltou nada.',
+            'E tem uma marca na parede. Parece dos Remanescentes, mas está nova demais. Marca velha descasca.',
+            'Não contei pro meu pai. Conto pra você porque você acredita em som.',
+          ],
+        },
+      },
+      {
+        id: 'sombras_caverna',
+        objetivo: 'Procure a origem do silêncio nas Cavernas de Cristal',
+        gatilho: { tipo: 'estar_em', mapa: 'cavernas_cristal' },
+        recompensa: { xp: 180 },
+      },
+      {
+        id: 'sombras_limpar',
+        objetivo: 'Derrote 10 criaturas silenciadas nas cavernas',
+        gatilho: { tipo: 'derrotar', quantidade: 10 },
+        recompensa: { xp: 280, claves: 160, itens: [{ item: 'partitura_prata', quantidade: 1 }] },
+        fala: {
+          quem: 'Akles',
+          linhas: [
+            'Elas não estavam com raiva. Estavam sem nota — e bicho sem nota ataca qualquer coisa que tenha uma.',
+          ],
+        },
+      },
+      {
+        id: 'sombras_antony',
+        objetivo: 'Leve a marca copiada ao Sr. Antony',
+        gatilho: { tipo: 'falar', npc: 'story_sr_antony' },
+        recompensa: { xp: 200, claves: 120 },
+        fala: {
+          quem: 'Sr. Antony',
+          linhas: [
+            'Essa marca é dos Remanescentes, sim. E é isso que me incomoda.',
+            'Quem viveu escondido trinta anos não assina a parede com o traço limpo. Isso aqui foi copiado por alguém que viu o símbolo num papel.',
+            'Alguém quer que a gente olhe para o lado errado. Fique perto do menino.',
+          ],
+        },
+      },
+    ],
+  },
 ];
 
 // ------------------------------------------------------------ funções puras
@@ -416,6 +576,8 @@ export function progresso(gatilho: Gatilho, m: Mundo): { feito: number; alvo: nu
       return { feito: Math.min(gatilho.nivel, m.nivelDaArma), alvo: gatilho.nivel };
     case 'vestir':
       return { feito: Math.min(gatilho.pecas, m.pecasVestidas), alvo: gatilho.pecas };
+    case 'skill_no_nivel':
+      return { feito: Math.min(gatilho.nivel, m.maiorSkill), alvo: gatilho.nivel };
     default:
       return { feito: 0, alvo: 1 };
   }
@@ -431,6 +593,10 @@ export function estaSatisfeita(gatilho: Gatilho, m: Mundo): boolean {
         m.mapa === gatilho.mapa &&
         Math.hypot(m.col - gatilho.col, m.linha - gatilho.linha) <= gatilho.raio
       );
+    case 'estar_em':
+      return m.mapa === gatilho.mapa;
+    case 'jogar_como':
+      return gatilho.herois.includes(m.heroiAtivo as 'akles' | 'wins' | 'huans');
     default: {
       const p = progresso(gatilho, m);
       return p.feito >= p.alvo;

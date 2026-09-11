@@ -2810,6 +2810,8 @@ export class GameEngine {
       nivel: this.stats.level,
       nivelDaArma: this.weaponLevels[this.equippedWeaponKey] ?? 1,
       pecasVestidas: pecas,
+      heroiAtivo: this.activeCharacter,
+      maiorSkill: Math.max(...this.skillLevels[this.activeCharacter]),
     };
   }
 

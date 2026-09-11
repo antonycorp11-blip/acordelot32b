@@ -2,8 +2,25 @@ import React from 'react';
 import { Target } from 'lucide-react';
 import type { PlayerStats } from '../game/engine';
 
+export type EfeitoAtivo = { id: 'veneno' | 'silencio' | 'lentidao'; restante: number };
+
+/**
+ * Os efeitos que o jogador esta sofrendo AGORA.
+ *
+ * Antes eles so apareciam num popup no instante do golpe. Depois disso, o
+ * jogador andava envenenado, calado ou lento sem nenhum jeito de saber — e
+ * descobria pela skill que nao saia ou pela vida que caia sozinha. Efeito que
+ * pune sem se mostrar nao e dificuldade, e confusao.
+ */
+const EFEITO: Record<EfeitoAtivo['id'], { nome: string; icone: string; cor: string; aro: string }> = {
+  veneno:   { nome: 'Veneno',   icone: '☠', cor: 'text-lime-300',  aro: 'border-lime-400/60 bg-lime-950/80' },
+  silencio: { nome: 'Silêncio', icone: '✖', cor: 'text-violet-300', aro: 'border-violet-400/60 bg-violet-950/80' },
+  lentidao: { nome: 'Lentidão', icone: '❄', cor: 'text-sky-300',   aro: 'border-sky-400/60 bg-sky-950/80' },
+};
+
 interface PlayerHudProps {
   stats: PlayerStats;
+  efeitos?: EfeitoAtivo[];
   onOpenSheet: () => void;
   questObjective?: { title: string; text: string; ready: boolean } | null;
   onOpenQuests?: () => void;
@@ -14,7 +31,7 @@ interface PlayerHudProps {
 }
 
 /** Canto superior esquerdo: retrato + barra de vida + barra de XP + objetivo da missão ativa. */
-export const PlayerHud: React.FC<PlayerHudProps> = ({ stats, onOpenSheet, questObjective, onOpenQuests, portraitSrc, coins = 0, goldRaw = 0, goldRefined = 0 }) => {
+export const PlayerHud: React.FC<PlayerHudProps> = ({ stats, efeitos = [], onOpenSheet, questObjective, onOpenQuests, portraitSrc, coins = 0, goldRaw = 0, goldRefined = 0 }) => {
   const [objectiveExpanded, setObjectiveExpanded] = React.useState(false);
   const hpPct = Math.max(0, Math.min(100, (stats.hp / stats.maxHp) * 100));
   const xpPct = Math.max(0, Math.min(100, (stats.xp / stats.xpNext) * 100));
@@ -59,6 +76,20 @@ export const PlayerHud: React.FC<PlayerHudProps> = ({ stats, onOpenSheet, questO
             style={{ width: `${hpPct}%` }}
           />
         </div>
+        {efeitos.length > 0 && (
+          <div className="mt-1 flex gap-1">
+            {efeitos.map((ef) => {
+              const meta = EFEITO[ef.id];
+              return (
+                <span key={ef.id} title={meta.nome}
+                  className={`flex items-center gap-0.5 rounded border px-1 py-px text-[9px] font-bold leading-none ${meta.aro} ${meta.cor}`}>
+                  <span className="text-[10px]">{meta.icone}</span>
+                  <span className="tabular-nums">{Math.ceil(ef.restante)}s</span>
+                </span>
+              );
+            })}
+          </div>
+        )}
         <div className="mt-1 h-1.5 rounded-full bg-slate-950/80 border border-slate-700/70 overflow-hidden">
           <div
             className="h-full bg-gradient-to-r from-sky-500 to-cyan-300 transition-all duration-300"

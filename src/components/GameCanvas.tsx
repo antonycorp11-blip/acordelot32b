@@ -639,6 +639,18 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
   const [pickupFlash, setPickupFlash] = useState<string | null>(null);
   const pickupTimer = useRef<number | null>(null);
   const [stats, setStats] = useState<PlayerStats | null>(null);
+  // O tempo restante dos efeitos anda sozinho, entao `onStatsChange` nao serve:
+  // ele so dispara quando a vida muda. Cinco leituras por segundo bastam para o
+  // contador parecer continuo e nao pesam nada.
+  const [efeitos, setEfeitos] = useState<Array<{ id: 'veneno' | 'silencio' | 'lentidao'; restante: number }>>([]);
+  useEffect(() => {
+    const id = window.setInterval(() => {
+      const ativos = engineRef.current?.efeitosAtivos ?? [];
+      setEfeitos((antes) =>
+        antes.length === 0 && ativos.length === 0 ? antes : ativos);
+    }, 200);
+    return () => window.clearInterval(id);
+  }, []);
   const [isRaining, setIsRaining] = useState(false);
   const [showSynth, setShowSynth] = useState(false);
   const [showPartitura, setShowPartitura] = useState(false);
@@ -2038,6 +2050,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
       {!isEditMode && stats && tutorialStage !== 'cinematic' && (
         <PlayerHud
           stats={{ ...stats, maxEnergy: engineRef.current?.effectiveMaxEnergy ?? stats.maxEnergy }}
+          efeitos={efeitos}
           onOpenSheet={() => { setSheetInitialTab('ficha'); setShowSheet(true); }}
           questObjective={engineRef.current?.activeQuestObjective ?? null}
           onOpenQuests={() => setShowQuests(true)}

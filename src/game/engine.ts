@@ -5933,6 +5933,71 @@ export class GameEngine {
     return this.timeElapsed - this.lastCombatAt < 4.5;
   }
 
+  /**
+   * O QUE O GOLPE DEIXA ALEM DO DANO.
+   *
+   * Isto so acontecia DENTRO da masmorra, e so para tres bichos. No mundo
+   * aberto todo inimigo dava dano cru: a Dama do Silencio e o Maestro Esqueleto
+   * brigavam igual a um javali. Um jogo sobre musica em que nenhum inimigo faz
+   * nada com o som do jogador.
+   *
+   * Agora vale em todo lugar — e vale MENOS fora da masmorra, porque la dentro
+   * o jogador entrou de proposito e preparado, e aqui fora ele so estava
+   * passando. Metade da duracao, e o veneno doi menos.
+   *
+   * Cada efeito usa mecanica que ja existe. Nao inventei estado novo para o
+   * qual nao houvesse nem tratamento nem indicador.
+   */
+  private aplicarEfeitoDoGolpe(kind: string, px: number, py: number) {
+    const naDungeon = this.isDungeon;
+    const f = naDungeon ? 1 : 0.5;
+    const t = this.timeElapsed;
+    const avisar = (texto: string) => this.onHarvestPopup?.(texto, px, py - 28);
+    switch (kind) {
+      case 'aranha':
+        this.playerPoisonUntil = t + 5 * f;
+        avisar('Veneno');
+        break;
+      case 'dama':
+        // O nome dela e o efeito dela: cala as skills e sobra o basico.
+        this.playerSilenceUntil = t + 2.5 * f;
+        avisar('Silêncio · só ataques básicos');
+        break;
+      case 'nocturno':
+        this.playerSlowUntil = t + 2 * f;
+        avisar('Lentidão');
+        break;
+      case 'maestro':
+        // Ele rege. Quem esta sob a batuta dele nao escolhe o proprio compasso.
+        this.playerSilenceUntil = t + 1.8 * f;
+        avisar('Regido · só ataques básicos');
+        break;
+      case 'colosso':
+        // Peso puro: a dissonancia dele prende os pes.
+        this.playerSlowUntil = t + 3 * f;
+        avisar('Dissonância · Lentidão');
+        break;
+      case 'grove_mushroom':
+        // Esporos. O mais fraco dos venenos, do mais gentil dos bichos.
+        this.playerPoisonUntil = t + 3 * f;
+        avisar('Esporos');
+        break;
+      // O Javali de Musgo nao deixa efeito: e o bicho de aprender a esquivar.
+      default:
+        break;
+    }
+  }
+
+  /** Os efeitos ativos agora, para a HUD mostrar. Vazio quando nao ha nenhum. */
+  get efeitosAtivos(): Array<{ id: 'veneno' | 'silencio' | 'lentidao'; restante: number }> {
+    const fora: Array<{ id: 'veneno' | 'silencio' | 'lentidao'; restante: number }> = [];
+    const t = this.timeElapsed;
+    if (this.playerPoisonUntil > t) fora.push({ id: 'veneno', restante: this.playerPoisonUntil - t });
+    if (this.playerSilenceUntil > t) fora.push({ id: 'silencio', restante: this.playerSilenceUntil - t });
+    if (this.playerSlowUntil > t) fora.push({ id: 'lentidao', restante: this.playerSlowUntil - t });
+    return fora;
+  }
+
   damagePlayer(n: number) {
     if (this.playerInvuln > 0) {
       if (this.activeCharacter === 'huans' && this.hunterDashWindow > 0) this.hunterGuaranteedCrit = true;
@@ -6661,11 +6726,7 @@ export class GameEngine {
           } else if (dToPlayer < def.attackRange + 10) {
             const hpBefore=this.stats.hp;
             this.damagePlayer(Math.round(def.touchDamage * e.dmgMul));
-            if(this.isDungeon&&isDungeonEnemy(e.id)&&this.stats.hp<hpBefore) {
-              if(e.kind==='aranha'){this.playerPoisonUntil=this.timeElapsed+5;this.onHarvestPopup?.('Veneno · 5 segundos',px,py-28);}
-              if(e.kind==='dama'){this.playerSilenceUntil=this.timeElapsed+2.5;this.onHarvestPopup?.('Silêncio · use ataques básicos',px,py-28);}
-              if(e.kind==='nocturno'){this.playerSlowUntil=this.timeElapsed+2;this.onHarvestPopup?.('Asas cortantes · Lentidão',px,py-28);}
-            }
+            if(this.stats.hp<hpBefore) this.aplicarEfeitoDoGolpe(e.kind,px,py);
           }
         }
         if (e.stateTimer > (e.kind==='crystal_guardian'?1.65:def.boss ? .9 : .6)) {
@@ -7529,8 +7590,12 @@ export class GameEngine {
       this.campanhaProximaChecagem = this.timeElapsed + 0.25;
       this.avancarCampanha();
     }
-    if(this.isDungeon && !this.storyControlLocked && this.playerPoisonUntil>this.timeElapsed && this.timeElapsed>=this.playerPoisonTickAt) {
-      this.playerPoisonTickAt=this.timeElapsed+1;this.damagePlayer(3+this.activeDungeonDifficulty);
+    // O veneno tica em qualquer lugar. Antes so na masmorra: fora dela o
+    // jogador ficava "envenenado" sem nunca perder vida — um efeito que so
+    // existia no nome.
+    if(!this.storyControlLocked && this.playerPoisonUntil>this.timeElapsed && this.timeElapsed>=this.playerPoisonTickAt) {
+      this.playerPoisonTickAt=this.timeElapsed+1;
+      this.damagePlayer(this.isDungeon ? 3+this.activeDungeonDifficulty : 2);
     }
     if (this.gridDirty) this.rebuildColliderGrid();
 

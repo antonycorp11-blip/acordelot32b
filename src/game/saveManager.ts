@@ -525,7 +525,7 @@ export function applySaveToEngine(engine: GameEngine, save: Partial<AcordelotSav
         forge_gold_pick: { title: 'O Santuário que Respondeu', text: (engine.inventory.ore || 0) >= 6 ? 'Minério suficiente. Volte a Dório e forje a Picareta Dourada' : 'Extraia 6 Minérios Ressonantes na pedreira', progress: Math.min(6, engine.inventory.ore || 0), target: 6, ready: (engine.inventory.ore || 0) >= 6 },
         visit_sanctuary: { title: 'O Santuário que Respondeu', text: 'Cruze o portal do Santuário, ao norte de Acordelot', progress: 1, target: 2, ready: false },
         gather_crystals: { title: 'Doze Luzes, Uma Ausência', text: 'Extraia 5 Cristais de Eco nas redondezas', progress: engine.regionCrystalProgress, target: 5, ready: false },
-        enter_cavern: { title: 'A Caverna sob a Escala', text: 'Atravesse o bosque e a ponte na fronteira leste', progress: 0, target: 2, ready: false },
+        enter_cavern: { title: 'A Caverna sob a Escala', text: 'Atravesse a ponte até a caverna e procure a Fenda Profunda, ao norte', progress: 0, target: 2, ready: false },
         defeat_guardian: { title: 'A Caverna sob a Escala', text: 'Derrote o Guardião Cristalino', progress: 0, target: 1, ready: false },
         return_antony: { title: 'A Caverna sob a Escala', text: 'Leve a mensagem cristalina ao Sr. Antony', progress: 1, target: 2, ready: true },
       };

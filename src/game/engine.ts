@@ -2531,7 +2531,15 @@ export class GameEngine {
         return npcPoint('npc_ferreiro') ?? propPoint('b_blacksmith');
       }
       if (this.regionQuestStage === 'visit_sanctuary') return propPoint('region_echo_sanctuary');
-      if (this.regionQuestStage === 'enter_cavern') return propPoint('region_crystal_cavern_entrance');
+      if (this.regionQuestStage === 'enter_cavern') {
+        // DENTRO da caverna o marcador apontava para a entrada dela, que e um
+        // prop do OVERWORLD: `propPoint` devolvia null e a seta sumia. O jogador
+        // atravessava a boca da caverna e ficava sem nenhuma pista num mapa de
+        // 120 tiles, sem saber que a Fenda Profunda existe — e a Fenda e quem
+        // abre a tela da masmorra.
+        if (this.activeMapId === 'cavernas_cristal') return propPoint('cc_portal_dg');
+        return propPoint('region_crystal_cavern_entrance');
+      }
       if (this.regionQuestStage === 'defeat_guardian') {
         const guardian = this.enemies.find((enemy) => enemy.id === DUNGEON_BOSS_ID && enemy.state !== 'dead');
         return guardian ? { x: guardian.x, y: guardian.y } : null;
@@ -7178,7 +7186,7 @@ export class GameEngine {
       const complete = this.regionCrystalProgress >= 5;
       if (complete) this.regionQuestStage = 'enter_cavern';
       this.storyObjective = complete
-        ? { title: 'A Caverna sob a Escala', text: 'Siga a trilha leste pelo bosque e atravesse a ponte até a caverna', progress: 0, target: 2, ready: false }
+        ? { title: 'A Caverna sob a Escala', text: 'Atravesse a ponte até a caverna e procure a Fenda Profunda, ao norte', progress: 0, target: 2, ready: false }
         : { title: 'Doze Luzes, Uma Ausência', text: 'Extraia 5 Cristais de Eco nas redondezas do santuário', progress: this.regionCrystalProgress, target: 5, ready: false };
       this.onQuestsChange?.();
     }

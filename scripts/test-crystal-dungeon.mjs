@@ -10,7 +10,7 @@ const page = await browser.newPage({ viewport: { width: 844, height: 390 }, devi
 const errors = [];
 page.on('pageerror', (e) => errors.push(e.message));
 try {
-  await page.goto('http://localhost:${PORTA}/');
+  await page.goto(`http://localhost:${PORTA}/`);
   await page.evaluate(async () => {
     const { GameEngine } = await import('/src/game/engine.ts');
     const canvas = document.createElement('canvas');

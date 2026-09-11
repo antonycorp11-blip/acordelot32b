@@ -244,6 +244,9 @@ export function serializeEngineSave(engine: GameEngine, userId: string): Omit<Ac
       post_echo_stage: engine.postEchoStage,
       region_quest_stage: engine.regionQuestStage,
       campanha_concluida: engine.campanhaConcluida,
+      convergencia: engine.convergencia,
+      convergencia_tutorial_usada: engine.convergenciaTutorialUsada,
+      convergencias_feitas: engine.convergenciasFeitas,
       region_crystal_progress: engine.regionCrystalProgress,
       crystal_dungeon_run: engine.dungeonRun,
       shop_purchases: { ...engine.shopPurchases, counts: { ...engine.shopPurchases.counts } },
@@ -490,6 +493,15 @@ export function applySaveToEngine(engine: GameEngine, save: Partial<AcordelotSav
     // uma campanha travada sem objetivo nenhum.
     if (typeof s.campanha_concluida === 'string' && indiceDaEtapa(s.campanha_concluida) >= 0) {
       engine.campanhaConcluida = s.campanha_concluida;
+    }
+    if (s.convergencia && typeof s.convergencia === 'object') {
+      const c = s.convergencia as Record<string, unknown>;
+      engine.convergencia = {
+        desdeRaro: typeof c.desdeRaro === 'number' ? c.desdeRaro : 0,
+        desdeLendario: typeof c.desdeLendario === 'number' ? c.desdeLendario : 0,
+        vistos: (c.vistos && typeof c.vistos === 'object' ? c.vistos : {}) as Record<string, number>,
+        historico: Array.isArray(c.historico) ? c.historico.slice(0, 50) : [],
+      };
     } else if (engine.postEchoStage === 'completed') engine.regionQuestStage = 'antony_invitation';
     if (typeof s.region_crystal_progress === 'number') engine.regionCrystalProgress = Math.max(0, Math.min(5, Math.floor(s.region_crystal_progress)));
     if (engine.echoTutorialStage === 'completed' && engine.postEchoStage !== 'completed') {
@@ -530,6 +542,8 @@ export function applySaveToEngine(engine: GameEngine, save: Partial<AcordelotSav
       };
     }
     if (typeof s.bag_level === 'number') engine.bagLevel = Math.max(0, Math.min(5, Math.floor(s.bag_level)));
+    if (typeof s.convergencia_tutorial_usada === 'boolean') engine.convergenciaTutorialUsada = s.convergencia_tutorial_usada;
+    if (typeof s.convergencias_feitas === 'number') engine.convergenciasFeitas = s.convergencias_feitas;
     engine.repairHarmonyMissionAfterForge(false);
     engine.restoreDungeonRun(s.crystal_dungeon_run);
 

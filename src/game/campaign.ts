@@ -43,7 +43,9 @@ export type Gatilho =
   /** Ter subido qualquer skill do herói ativo até o nível N. */
   | { tipo: 'skill_no_nivel'; nivel: number }
   /** Estar num mapa, sem exigir ponto certo. */
-  | { tipo: 'estar_em'; mapa: string };
+  | { tipo: 'estar_em'; mapa: string }
+  /** Ter feito N convergências no sorteio dos Ecos. */
+  | { tipo: 'convergir'; quantidade: number };
 
 export interface Recompensa {
   xp?: number;
@@ -85,6 +87,7 @@ export interface Mundo {
   pecasVestidas: number;
   heroiAtivo: string;
   maiorSkill: number;
+  convergencias: number;
 }
 
 // ---------------------------------------------------------------- as missões
@@ -265,6 +268,55 @@ export const CAMPANHA: Missao[] = [
           linhas: [
             'O estoque é por viajante e por dia. Não adianta voltar daqui a pouco fazendo cara de outro.',
             'Leve poção. Quem viaja sem poção volta cedo — ou não volta.',
+          ],
+        },
+      },
+    ],
+  },
+  {
+    id: 'MQ_C1_022_CONVERGENCIA_DOS_ECOS',
+    capitulo: 'Capítulo I',
+    titulo: 'Convergência dos Ecos',
+    descricao:
+      'Lucian guarda uma partitura que não toca música: chama. Quem responde ao chamado, ninguém sabe de antemão — e é exatamente esse o ponto.',
+    etapas: [
+      {
+        id: 'converg_lucian',
+        objetivo: 'Peça a Lucian que explique a partitura de vínculo',
+        gatilho: { tipo: 'falar', npc: 'story_lucian' },
+        fala: {
+          quem: 'Lucian',
+          linhas: [
+            'Esta folha não é para tocar. É para chamar. Você oferece pó de eco e a convergência responde com o que estiver perto.',
+            'Ouça bem antes de gastar: as chances estão escritas na própria folha, e eu não as escondi.',
+            'De cada dez chamados, um vem raro no mínimo. De cada quarenta, um vem lendário. Isso é promessa, não esperança.',
+            'O primeiro é por minha conta. Ninguém deve pagar para aprender uma coisa.',
+          ],
+        },
+      },
+      {
+        id: 'converg_primeira',
+        objetivo: 'Faça a primeira convergência — esta é por conta de Lucian',
+        gatilho: { tipo: 'convergir', quantidade: 1 },
+        recompensa: { xp: 160, claves: 80 },
+        fala: {
+          quem: 'Lucian',
+          linhas: [
+            'Viu o que veio? Agora olha o histórico: ele guarda tudo, inclusive quando foi a garantia que trouxe.',
+            'Se repetir, você não perde nada — o repetido devolve pó. Repetição aqui não é castigo.',
+          ],
+        },
+      },
+      {
+        id: 'converg_tres',
+        objetivo: 'Convirja mais 2 vezes com a sua própria poeira de eco',
+        gatilho: { tipo: 'convergir', quantidade: 3 },
+        recompensa: { xp: 200, claves: 100, itens: [{ item: 'eco_dust', quantidade: 30 }] },
+        fala: {
+          quem: 'Lucian',
+          linhas: [
+            'Três chamados e você já entendeu o que a folha faz e o que ela não faz.',
+            'Ela não traz gente. Wins e Huans você conheceu andando, não sorteando — e é assim que fica.',
           ],
         },
       },
@@ -578,6 +630,8 @@ export function progresso(gatilho: Gatilho, m: Mundo): { feito: number; alvo: nu
       return { feito: Math.min(gatilho.pecas, m.pecasVestidas), alvo: gatilho.pecas };
     case 'skill_no_nivel':
       return { feito: Math.min(gatilho.nivel, m.maiorSkill), alvo: gatilho.nivel };
+    case 'convergir':
+      return { feito: Math.min(gatilho.quantidade, m.convergencias), alvo: gatilho.quantidade };
     default:
       return { feito: 0, alvo: 1 };
   }

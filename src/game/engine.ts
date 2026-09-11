@@ -46,6 +46,7 @@ import { RegionalTerrain } from './regionalTerrain';
 import { WaterSurface } from './waterSurface';
 import { SANCTUARY_ECHO_HOMES } from './maps/sanctuaryPilot';
 import * as Campanha from './campaign';
+import * as Gacha from './gacha';
 import { CRYSTAL_GATE, CRYSTAL_ROOMS, DUNGEON_LAYOUT_VERSION, DUNGEON_BOSS_ID, isDungeonEnemy, dungeonEnemyId, dungeonChestId, DUNGEON_DIFFICULTIES, type DungeonRunSave } from './crystalDungeon';
 import { generateCharacterSprites, generateTrees, generateHouses } from './pixelArt';
 import initialCustomMap from './customMapLayout.json';
@@ -1561,6 +1562,12 @@ export class GameEngine {
   campanhaAbates = 0;
   campanhaAbatesPorEspecie: Record<string, number> = {};
 
+  // ---- CONVERGENCIA DOS ECOS (ver gacha.ts) ----
+  convergencia: Gacha.EstadoDoSorteio = Gacha.estadoInicial();
+  /** O primeiro sorteio e por conta da casa: o plano proibe cobrar para ensinar. */
+  convergenciaTutorialUsada = false;
+  onConvergencia: ((r: Gacha.Resultado) => void) | null = null;
+
   activeMap = MAP_DEFS.overworld;
   /** estado mutável por mapa (inimigos mortos, baús) pra restaurar ao voltar */
   private mapState = new Map<MapId, { defeated: Set<string>; chests: Set<string> }>();
@@ -2812,6 +2819,7 @@ export class GameEngine {
       pecasVestidas: pecas,
       heroiAtivo: this.activeCharacter,
       maiorSkill: Math.max(...this.skillLevels[this.activeCharacter]),
+      convergencias: this.convergenciasFeitas,
     };
   }
 
@@ -2922,6 +2930,65 @@ export class GameEngine {
         objective: objetivo,
       };
     });
+  }
+
+
+  // -------------------------------------------------- convergencia dos Ecos
+
+  /** Pode convergir agora? Devolve o motivo quando nao. */
+  podeConvergir(): { pode: boolean; motivo: string } {
+    if (!this.convergenciaTutorialUsada) return { pode: true, motivo: '' };
+    const tem = this.inventory[Gacha.CUSTO.item] ?? 0;
+    if (tem < Gacha.CUSTO.quantidade) {
+      return { pode: false, motivo: `Faltam ${Gacha.CUSTO.quantidade - tem} de Poeira de Eco` };
+    }
+    return { pode: true, motivo: '' };
+  }
+
+  /**
+   * Uma convergencia.
+   *
+   * O PRIMEIRO SORTEIO E GRATUITO e nao consome nada: o plano proibe sorteio
+   * pago obrigatorio para avancar, e a missao 022 e justamente o tutorial. Quem
+   * aprende o sistema nao deve pagar a aula.
+   */
+  convergir(): Gacha.Resultado | null {
+    const {pode} = this.podeConvergir();
+    if (!pode) return null;
+    const gratis = !this.convergenciaTutorialUsada;
+    if (!gratis) {
+      this.inventory[Gacha.CUSTO.item] = (this.inventory[Gacha.CUSTO.item] ?? 0) - Gacha.CUSTO.quantidade;
+    }
+    this.convergenciaTutorialUsada = true;
+
+    const r = Gacha.converger(this.convergencia, Math.random(), Math.random());
+    this.convergencia = Gacha.registrar(this.convergencia, r);
+
+    if (r.entrega.item === 'clave') this.addCoins(r.entrega.quantidade);
+    else this.addToInventory(r.entrega.item, r.entrega.quantidade);
+    if (r.compensacao) this.addToInventory(r.compensacao.item, r.compensacao.quantidade);
+
+    this.convergenciasFeitas++;
+    this.onInventoryChange?.({ ...this.inventory });
+    this.onConvergencia?.(r);
+    this.avancarCampanha();
+    return r;
+  }
+
+  /** Quantas convergencias ja foram feitas — gatilho da campanha. */
+  convergenciasFeitas = 0;
+
+  /**
+   * A Convergencia so existe depois que Lucian a apresenta.
+   *
+   * Sem isso a tela abriria para quem nunca ouviu falar dela — exatamente o
+   * "botao sem explicacao" que o plano proibe.
+   */
+  get convergenciaDisponivel(): boolean {
+    if (this.regionQuestStage !== 'completed') return false;
+    const feito = this.campanhaConcluida;
+    if (!feito) return false;
+    return Campanha.indiceDaEtapa(feito) >= Campanha.indiceDaEtapa('converg_lucian');
   }
 
   // ---- multiplicadores derivados das passivas ----

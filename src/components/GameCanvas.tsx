@@ -40,6 +40,7 @@ import { SynthesisScreen } from './SynthesisScreen';
 import { PartituraScreen } from './PartituraScreen';
 import { WeaponScreen } from './WeaponScreen';
 import { ForgeScreen } from './ForgeScreen';
+import { ConvergenceScreen } from './ConvergenceScreen';
 import { CatalogScreen } from './CatalogScreen';
 import { QuestScreen } from './QuestScreen';
 import { HudIcon } from './HudIcon';
@@ -643,6 +644,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
   const [showPartitura, setShowPartitura] = useState(false);
   const [showWeapon, setShowWeapon] = useState(false);
   const [showForge, setShowForge] = useState(false);
+  const [showConvergence, setShowConvergence] = useState(false);
   const [showCatalog, setShowCatalog] = useState(false);
   const [showQuests, setShowQuests] = useState(false);
   const [showWorldMap, setShowWorldMap] = useState(false);
@@ -1282,12 +1284,16 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
   const handleCloseDialogue = () => {
     unlockMusicalVoice();
     const enterForge = interaction.npc?.isBlacksmith === true;
+    // A Convergencia abre com Lucian, do mesmo jeito que a forja abre com o
+    // ferreiro: a tela e a continuacao da conversa, nao um menu solto.
+    const eLucian = interaction.npc?.id === 'story_lucian';
     engineRef.current?.clearInputState();
     engineRef.current?.closeDialogue();
     setShowShop(false);
     setShopMessage(null);
     setDialogueIdx(0);
     if (enterForge) setShowForge(true);
+    if (eLucian && engineRef.current?.convergenciaDisponivel) setShowConvergence(true);
   };
 
   const handleShopPurchase = (id: string) => {
@@ -2270,6 +2276,13 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
       <WeaponScreen
         open={showWeapon && !isEditMode}
         onClose={() => setShowWeapon(false)}
+        engine={engineRef.current}
+        inventory={inventory}
+      />
+
+      <ConvergenceScreen
+        open={showConvergence && !isEditMode}
+        onClose={() => setShowConvergence(false)}
         engine={engineRef.current}
         inventory={inventory}
       />

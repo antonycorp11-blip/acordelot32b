@@ -1562,6 +1562,106 @@ export class GameEngine {
   campanhaAbates = 0;
   campanhaAbatesPorEspecie: Record<string, number> = {};
 
+  // ---- PESO DO GOLPE ----
+  // Um golpe sem peso e o defeito que mais cansa num ARPG: o numero sobe, o
+  // bicho anda para tras e o jogador nao sente nada. Tres coisas resolvem, e
+  // nenhuma delas e dano.
+  //
+  // HITSTOP e a principal: no instante do acerto o mundo quase para por poucos
+  // centesimos. O cerebro le essa pausa como resistencia da carne — e o que
+  // separa "encostei" de "acertei". Nao e pausa total: em zero absoluto a tela
+  // parece travada. Vai a 6% da velocidade.
+  private hitstopRestante = 0;
+  /** Intensidade do tremor de camera, em pixels. Cai sozinha. */
+  private tremor = 0;
+  private tremorFase = 0;
+
+  // ---- ESQUIVA ----
+  // Sem esquiva, a unica resposta a um golpe e ter vida sobrando: o jogador
+  // aguenta em vez de reagir, e dificuldade vira so numero maior. Com ela, o
+  // golpe inimigo pode ser pesado de verdade, porque existe resposta.
+  //
+  // O Huans ja tinha um passo com i-frames dentro de uma skill. Isto e para os
+  // tres, sem custar energia — o que se paga e o tempo parado depois.
+  esquivaCd = 0;
+  esquivaT = 0;
+  esquivaDx = 0;
+  esquivaDy = 0;
+  /** Recarga da esquiva, em segundos. */
+  static readonly ESQUIVA_RECARGA = 0.85;
+
+  get podeEsquivar(): boolean {
+    return this.esquivaCd <= 0 && this.esquivaT <= 0 && !this.storyControlLocked && this.stats.hp > 0;
+  }
+
+  /**
+   * Rolamento na direcao do movimento — ou de frente, se estiver parado.
+   *
+   * Os i-frames comecam UM POUCO DEPOIS do inicio e acabam antes do fim. Se
+   * cobrissem o rolamento inteiro, esquivar viraria botao de imunidade e o
+   * jogador apertaria sem olhar; com a janela menor que a animacao, errar o
+   * tempo custa. E o comeco vulneravel impede usar a esquiva como escudo
+   * instantaneo depois de ja ter levado o golpe.
+   */
+  esquivar(): boolean {
+    if (!this.podeEsquivar) return false;
+    // A direcao vem do mesmo lugar que o andar: teclas ou joystick.
+    let dx = 0;
+    let dy = 0;
+    if (this.keys['KeyA'] || this.keys['ArrowLeft'] || this.keys['a']) dx -= 1;
+    if (this.keys['KeyD'] || this.keys['ArrowRight'] || this.keys['d']) dx += 1;
+    if (this.keys['KeyW'] || this.keys['ArrowUp'] || this.keys['w']) dy -= 1;
+    if (this.keys['KeyS'] || this.keys['ArrowDown'] || this.keys['s']) dy += 1;
+    if (Math.abs(this.touchVector.x) > 0.15) dx = this.touchVector.x;
+    if (Math.abs(this.touchVector.y) > 0.15) dy = this.touchVector.y;
+    if (Math.abs(dx) < 0.1 && Math.abs(dy) < 0.1) {
+      const d = this.player.direction;
+      dx = d === 'left' ? -1 : d === 'right' ? 1 : 0;
+      dy = d === 'up' ? -1 : d === 'down' ? 1 : 0;
+    }
+    const m = Math.hypot(dx, dy) || 1;
+    this.esquivaDx = dx / m;
+    this.esquivaDy = dy / m;
+    this.esquivaT = 0.34;
+    this.esquivaCd = GameEngine.ESQUIVA_RECARGA;
+    this.playerInvuln = Math.max(this.playerInvuln, 0.26);
+    this.tremor = Math.max(this.tremor, 1.2);
+    this.spriteVfx.push({
+      sheet: 'vfxHuansStep',
+      x: this.player.x + 12, y: this.player.y + 14,
+      angle: Math.atan2(this.esquivaDy, this.esquivaDx),
+      life: 0, duration: .4, width: 110, height: 56,
+    });
+    return true;
+  }
+
+  /** Avanco do rolamento. Devolve true enquanto a esquiva manda no movimento. */
+  private atualizarEsquiva(dt: number): boolean {
+    if (this.esquivaCd > 0) this.esquivaCd = Math.max(0, this.esquivaCd - dt);
+    if (this.esquivaT <= 0) return false;
+    this.esquivaT = Math.max(0, this.esquivaT - dt);
+    // Comeca rapido e desacelera: rolamento tem impulso, nao velocidade fixa.
+    const fracao = this.esquivaT / 0.34;
+    const vel = 250 * (0.35 + fracao * 0.65);
+    const nx = this.player.x + this.esquivaDx * vel * dt;
+    const ny = this.player.y + this.esquivaDy * vel * dt;
+    if (!this.checkSolidCollision({ x: nx, y: this.player.y, w: 20, h: 14 })) this.player.x = nx;
+    if (!this.checkSolidCollision({ x: this.player.x, y: ny, w: 20, h: 14 })) this.player.y = ny;
+    return true;
+  }
+
+  /**
+   * Marca um acerto. `forca` de 0 a 1 — critico e abate valem mais.
+   *
+   * O hitstop NAO acumula somando: dois acertos no mesmo quadro dariam uma
+   * pausa longa e o jogo engasgaria em combate contra grupo. Fica o maior.
+   */
+  registrarImpacto(forca: number) {
+    const f = Math.max(0, Math.min(1, forca));
+    this.hitstopRestante = Math.max(this.hitstopRestante, 0.045 + f * 0.075);
+    this.tremor = Math.max(this.tremor, 1.6 + f * 5.4);
+  }
+
   // ---- CONVERGENCIA DOS ECOS (ver gacha.ts) ----
   convergencia: Gacha.EstadoDoSorteio = Gacha.estadoInicial();
   /** O primeiro sorteio e por conta da casa: o plano proibe cobrar para ensinar. */
@@ -5905,6 +6005,15 @@ export class GameEngine {
     }
     dmg = Math.max(1, Math.round(dmg));
     e.hp -= dmg;
+    // O PESO E PROPORCIONAL AO GOLPE, nao fixo. Um tapa de raspao e um critico
+    // que derruba nao podem sacudir a tela igual, senao os dois viram a mesma
+    // coisa e o jogador para de distinguir. A referencia e a vida MAXIMA do
+    // bicho: tirar 30% de um javali pesa como tirar 30% de um chefe.
+    if (!opts.networkFinal && !this.applyingNetworkDamage) {
+      const fatia = Math.min(1, dmg / Math.max(1, e.maxHp));
+      const abateu = e.hp <= 0;
+      this.registrarImpacto(Math.min(1, fatia * 2.2 + (opts.crit ? 0.3 : 0) + (abateu ? 0.45 : 0)));
+    }
     const lifeSteal = !opts.networkFinal ? this.equipStat('lifeStealPct') / 100 : 0;
     if (lifeSteal > 0 && this.stats.hp < this.stats.maxHp) {
       this.stats.hp = Math.min(this.stats.maxHp, this.stats.hp + Math.max(1, Math.round(dmg * lifeSteal)));
@@ -7403,6 +7512,16 @@ export class GameEngine {
   private campanhaProximaChecagem = 0;
 
   update(dt: number) {
+    // O HITSTOP corre em tempo REAL, senao ele mesmo se congelaria e a pausa
+    // nunca terminaria. O resto do mundo e que anda devagar.
+    if (this.hitstopRestante > 0) {
+      this.hitstopRestante -= dt;
+      dt *= 0.06;
+    }
+    if (this.tremor > 0) {
+      this.tremorFase += dt * 47;
+      this.tremor = Math.max(0, this.tremor - dt * 26);
+    }
     this.timeElapsed += dt;
     // Posicao muda todo quadro; percorrer a campanha a 60Hz seria desperdicio.
     // Quatro vezes por segundo e imperceptivel para quem anda.
@@ -7513,6 +7632,13 @@ export class GameEngine {
         this.player.frame = 0;
         this.harvestFxNode = null;
       }
+    } else if (this.atualizarEsquiva(dt)) {
+      // ESQUIVA MANDA NO MOVIMENTO enquanto rola: aceitar o joystick no meio do
+      // rolamento deixaria o jogador corrigir a direcao e a esquiva viraria um
+      // andar rapido com i-frames. Comprometer-se com a direcao e o que torna
+      // a escolha uma escolha.
+      this.player.isMoving = true;
+      this.player.stepTimer += dt * 14;
     } else {
       // Normal Player Movement
       let moveX = 0;
@@ -8073,8 +8199,13 @@ export class GameEngine {
 
   render() {
     const ctx = this.ctx;
-    const camX = Math.round(this.camX);
-    const camY = Math.round(this.camY);
+    // O tremor entra SO no desenho. Mexer em `camX` de verdade bagunçaria
+    // colisao, mira e a conta de quais tiles desenhar.
+    const t = this.tremor;
+    const sacodeX = t > 0 ? Math.sin(this.tremorFase) * t : 0;
+    const sacodeY = t > 0 ? Math.cos(this.tremorFase * 1.37) * t * 0.7 : 0;
+    const camX = Math.round(this.camX + sacodeX);
+    const camY = Math.round(this.camY + sacodeY);
 
     // garante a escala de super-amostragem (transform some se o canvas for redimensionado)
     ctx.setTransform(this.renderScale, 0, 0, this.renderScale, 0, 0);
@@ -9507,6 +9638,46 @@ export class GameEngine {
     }return this.faunaFrames[index];
   }
 
+  /**
+   * O AVISO ANTES DO GOLPE.
+   *
+   * O tempo de espera entre "entrou em ataque" e "o dano sai" ja existia no
+   * codigo — `impactAt`, um quarto de segundo para os comuns, quase meio para
+   * os chefes. So que nada na tela contava isso ao jogador, entao o golpe
+   * chegava do nada. Sem aviso nao ha o que esquivar: o unico jeito de nao
+   * levar e adivinhar, e adivinhar nao e dificuldade, e sorte.
+   *
+   * O anel fecha no ritmo do golpe e vira vermelho no ultimo terco, que e a
+   * janela para rolar. Quem aprende o tempo para de levar dano — que e o que
+   * torna a luta uma conversa e nao uma troca de vida.
+   */
+  private desenharAviso(e: Enemy, def: EnemyDef, cx: number, cy: number, w: number, h: number) {
+    if (e.state !== 'attack') return;
+    const impactoEm = e.kind === 'crystal_guardian' ? 1.05 : def.boss ? 0.46 : 0.25;
+    const t = (e.stateTimer ?? 0) / impactoEm;
+    if (t <= 0 || t >= 1) return;
+    const ctx = this.ctx;
+    const px = cx + w / 2;
+    const py = cy + h - 6;
+    const raio = Math.max(16, (def.attackRange ?? 32) * 0.55);
+    const iminente = t > 0.66;
+    ctx.save();
+    ctx.globalAlpha = 0.28 + t * 0.5;
+    ctx.strokeStyle = iminente ? '#f43f5e' : '#fbbf24';
+    ctx.lineWidth = iminente ? 3 : 2;
+    ctx.beginPath();
+    ctx.ellipse(px, py, raio, raio * 0.45, 0, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * t);
+    ctx.stroke();
+    if (iminente) {
+      ctx.globalAlpha = (t - 0.66) * 0.9;
+      ctx.fillStyle = '#f43f5e';
+      ctx.beginPath();
+      ctx.ellipse(px, py, raio, raio * 0.45, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+
   drawEnemy(e: Enemy, camX: number, camY: number) {
     if(isDungeonEnemy(e.id)!==this.isDungeon)return;
     const ctx = this.ctx;
@@ -9524,6 +9695,7 @@ export class GameEngine {
     const cy = Math.round(e.y - camY);
     let dispW = def.cw * def.disp;
     let dispH = def.ch * def.disp;
+    this.desenharAviso(e, def, cx, cy, dispW, dispH);
     const bossDirRow: Record<Direction, number> = { down: 0, left: 1, right: 2, up: 3 };
     const row = e.kind==='organ_sentinel' ? bossDirRow[e.direction ?? 'down'] : ((ENEMY_ROW as Record<string, number>)[e.state] ?? 0);
     const col = Math.min(def.cols - 1, Math.max(0, e.frame));

@@ -500,6 +500,21 @@ export const TouchControls: React.FC<TouchControlsProps> = ({
       )}
       </>}
 
+      {/* ESQUIVA — ao lado do ataque, do outro lado do polegar. Sem recarga
+          visivel aqui porque a recarga e curta; o retorno e o proprio
+          rolamento voltar a responder. */}
+      {showAttack && (
+      <D
+        id="btn_dodge"
+        className={`${actionBtn} absolute w-[52px] h-[52px] border-sky-400/70 bg-sky-900/90 text-sky-100`}
+        title="Esquiva"
+        onAction={() => engineRef.current?.esquivar()}
+        style={{ right: 'calc(142px + env(safe-area-inset-right))', bottom: 'calc(74px + env(safe-area-inset-bottom))' }}
+      >
+        <span className="text-[22px] leading-none">↷</span>
+      </D>
+      )}
+
       {/* Ataque básico tem função única: recursos nunca tomam este botão. */}
       {showAttack && (
       <D

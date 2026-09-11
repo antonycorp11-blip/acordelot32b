@@ -978,6 +978,12 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
         setSheetInitialTab('skills');
         setShowSheet(true);
       }
+      // ESQUIVA no espaco. Nao repete enquanto a tecla fica presa: rolar
+      // segurando o botao tiraria o custo de decidir a hora.
+      if (e.code === 'Space' && !e.repeat) {
+        e.preventDefault();
+        engineRef.current?.esquivar();
+      }
       if (e.code === 'KeyK') setShowCatalog((v) => !v);
       if (e.code === 'KeyM') setShowQuests((v) => !v);
       if (e.code === 'KeyG') setShowWorldMap((v) => !v);

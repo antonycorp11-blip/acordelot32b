@@ -1,13 +1,5 @@
-node_modules/
-build/
-dist/
-coverage/
-.DS_Store
+node_modules
+dist
+.env
+.env.local
 *.log
-.env*
-!.env.example
-*.zip
-
-# sprite sheets de origem do Akles (arte crua com fundo magenta, ~15 MB)
-art_src/
-.claude/settings.local.json

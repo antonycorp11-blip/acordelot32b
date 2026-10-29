@@ -119,8 +119,13 @@ button, input { font: inherit; color: inherit; }
 /* ---------- controles ---------- */
 .controls { display: flex; flex-direction: column; align-items: center; gap: 12px; padding-top: 6px; }
 .metro { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: center; }
-.metro-toggle { display: inline-flex; align-items: center; gap: 8px; border: 1px solid rgba(255, 255, 255, 0.14); background: var(--surface2); border-radius: 99px; padding: 10px 16px; font-weight: 700; cursor: pointer; }
-.metro.off .metro-toggle { color: var(--muted); }
+.switch { display: inline-flex; align-items: center; gap: 10px; border: 1px solid rgba(255, 255, 255, 0.14); background: var(--surface2); border-radius: 99px; padding: 8px 16px 8px 8px; font-weight: 700; cursor: pointer; min-height: 48px; }
+.switch:disabled { opacity: 0.45; cursor: not-allowed; }
+.switch .track { width: 46px; height: 28px; border-radius: 99px; background: #3a3f5c; position: relative; transition: background 0.2s; flex: none; }
+.switch .knob { position: absolute; top: 3px; left: 3px; width: 22px; height: 22px; border-radius: 50%; background: #fff; transition: transform 0.2s; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4); }
+.switch.on .track { background: linear-gradient(135deg, #8b5cf6, #d946ef); }
+.switch.on .knob { transform: translateX(18px); }
+.metro.off .switch { color: var(--muted); }
 .bpm { display: flex; align-items: center; gap: 6px; background: var(--surface); border: 1px solid var(--line); border-radius: 99px; padding: 4px; }
 .bpm button { width: 40px; height: 40px; border-radius: 50%; border: 0; background: var(--surface2); font-size: 20px; font-weight: 700; cursor: pointer; }
 .bpm b { font-size: 22px; min-width: 44px; text-align: center; }

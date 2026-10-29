@@ -99,8 +99,15 @@ type Phase = 'idle' | 'countin' | 'rec' | 'done';
 function Recorder({ onSaved }: { onSaved: (r: Recording) => void }) {
   const h = useHub();
   const [phase, setPhase] = useState<Phase>('idle');
-  const [bpm, setBpm] = useState(80);
-  const [metroOn, setMetroOn] = useState(true);
+  const [bpm, setBpm] = useState(() => Number(localStorage.getItem('rec-bpm') ?? '80'));
+  // nem sempre se grava com metrônomo: começa desligado e lembra a escolha
+  const [metroOn, setMetroOnState] = useState(() => localStorage.getItem('rec-metro') === '1');
+  const setMetroOn = (v: boolean) => {
+    setMetroOnState(v);
+    localStorage.setItem('rec-metro', v ? '1' : '0');
+    metro.muted = !v; // durante a gravação, desligar silencia na hora
+  };
+  useEffect(() => localStorage.setItem('rec-bpm', String(bpm)), [bpm]);
   const [lit, setLit] = useState<Set<number>>(new Set());
   const [notes, setNotes] = useState<NoteEv[]>([]);
   const [current, setCurrent] = useState<number[]>([]);
@@ -150,6 +157,7 @@ function Recorder({ onSaved }: { onSaved: (r: Recording) => void }) {
       const t0 = ctx.currentTime + 0.2;
       metro.bpm = bpm;
       metro.beatsPerBar = 4;
+      metro.muted = false;
       metro.start(t0);
       startAt = t0 + 4 * spb;
       setPhase('countin');
@@ -246,8 +254,10 @@ function Recorder({ onSaved }: { onSaved: (r: Recording) => void }) {
         ) : (
           <>
             <div className={'metro' + (metroOn ? '' : ' off')}>
-              <button className="metro-toggle" onClick={() => setMetroOn(!metroOn)} disabled={recording} title="Liga/desliga o metrônomo">
-                <Icon name="metro" /> {metroOn ? 'Metrônomo' : 'Sem metrônomo'}
+              <button className={'switch' + (metroOn ? ' on' : '')} role="switch" aria-checked={metroOn}
+                onClick={() => setMetroOn(!metroOn)} disabled={recording && !metro.running}>
+                <span className="track"><span className="knob" /></span>
+                <Icon name="metro" /> Metrônomo {metroOn ? 'ligado' : 'desligado'}
               </button>
               {metroOn && (
                 <div className="bpm">

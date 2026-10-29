@@ -18,6 +18,8 @@ npm run build    # produção (pasta dist/, publicada pela Vercel a cada push no
 ## Microfone
 - Detecção **monofônica** (uma nota por vez). Acordes só são reconhecidos pelo MIDI.
 - O limiar se ajusta sozinho ao ruído do ambiente. O controle **Sensibilidade** aparece quando o microfone está ativo, com um medidor de nível: a barra fica verde quando o som passa do limiar (linha amarela).
+- O app **não se ouve**: o clique do metrônomo é um "tic" sem nota definida, e o que o microfone capta enquanto o próprio app toca (clique repetindo a nota que já soa, ou o som do "Ouvir") é descartado. Notas diferentes tocadas junto com o clique continuam valendo.
+- O metrônomo da gravação vem **desligado** (chave Liga/Desliga na tela de gravação). O app lembra a escolha e o BPM.
 - Análise a cada ~10 ms por AudioWorklet, com detecção de ataque. Pega notas rápidas (testado até 80 ms por nota) e a mesma nota tocada de novo.
 
 ## Limitações

@@ -40,18 +40,55 @@ export function perfToAudioTime(perfMs: number): number {
 /** Tempo "ouvido agora" (no mesmo domínio de perfToAudioTime). */
 export const heardNow = () => perfToAudioTime(performance.now());
 
+/*
+ * Sons que o próprio app toca (relógio de áudio). O microfone consulta esta lista para não
+ * confundir o som do app (clique do metrônomo, "Ouvir") com o que o aluno tocou.
+ */
+export type SelfKind = 'click' | 'tone';
+const selfSounds: { start: number; end: number; kind: SelfKind }[] = [];
+function markSelf(start: number, end: number, kind: SelfKind) {
+  selfSounds.push({ start, end, kind });
+  const old = getCtx().currentTime - 5;
+  while (selfSounds.length && selfSounds[0].end < old) selfSounds.shift();
+}
+/** Som do próprio app soando no instante `t` (com folga para a latência e o eco da sala). */
+export function selfSoundAt(t: number): SelfKind | null {
+  let k: SelfKind | null = null;
+  for (const s of selfSounds) {
+    if (t >= s.start - 0.03 && t <= s.end + (s.kind === 'click' ? 0.25 : 0.35)) {
+      if (s.kind === 'tone') return 'tone';
+      k = 'click';
+    }
+  }
+  return k;
+}
+
+let noise: AudioBuffer | null = null;
+/**
+ * Clique do metrônomo: um "tic" de ruído filtrado (como um bloco de madeira), SEM nota
+ * definida — o detector de altura do microfone não o transforma em nota.
+ */
 export function click(time: number, accent: boolean, volume = 0.7) {
   const c = getCtx();
-  const o = c.createOscillator();
+  if (!noise) {
+    noise = c.createBuffer(1, Math.round(c.sampleRate * 0.03), c.sampleRate);
+    const d = noise.getChannelData(0);
+    for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+  }
+  const src = c.createBufferSource();
+  src.buffer = noise;
+  const bp = c.createBiquadFilter();
+  bp.type = 'bandpass';
+  bp.frequency.value = accent ? 3200 : 2400;
+  bp.Q.value = 0.9;
   const g = c.createGain();
-  o.type = 'sine';
-  o.frequency.value = accent ? 1760 : 1175;
   g.gain.setValueAtTime(0, time);
-  g.gain.linearRampToValueAtTime(volume * (accent ? 1 : 0.65), time + 0.002);
-  g.gain.exponentialRampToValueAtTime(0.0001, time + 0.045);
-  o.connect(g).connect(out());
-  o.start(time);
-  o.stop(time + 0.06);
+  g.gain.linearRampToValueAtTime(volume * (accent ? 1.6 : 1.1), time + 0.001);
+  g.gain.exponentialRampToValueAtTime(0.0001, time + 0.025);
+  src.connect(bp).connect(g).connect(out());
+  src.start(time);
+  src.stop(time + 0.03);
+  markSelf(time, time + 0.03, 'click');
 }
 
 /** Síntese simples para ouvir o gabarito. */
@@ -75,4 +112,5 @@ export function playTone(midi: number, time: number, dur: number, volume = 0.22)
     o.start(time);
     o.stop(time + Math.max(0.3, dur) + 0.2);
   }
+  markSelf(time, time + Math.max(0.3, dur) + 0.2, 'tone');
 }

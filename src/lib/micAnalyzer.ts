@@ -5,6 +5,8 @@ export interface MicEvents {
   on(midi: number, cents: number, frame: number): void;
   off(midi: number, frame: number): void;
   level?(level: number, gate: number): void;
+  /** O próprio app está tocando nesse quadro? ('click' = metrônomo, 'tone' = reprodução) */
+  selfSound?(frame: number): 'click' | 'tone' | null;
 }
 
 const RING = 8192;
@@ -66,6 +68,9 @@ export class MicAnalyzer {
   }
 
   private on(r: { midi: number; cents: number }, frame: number) {
+    // som do próprio app: a reprodução nunca vira nota; o clique só não pode "repetir" a nota que já soa
+    const self = this.ev.selfSound?.(frame);
+    if (self === 'tone' || (self === 'click' && r.midi === this.cur)) return;
     if (this.cur >= 0) this.ev.off(this.cur, frame);
     this.cur = r.midi;
     this.cand = r.midi;

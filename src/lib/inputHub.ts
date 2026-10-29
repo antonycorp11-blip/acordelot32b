@@ -1,4 +1,4 @@
-import { getCtx, perfToAudioTime, resumeCtx } from './audio';
+import { getCtx, perfToAudioTime, resumeCtx, selfSoundAt } from './audio';
 import { MicAnalyzer } from './micAnalyzer';
 
 export type Source = 'midi' | 'mic';
@@ -145,6 +145,7 @@ class InputHub {
         on: (midi, cents, f) => this.emit('noteOn', { midi, time: this.frameTime(f), source: 'mic', cents } satisfies HubNote),
         off: (midi, f) => this.emit('noteOff', midi, this.frameTime(f), 'mic'),
         level: (l, g) => this.emit('level', l, g),
+        selfSound: (f) => selfSoundAt(this.frameTime(f)),
       });
       mic.sensitivity = this.sensitivity;
       mic.minFreq = this.minFreq;

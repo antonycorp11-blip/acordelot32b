@@ -1,4 +1,10 @@
-import type { Assignment } from '../types';
+export interface ProgressState {
+  currentBpm: number;
+  currentStreak: number;
+  targetBpm: number;
+  bpmStep: number;
+  streakRequired: number;
+}
 
 export interface ProgressOutcome {
   currentBpm: number;
@@ -15,7 +21,7 @@ export interface ProgressOutcome {
  *  - ao atingir N perfeitas seguidas (e abaixo do alvo): BPM sobe `bpmStep` (limitado ao alvo) e a sequência zera;
  *  - qualquer erro: sequência zera.
  */
-export function applyExecution(a: Pick<Assignment, 'currentBpm' | 'currentStreak' | 'targetBpm' | 'bpmStep' | 'streakRequired'>, perfect: boolean): ProgressOutcome {
+export function applyExecution(a: ProgressState, perfect: boolean): ProgressOutcome {
   if (!perfect) return { currentBpm: a.currentBpm, currentStreak: 0, advanced: false, atTarget: a.currentBpm >= a.targetBpm };
   const streak = a.currentStreak + 1;
   if (streak >= a.streakRequired && a.currentBpm < a.targetBpm) {

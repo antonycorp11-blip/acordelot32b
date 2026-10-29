@@ -9,7 +9,7 @@ export function rms(x: Float32Array): number {
  * Detecção de altura monofônica pelo algoritmo YIN (de Cheveigné & Kawahara, 2002).
  * Só reconhece UMA nota por vez: acordes pelo microfone não são suportados no MVP.
  */
-export function yin(x: Float32Array, sr: number, minF = 50, maxF = 2000, threshold = 0.15): { freq: number; clarity: number } | null {
+export function yin(x: Float32Array, sr: number, minF = 50, maxF = 2000, threshold = 0.15, fallback = 0): { freq: number; clarity: number } | null {
   const tauMax = Math.min(Math.floor(sr / minF), Math.floor(x.length / 2));
   const tauMin = Math.max(2, Math.floor(sr / maxF));
   const W = x.length - tauMax;
@@ -36,6 +36,12 @@ export function yin(x: Float32Array, sr: number, minF = 50, maxF = 2000, thresho
       tau = t;
       break;
     }
+  }
+  // nenhum vale abaixo do limiar: aceita o menor vale se for razoável (som com outras notas soando)
+  if (tau < 0 && fallback > 0) {
+    let best = -1;
+    for (let t = tauMin; t <= tauMax; t++) if (best < 0 || d[t] < d[best]) best = t;
+    if (best >= 0 && d[best] < fallback) tau = best;
   }
   if (tau < 0) return null;
   let best = tau;
